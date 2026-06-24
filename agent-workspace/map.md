@@ -21,6 +21,7 @@ NEUHIS Agent 前端是一个 React + HeroUI 3 + Magic UI 的 AI 诊疗 Agent 聊
   agent-workspace/
     designs/api.md          # 统一 API 请求层设计
     interact-flow.md         # 患者端主流程和全局打断机制
+    requirements-analysis.md # 患者端需求分析，基于交互流程文档拆解范围、规则和验收
     special-decisions.md     # 用户对 agent 下达的特殊要求记录
     tech-selection.md        # 前端技术选型文档
     map.md                   # 当前项目地图
@@ -51,6 +52,7 @@ NEUHIS Agent 前端是一个 React + HeroUI 3 + Magic UI 的 AI 诊疗 Agent 聊
 ## 文档索引
 
 - [交互流程](./interact-flow.md)
+- [患者端需求分析](./requirements-analysis.md)
 - [技术选型](./tech-selection.md)
 - [统一 API 请求层设计](./designs/api.md)
 
@@ -62,6 +64,7 @@ NEUHIS Agent 前端是一个 React + HeroUI 3 + Magic UI 的 AI 诊疗 Agent 聊
 - 拆分 Button variants，修复 Fast Refresh lint 规则。
 - 编写技术选型文档，明确状态管理、网络请求、流式响应、表单校验、流程状态机、Magic UI、测试 mock 的使用边界。
 - 编写统一 API 请求层设计，规划真实服务器和 mock 数据的统一 facade。
+- 编写患者端需求分析，基于交互流程文档拆解主流程、阻塞卡、全局打断、数据对象、验收标准和待确认问题。
 - 按项目规范将新增依赖源码浅克隆到 `references/`。
 
 ## 本次未完成
