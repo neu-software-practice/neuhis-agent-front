@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "magicuidesign-mcp": {
+      "type": "stdio",
+      "command": "pnpx",
+      "args": [
+        "@magicuidesign/mcp@latest"
+      ],
+      "env": {}
+    }
+  }
+}

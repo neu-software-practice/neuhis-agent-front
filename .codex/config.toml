@@ -1,0 +1,3 @@
+[mcp_servers.magicuidesign-mcp]
+command = "pnpx"
+args = ["@magicuidesign/mcp@latest"]
