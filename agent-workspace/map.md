@@ -19,10 +19,11 @@ NEUHIS Agent 前端是一个 React + HeroUI 3 + Magic UI 的 AI 诊疗 Agent 聊
     lib/utils.ts             # cn 工具函数
     test/setup.ts            # Vitest + jest-dom 初始化
   agent-workspace/
-    designs/api.md          # 统一 API 请求层设计
+    special-designs/api.md  # 前端 API 合约与 Mock 设计，含 REST/SSE contract 和结项 REST 文档要求
     interaction-flow.md      # 患者端完整业务流程、检验子流程、急症/超时/退出机制、Agent 决策主循环
     core-interaction-flow.md # 核心卡片流转、阻塞卡、完成后自动复诊和全局打断/升级机制
     requirements-analysis.md # 患者端需求分析，基于交互流程文档拆解范围、规则和验收
+    ui-designs.md            # UI 设计文档，含患者视角原则、页面清单、路由映射、ASCII 草图、输入辅助和跳转关系
     special-decisions.md     # 用户对 agent 下达的特殊要求记录
     tech-selection.md        # 前端技术选型文档
     map.md                   # 当前项目地图
@@ -55,24 +56,33 @@ NEUHIS Agent 前端是一个 React + HeroUI 3 + Magic UI 的 AI 诊疗 Agent 聊
 - [完整交互流程](./interaction-flow.md)
 - [核心交互流程](./core-interaction-flow.md)
 - [患者端需求分析](./requirements-analysis.md)
+- [UI 设计文档](./ui-designs.md)
 - [技术选型](./tech-selection.md)
-- [统一 API 请求层设计](./designs/api.md)
+- [前端 API 合约与 Mock 设计](./special-designs/api.md)
 
 ## 本次完成
 
-- 从文档树中移除 `agent-workspace/designs/ui-design.md`，并清理 AGENTS、需求分析和项目地图中的对应引用。
-- 基于更新后的 `interaction-flow.md` 与 `core-interaction-flow.md` 重做患者端需求分析。
-- 新版需求分析补齐新出诊/复诊入口、Agent 决策主循环、追问/检验轮次上限、检验纯执行子流程、随访复诊、急症并行监听、单一总超时和主动退出结算规则。
-- 更新文档索引，移除旧 `interact-flow.md` 引用并加入 `core-interaction-flow.md`。
+- 将特殊设计目录统一为 `agent-workspace/special-designs/`。
+- 更新 API 设计职责：接口 contract 由前端先定义，mock、MSW 和 HTTP transport 共用同一套 REST/SSE schema。
+- 记录结项交付要求：项目结项后需产出 `agent-workspace/special-designs/rest-api.md` 作为 REST API 文档。
+- 新增 `agent-workspace/ui-designs.md`，作为东软云脑智能医疗患者端 UI 设计文档。
+- UI 设计文档从患者任务出发，明确主线优先、用户触发、输入减负、渐进露出和避免喧宾夺主等界面原则。
+- 首页设计补充继续问诊、常见症状入口、最近一次复诊提醒；完整历史集中在 `HOME-HISTORY`，不放入工作台主界面。
+- 工作台设计补充移动端默认收起的本次上下文摘要、症状 chip、快速回答、补充资料入口、完成后复诊 chip 和阻塞卡隐藏辅助控件规则。
+- 草图保持高保真 HTML 原型的固定顶栏、虚拟滚动时间线、阻塞锁定栏、底部输入、急症/超时 Overlay 和退出 Sheet 结构。
 
 ## 上次完成
 
+- 从文档树中移除旧 UI 设计文档路径，并清理 AGENTS、需求分析和项目地图中的对应引用。
+- 基于更新后的 `interaction-flow.md` 与 `core-interaction-flow.md` 重做患者端需求分析。
+- 新版需求分析补齐新出诊/复诊入口、Agent 决策主循环、追问/检验轮次上限、检验纯执行子流程、随访复诊、急症并行监听、单一总超时和主动退出结算规则。
+- 更新文档索引，移除旧 `interact-flow.md` 引用并加入 `core-interaction-flow.md`。
 - 一次性安装前端基础架构依赖。
 - 新增 Vitest 测试配置和 Testing Library 初始化。
 - 配置 ESLint/Vitest 忽略 `references/`，避免第三方源码参与本项目验证。
 - 拆分 Button variants，修复 Fast Refresh lint 规则。
 - 编写技术选型文档，明确状态管理、网络请求、流式响应、表单校验、流程状态机、Magic UI、测试 mock 的使用边界。
-- 编写统一 API 请求层设计，规划真实服务器和 mock 数据的统一 facade。
+- 编写前端 API 合约与 Mock 设计，规划真实 HTTP 请求和 mock 数据的统一 facade。
 - 编写患者端需求分析，基于交互流程文档拆解主流程、阻塞卡、全局打断、数据对象、验收标准和待确认问题。
 - 按项目规范将新增依赖源码浅克隆到 `references/`。
 
@@ -80,6 +90,7 @@ NEUHIS Agent 前端是一个 React + HeroUI 3 + Magic UI 的 AI 诊疗 Agent 聊
 
 - 业务页面仍是 Vite 默认示例，尚未开始实现 Agent 聊天界面。
 - 尚未创建应用级 Provider、路由表、API 客户端、QueryClient、状态机和 store。
-- 尚未实现 `agent-workspace/designs/api.md` 中的统一请求层。
+- 尚未实现 `agent-workspace/special-designs/api.md` 中的统一请求层与 mock transport。
 - Magic UI 组件尚未实际复制进 `src/components/ui`，后续按聊天界面需要引入。
-- 需求分析已更新，但 `designs/api.md` 还需要在后续实现前按新版状态/事件进一步细化接口字段。
+- 需求分析已更新，`special-designs/api.md` 已改为由前端先行定义 REST/SSE contract；后续实现时需继续细化 schema 并在结项输出 REST API 文档。
+- 本次仅完成 UI 设计文档，尚未实现首页和工作台业务界面。

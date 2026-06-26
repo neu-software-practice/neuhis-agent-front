@@ -33,8 +33,8 @@ agent-workspace/
   interaction-flow.md            # 患者端完整业务流程、检验子流程、全局打断/升级机制
   core-interaction-flow.md       # 核心卡片流转、阻塞卡片、完成后自动复诊
   tech-selection.md              # 前端技术选型、依赖用途、目录分层建议
-  designs/
-    api.md                       # 统一 API 请求层设计：真实服务器 / mock 数据统一 facade
+  special-designs/
+    api.md                       # 前端 API 合约与 Mock 设计：前端先定义 REST/SSE contract，再 mock 和联调
   无人医院_患者端_交互原型.html  # 患者端交互原型
 ```
 
@@ -42,7 +42,8 @@ agent-workspace/
 
 - 每次实现后必须更新 `agent-workspace/map.md`。
 - 技术选型、架构设计、流程分析等文档必须放在 `agent-workspace/` 下。
-- 新增设计文档优先放入 `agent-workspace/designs/`，并同步更新本地图。
+- 特殊设计文档优先放入 `agent-workspace/special-designs/`，并同步更新本地图。
+- 涉及 API 接口的部分由本前端工程先定义 REST/SSE contract，并以该 contract 实现 mock；项目结项后必须产出一套 REST API 文档。
 
 ## 提交规范
 

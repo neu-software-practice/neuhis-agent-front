@@ -312,5 +312,5 @@ src/
 - 尚未创建 `QueryClientProvider`、API client、Zustand store、XState machine 等业务骨架代码。
 - 尚未实现 `ChatTimeline` 虚拟列表组件；当前仅完成依赖与技术设计。
 - 尚未实际添加 Magic UI 组件文件到 `src/components/ui`，因为具体聊天界面尚未开始实现，后续按页面需要引入。
-- 尚未配置 MSW handlers，需等后端接口草案或本地 mock API 结构确定后再建。
-- 尚未实现 AI 聊天流式接口封装，需等待后端 SSE 协议字段确认。
+- 尚未配置 MSW handlers，需基于前端先行定义的 REST/SSE contract 和 mock API 结构创建。
+- 尚未实现 AI 聊天流式接口封装；SSE 协议字段由前端 contract 先定义，再由 mock 和 HTTP transport 共同实现。

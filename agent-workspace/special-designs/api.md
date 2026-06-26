@@ -1,14 +1,19 @@
-# 统一 API 请求层设计
+# 前端 API 合约与 Mock 设计
 
-更新时间：2026-06-24
+更新时间：2026-06-26
 
 ## 背景
 
-后端当前尚未开始开发，但前端需要尽快推进 Agent 聊天界面、流程卡片、支付/检验/确诊等交互。为了避免页面组件直接依赖临时 mock 数据，项目需要先建立统一请求层：
+本项目处于前端先行的分析与设计阶段。Agent 聊天界面、流程卡片、检验缴费、确诊处置、复诊和全局打断都需要稳定的数据契约支撑，不以后端先完成接口设计为前置条件。
+
+因此 API 合约由本前端工程先定义，并以该合约实现 mock。后续后端接入时，应优先按本工程沉淀的 REST/SSE 合约实现或协商调整；前端只在 contract 变更处做显式迁移，不把页面组件改成临时接口适配代码。
+
+为了避免页面组件直接依赖临时 mock 数据，项目需要先建立统一请求层：
 
 - 对页面、hooks、状态机暴露稳定的业务 API。
-- 底层可切换真实服务器请求或本地 mock 数据。
-- 后端接口就绪后，尽量只替换 transport 或 endpoint 映射，不重写 UI。
+- 前端先定义 REST/SSE contract，mock 和真实 HTTP transport 共用同一份类型与 schema。
+- 底层可切换真实 HTTP 请求或本地 mock 数据。
+- 后端接入时以 contract 对齐为主，必要时只在 adapter/transport 层处理字段映射，不重写 UI。
 - 与 TanStack Query、XState、SSE 流式聊天保持清晰边界。
 
 ## 目标
@@ -18,11 +23,13 @@
 3. 支持按环境切换：`mock`、`http`，未来可扩展 `msw`。
 4. 普通查询、mutation、流式聊天分别封装，但对外保持统一入口。
 5. mock 数据能模拟异步延迟、错误、流程状态变化，支撑前端独立开发。
+6. 在前端工程内定义首版 REST/SSE 接口契约，包括 endpoint、method、请求 schema、响应 schema、错误模型和流式事件。
+7. 项目结项时产出一套可交付的 REST API 文档，作为后端实现、联调和验收依据。
 
 ## 非目标
 
-- 不在本阶段定义最终后端接口协议。
 - 不在本阶段实现完整医疗业务规则。
+- 不在前端工程中实现真实医疗系统、支付系统、检验设备或药房系统。
 - 不把 mock 数据写死在 React 组件里。
 - 不用 Zustand 存储服务端数据缓存。
 
@@ -164,9 +171,52 @@ visitApi.exitVisit(input)
 - 流式：`stream*`
 - 不使用 `fetch*` 暴露给业务层，因为底层不一定是真实 fetch。
 
+## 前端先行 REST/SSE 合约
+
+REST/SSE 合约由前端维护，mock transport、MSW handler 和真实 HTTP transport 都必须围绕同一套 contract 实现。后端联调时以该 contract 为基线，若需要调整字段或状态枚举，必须同步更新 schema、mock 数据、契约测试和结项 REST API 文档。
+
+首批 endpoint 草案：
+
+| 领域 | Method | Endpoint | 用途 | Facade |
+| --- | --- | --- | --- | --- |
+| patient | `POST` | `/patients/verify` | 身份核验，返回患者摘要和历史病史可读范围 | `patientApi.verifyIdentity` |
+| visit | `POST` | `/visits` | 创建新出诊或复诊 session | `chatApi.createSession` |
+| visit | `GET` | `/visits` | 查询历史就诊列表 | `visitApi.listSessions` |
+| visit | `GET` | `/visits/:sessionId` | 查询会话详情、当前流程状态、摘要 | `chatApi.getSession` |
+| chat | `GET` | `/visits/:sessionId/timeline` | 分页查询聊天消息和流程卡片混排时间线 | `chatApi.listTimeline` |
+| chat | `POST` | `/visits/:sessionId/messages` | 发送患者消息，返回本轮消息占位和流程状态 | `chatApi.sendMessage` |
+| chat | `POST` | `/visits/:sessionId/assistant-stream` | SSE 流式生成 AI 回复和流程卡片事件 | `chatApi.streamAssistantMessage` |
+| lab | `POST` | `/visits/:sessionId/lab-decision` | 提交是否检验、暂不决定、不查等动作 | `visitApi.submitLabDecision` |
+| payment | `POST` | `/visits/:sessionId/payments` | 创建或确认检验/药品支付 | `visitApi.submitPayment` |
+| diagnosis | `GET` | `/visits/:sessionId/diagnosis` | 获取确诊结果和依据 | `visitApi.getDiagnosis` |
+| treatment | `POST` | `/visits/:sessionId/treatment-actions` | 提交取药方式、处置执行确认等动作 | `visitApi.submitTreatmentAction` |
+| visit | `POST` | `/visits/:sessionId/exit` | 主动退出并生成结算结果 | `visitApi.exitVisit` |
+
+分页约定：
+
+- 时间线分页按 `cursor` 查询更早数据，响应返回 `items`、`nextCursor`、`hasMore`。
+- `TimelineItem` 是 REST 响应中的稳定展示单元，消息、系统事件、流程卡、终止卡都必须落到同一条时间线。
+- mock 和真实 HTTP 都必须保证 `TimelineItem.id` 稳定，避免虚拟列表重挂载。
+
+SSE 事件约定：
+
+- `delta`：AI 文本增量。
+- `message_final`：AI 消息最终文本和 message id。
+- `card`：新增或更新流程卡。
+- `state`：流程状态变更。
+- `emergency`：急症打断。
+- `done`：本轮流式结束。
+- `error`：流式错误，结构遵循统一 `ApiError`。
+
+结项 REST API 文档要求：
+
+- 结项时在 `agent-workspace/special-designs/rest-api.md` 产出完整 REST API 文档。
+- 文档必须包含 endpoint 清单、鉴权/患者身份上下文、请求参数、响应结构、错误码、分页、SSE 事件、状态枚举和典型时序。
+- REST API 文档以本前端工程已实现并通过 mock/契约测试的 schema 为准，不另起一套口头协议。
+
 ## TanStack Query 接入
 
-所有服务端状态通过 queryOptions/mutationOptions 统一封装。
+所有远端/契约状态通过 queryOptions/mutationOptions 统一封装。mock 模式和 HTTP 模式对 hook 层表现一致。
 
 ```ts
 export const chatQueries = {
@@ -243,7 +293,7 @@ chatApi.streamAssistantMessage(
 事件约定：
 
 - `delta`：AI 文本增量。
-- `card`：后端要求展示流程卡。
+- `card`：服务端按前端 contract 要求新增或更新流程卡。
 - `done`：本轮生成结束。
 - `error`：流式错误。
 
@@ -296,24 +346,26 @@ XState 负责流程状态，不负责缓存。
 
 ## 与 MSW 的关系
 
-短期优先实现 `mock transport`，因为后端协议未定，前端可以直接走统一 facade。
+短期优先实现 `mock transport`，因为 contract 由前端先行定义，前端可以直接围绕统一 facade 推进业务界面和状态机。
 
-MSW 后续用于更接近真实网络的测试：
+MSW 后续用于更接近真实网络的测试，并验证 REST/SSE contract：
 
 - 组件集成测试。
 - E2E 测试。
 - 验证 ky/http transport 的错误处理。
+- 验证结项 REST API 文档中的 endpoint、状态码和错误模型。
 
 长期推荐：
 
 - 开发阶段：`VITE_API_MODE=mock` 使用 mock transport。
-- 接口联调：`VITE_API_MODE=http` 使用真实后端。
+- 接口联调：`VITE_API_MODE=http` 使用真实服务端，并按前端 contract 做契约测试。
 - 测试阶段：unit 使用 mock transport，integration 使用 MSW。
 
 ## 实施计划
 
-### 第一阶段：请求层骨架
+### 第一阶段：前端 API contract 与请求层骨架
 
+- 定义首版 REST/SSE contract：endpoint、method、schema、错误模型、SSE 事件。
 - 创建 `src/lib/api/*`。
 - 实现 `ApiTransport`、`getTransport()`、`ApiError`。
 - 实现 ky http transport。
@@ -326,6 +378,7 @@ MSW 后续用于更接近真实网络的测试：
 - 实现 `chatApi`、`visitApi` facade。
 - 实现 mock fixtures 和 mock-db。
 - 实现 `streamAssistantMessage` 的 mock 流式输出。
+- 让 mock handler 严格复用 REST/SSE contract schema，不新增 mock-only 字段。
 
 ### 第三阶段：Query 封装
 
@@ -339,17 +392,25 @@ MSW 后续用于更接近真实网络的测试：
 - 为 API facade 写契约测试：同一测试可跑 mock/http mock server。
 - 为错误转换和 Zod 解析失败写测试。
 
+### 第五阶段：结项 REST API 文档
+
+- 从已实现的 schema、mock handler、MSW handler 和契约测试整理 REST API 文档。
+- 输出 `agent-workspace/special-designs/rest-api.md`。
+- 文档需能支持后端按 endpoint 独立实现，并支持 QA 按典型流程验收。
+
 ## 验收标准
 
 - UI 组件不直接导入 `ky`、`fetch`、mock fixtures。
 - 切换 `VITE_API_MODE` 不需要改业务组件。
 - mock 模式可以完整跑通一次问诊主流程。
-- HTTP 模式只需要补齐 endpoint 和后端字段映射。
+- HTTP 模式必须按前端 contract 发起请求；若服务端字段不同，只在 adapter/transport 层显式映射。
+- 所有 mock 响应都通过同一套 Zod schema 校验。
+- 结项时存在完整 REST API 文档，并能追溯到前端实现的 schema 和契约测试。
 - `pnpm test`、`pnpm lint`、`pnpm build` 通过。
 
 ## 风险与注意事项
 
-- 后端字段最终确认后，可能需要增加 adapter 层做字段映射。
+- 后端接入时如果不能直接采用前端 contract，必须增加 adapter 层并同步更新契约测试，避免 UI 层散落字段兼容逻辑。
 - mock-db 必须保持简单，避免演变成另一个复杂后端。
 - 医疗流程状态不能只靠 mock handler 隐式推进，关键状态仍应进入 XState。
 - 流式响应要始终支持 AbortController，避免退出或急症打断后仍继续写入消息。
