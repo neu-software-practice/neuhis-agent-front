@@ -1,5 +1,7 @@
 # NEUHIS Agent 前端项目
 
+产品名：**东软云脑智能医疗**（界面对外展示名称）。
+
 随着人工智能、大数据和医疗信息化的发展，诊疗服务正从传统的“医生经验驱动、人工操作为主”逐步走向“数据驱动、AI 辅助、全流程协同”。
 
 本平台围绕“AI+诊疗”展开，采用**前后端分离架构**。前端基于React框架+HeroUI 3+Magic UI，实现一个人机交互的Agentic聊天界面。
@@ -28,10 +30,12 @@ agent-workspace 是项目文档工作区，当前文档地图如下：
 agent-workspace/
   map.md                         # 项目代码地图、技术栈快照、完成/未完成事项
   special-decisions.md           # 用户对 agent 下达的特殊要求记录
-  interact-flow.md               # 患者端主流程、阻塞卡片、全局打断/升级机制
+  interaction-flow.md            # 患者端完整业务流程、检验子流程、全局打断/升级机制
+  core-interaction-flow.md       # 核心卡片流转、阻塞卡片、完成后自动复诊
   tech-selection.md              # 前端技术选型、依赖用途、目录分层建议
   designs/
     api.md                       # 统一 API 请求层设计：真实服务器 / mock 数据统一 facade
+    ui-design.md                 # 患者端界面设计：主页 + 工作台页内容与组件排布
   无人医院_患者端_交互原型.html  # 患者端交互原型
 ```
 
