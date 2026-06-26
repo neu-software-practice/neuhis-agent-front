@@ -35,7 +35,6 @@ agent-workspace/
   tech-selection.md              # 前端技术选型、依赖用途、目录分层建议
   designs/
     api.md                       # 统一 API 请求层设计：真实服务器 / mock 数据统一 facade
-    ui-design.md                 # 患者端界面设计：主页 + 工作台页内容与组件排布
   无人医院_患者端_交互原型.html  # 患者端交互原型
 ```
 

@@ -8,7 +8,6 @@
 
 - `agent-workspace/interaction-flow.md`：患者端完整业务流程，包括新出诊/复诊入口、检验子流程、单一总超时、处置决策、急症守护、主动退出和 Agent 决策主循环。
 - `agent-workspace/core-interaction-flow.md`：核心界面流转，包括阻塞卡、卡片否决、检验缴费、确诊卡、AI 处置决策、完成后继续输入触发自动复诊。
-- `agent-workspace/designs/ui-design.md`：界面内容与组件排布参考，不扩展新的业务边界。
 - 当前代码结构：`src/App.tsx` 仍是 Vite 示例页，尚未实现业务界面；后续实现应从状态机、mock facade、聊天时间线和流程卡片骨架开始。
 
 旧版 `interact-flow.md` 已不再作为需求来源；文档引用统一切换为 `interaction-flow.md` 和 `core-interaction-flow.md`。
