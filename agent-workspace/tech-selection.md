@@ -1,6 +1,6 @@
 # 前端技术选型文档
 
-更新时间：2026-06-24
+更新时间：2026-06-26
 
 ## 项目背景
 
@@ -20,6 +20,7 @@ NEUHIS Agent 前端是一个面向患者端 AI 诊疗流程的人机协作界面
 | 基础组件 | HeroUI 3 | 3.2.1 | 表单、弹窗、按钮、列表等可访问性组件 |
 | 组件补充 | shadcn + Magic UI | shadcn 4.11.0 | 按需复制组件，补充聊天动效与局部视觉组件 |
 | 图标 | lucide-react | 1.21.0 | 操作按钮、状态提示、导航图标 |
+| 虚拟滚动 | React Virtuoso | 4.18.9 | 聊天时间线长列表、动态高度消息与流程卡片混排 |
 
 ## 新增依赖决策
 
@@ -113,6 +114,52 @@ NEUHIS Agent 前端是一个面向患者端 AI 诊疗流程的人机协作界面
 - AI 消息流式输出单独封装在 `src/features/chat/api/stream.ts`。
 - 用户取消、主动退出、急症打断时必须能 abort 当前流。
 - 流式消息的增量内容进入聊天消息 reducer/store，不直接写 DOM。
+
+### 聊天时间线虚拟滚动：React Virtuoso
+
+包：`react-virtuoso`
+
+用于工作台聊天时间线的虚拟化渲染。当前时间线不是普通定高列表，而是“患者消息 + AI 流式消息 + 流程卡片 + 阻塞卡 + 终止卡”的混排列表，单项高度不固定，并且需要支持底部跟随、向上加载历史和流式内容持续增高。
+
+选择 React Virtuoso 的原因：
+
+- MIT 许可，适合作为默认工程依赖；不引入商业授权风险。
+- 支持动态高度条目，适合消息气泡、诊断卡、缴费卡等高度差异很大的内容。
+- 支持 `followOutput` / `alignToBottom` 等聊天常见滚动行为，短会话可贴底，新消息可在用户处于底部时自动跟随。
+- 支持通过 `startReached`、`firstItemIndex` 等能力实现向上加载更早历史，并尽量保持当前阅读位置。
+- 组件无内置视觉风格，`itemContent` 内仍由 HeroUI、Magic UI、Tailwind 和业务组件负责渲染。
+
+不选择的方案：
+
+| 方案 | 结论 | 原因 |
+| --- | --- | --- |
+| `@virtuoso.dev/message-list` | 暂不选 | 专门面向聊天，但为商业许可；除非后续确认采购授权，否则不作为默认依赖 |
+| `@tanstack/react-virtual` | 备选 | Headless、灵活、MIT，但聊天的底部跟随、历史 prepend、流式增高策略需要自行封装，当前阶段用 React Virtuoso 更省工程风险 |
+| `react-window` | 暂不选 | 适合简单长列表；动态高度、流式消息和反向加载历史的业务封装成本较高 |
+
+时间线数据建模约定：
+
+- 聊天时间线统一渲染 `TimelineItem[]`，不要把消息列表和流程卡片分成两个滚动区域。
+- `TimelineItem` 至少包含 `id`、`kind`、`createdAt`、`status`，其中 `kind` 可为 `message`、`flowCard`、`systemEvent`、`terminalCard`。
+- `id` 必须稳定；乐观消息用本地 `localId`，服务端确认后保留渲染 key，不因服务端 ID 回填导致整行重挂载。
+- 阻塞卡处理后仍保留在同一个 `TimelineItem` 位置，只更新 `status` 与处理结果，不从数组中删除。
+
+滚动行为约定：
+
+- 初次进入会话：默认定位到最后一条，短会话贴底显示。
+- 新增患者消息 / AI 消息：如果用户当前在底部附近，自动跟随到底部；如果用户正在向上回看，不强制跳到底部，显示“回到底部”浮动按钮。
+- AI 流式输出：只更新当前流式 AI 消息项；增量文本进入 reducer 后再驱动列表更新，必要时按 animation frame 合并 chunk，避免每个 token 都触发完整时间线重渲染。
+- 向上加载历史：滚动到顶部附近触发历史分页请求，prepend 更早 `TimelineItem`，保持用户当前可见内容位置稳定。
+- 阻塞卡生成：作为时间线新项追加；若用户在底部附近则滚动到卡片处，否则保留当前位置并提示有新决策。
+- 全局急症 / 超时 overlay 不放进虚拟列表；确认后再追加终止类 `TimelineItem` 留痕。
+
+性能实现约定：
+
+- `ChatTimeline` 只接收已排序、扁平化的 `TimelineItem[]`，排序和服务端数据合并放在 hook / selector 层。
+- `itemContent` 根据 `kind` 分发到 memoized 行组件，避免单条流式消息更新导致所有已渲染卡片重算。
+- 大型卡片内部避免读取整份会话对象；只传入该卡片必要字段和动作回调。
+- overscan 保持中等，优先保证滚动稳定，不为了“预渲染更多卡片”牺牲移动端性能。
+- 测试需覆盖：初始定位到底部、用户上滑时新消息不打断阅读、点击回到底部、prepend 历史后视口不跳、流式消息高度变化时底部跟随。
 
 ### 表单与校验：React Hook Form + Zod
 
@@ -216,6 +263,7 @@ src/
 - `@hookform/resolvers`
 - `@microsoft/fetch-event-source`
 - `motion`
+- `react-virtuoso`
 
 开发依赖：
 
@@ -239,6 +287,7 @@ src/
 - `references/hookform-resolvers`
 - `references/fetch-event-source`
 - `references/motion`
+- `references/react-virtuoso`
 - `references/vitest`
 - `references/react-testing-library`
 - `references/jest-dom`
@@ -248,6 +297,9 @@ src/
 
 ## 本次完成
 
+- 增加聊天时间线虚拟滚动技术选型：选择 `react-virtuoso`，记录选择原因、备选方案、时间线数据建模、滚动行为和性能实现约定。
+- 安装 `react-virtuoso` 并更新 `pnpm-lock.yaml`。
+- 按项目规范浅克隆 `react-virtuoso` 源码到 `references/react-virtuoso`。
 - 完成状态管理、服务端状态、流程状态机、网络请求、流式响应、表单校验、Magic UI 动效基础、测试与 Mock 的技术选型。
 - 一次性安装上述依赖，并更新 `pnpm-lock.yaml`。
 - 为测试环境增加基础脚本和配置。
@@ -258,6 +310,7 @@ src/
 ## 本次未完成
 
 - 尚未创建 `QueryClientProvider`、API client、Zustand store、XState machine 等业务骨架代码。
+- 尚未实现 `ChatTimeline` 虚拟列表组件；当前仅完成依赖与技术设计。
 - 尚未实际添加 Magic UI 组件文件到 `src/components/ui`，因为具体聊天界面尚未开始实现，后续按页面需要引入。
 - 尚未配置 MSW handlers，需等后端接口草案或本地 mock API 结构确定后再建。
 - 尚未实现 AI 聊天流式接口封装，需等待后端 SSE 协议字段确认。

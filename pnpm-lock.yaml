@@ -65,6 +65,9 @@ importers:
       react-router:
         specifier: ^8.0.1
         version: 8.0.1(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      react-virtuoso:
+        specifier: ^4.18.9
+        version: 4.18.9(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       shadcn:
         specifier: ^4.11.0
         version: 4.11.0(typescript@6.0.3)
@@ -3340,6 +3343,12 @@ packages:
     peerDependencies:
       react: '>=16.6.0'
       react-dom: '>=16.6.0'
+
+  react-virtuoso@4.18.9:
+    resolution: {integrity: sha512-hnS+4ip23UfMOAbiEfkpUu9OHau9SAYWgu3fUcKKnCmngV4eorkPSMm7/4XzjLqj4EKwIXk6Jeyd1azIbVnMkQ==}
+    peerDependencies:
+      react: '>=16 || >=17 || >= 18 || >= 19'
+      react-dom: '>=16 || >=17 || >= 18 || >=19'
 
   react@19.2.7:
     resolution: {integrity: sha512-HNe9WslTbXmFK8o8cmwgAeJFSBvt1bPdHCVKtaaV+WlAN36mpT4hcRpwbf3fY56ar2oIXzsBpOAiIRHAdY0OlQ==}
@@ -7207,6 +7216,11 @@ snapshots:
       dom-helpers: 5.2.1
       loose-envify: 1.4.0
       prop-types: 15.8.1
+      react: 19.2.7
+      react-dom: 19.2.7(react@19.2.7)
+
+  react-virtuoso@4.18.9(react-dom@19.2.7(react@19.2.7))(react@19.2.7):
+    dependencies:
       react: 19.2.7
       react-dom: 19.2.7(react@19.2.7)
 
