@@ -205,7 +205,7 @@ src/
 ```tsx
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { RouterProvider } from 'react-router'
+import { RouterProvider } from 'react-router/dom'
 import { router } from './app/router'
 import './globals.css'
 
@@ -241,7 +241,7 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
 
 ### 4.3 路由模式
 
-项目采用 React Router Data Router，集中使用 `createBrowserRouter` 和 `RouterProvider`。原因：
+项目采用 React Router Data Router，集中使用 `createBrowserRouter` 和 `RouterProvider`。`createBrowserRouter` 从 `react-router` 导入，DOM 环境的 `RouterProvider` 从 `react-router/dom` 导入。原因：
 
 - 当前项目仍是 Vite SPA，暂不引入 React Router Framework Mode。
 - Data Router 能提供 route object、loader、error boundary、pending navigation 等能力。
@@ -370,7 +370,7 @@ export interface VisitSession {
 
 - `VisitStatus` 是**服务端持久化的粗粒度状态**，机器态（§7.3）是前端更细的运行态。两者不要求一一对应。
 - `blocked` 是聚合态：表示“有阻塞卡待处理”，但具体停在 `labDecision` / `labPayment` / `medicationPayment` / `medicationFulfillment` 哪一态，由 `activeCardId` 指向的 flow card 的 `kind` 反推（hydration 规则见 §8.3）。
-- `treatment` 同样是聚合态，覆盖 `medicationPayment` / `medicationFulfillment` / `adviceOnly`。
+- `treatment` 同样是聚合态，覆盖 `medicationPayment` / `medicationFulfillment` / `treatmentExecution` / `adviceOnly`。
 - `transferred` / `emergency_terminated` / `exited` 都映射到机器 `terminated` 态，由 `terminalReason` 区分；新增 `terminalReason` 取值与 §5.3 的 `TerminalReason` 同源。
 - 复诊会话用 `parentSessionId` 关联上次会话，对齐 medAgent 复诊“回传 `prior` 历史纪要”的机制（见 api.md）。
 
@@ -493,19 +493,19 @@ export interface FlowCardBase {
 每种卡片使用 discriminated union 扩展：
 
 - `LabDecisionCardData`：检验项目、原因、鉴别目标、费用预估。
-- `PaymentCardData`：支付类型（检验费 / 药品费）、明细、医保、自费、支付状态。
+- `PaymentCardData`：支付用途 `purpose: 'lab' | 'medication'`、明细、医保、自费、支付状态。
 - `LabExecutionCardData`：检验执行状态（待缴费 / 执行中 / 等待结果 / 已回填）、结果摘要。
 - `DiagnosisCardData`：诊断、依据、依据来源、风险信号。
 - `TreatmentPlanCardData`：处置类型（`medication` / `treatment` / `advice_only`）、本院能力判断、执行动作清单；`referral` 不落处置卡，直接走终止卡。
 - `MedicationFulfillmentCardData`：药品清单、盒数、取药方式（自取 / 配送）、缴费与履约状态。
-- `TreatmentExecutionCardData`：治疗项目、预约 / 排队 / 执行状态、注意事项。
+- `TreatmentExecutionCardData`：治疗项目、能力判断、预约 / 排队 / 执行状态、注意事项、可执行动作。
 - `AdviceOnlyCardData`：医嘱、观察项、复诊建议。
 - `CompletedVisitCardData`：本次诊断、处置摘要、随访 / 复诊提醒。
 
 说明：
 
 - 转诊（`referral`）、达上限、本院能力不足、超时、急症、退出统一走 §5.3 的 `TerminalTimelineItem`，不再有独立的 `TransferCardData` 流程卡。
-- **自动化治疗分支为产品保留功能，当前后端 medAgent 不具备执行能力。** medAgent 处置仅 `MEDICATION` / `ADVICE_ONLY` / `REFERRAL` 三类，需院内操作 / 手术直接 `REFERRAL`。因此 `treatment` 分支在 HTTP 模式下暂无后端支撑，首版仅在 mock 模式演示完整 UI；HTTP 联调时若后端仍无治疗执行能力，`treatment` 意图按 `referral` 收口。详见 §6.6 与 §10、`special-designs/api.md`。
+- **自动化治疗分支为产品保留功能，当前 medAgent 决策引擎不具备执行能力。** medAgent 处置仅 `MEDICATION` / `ADVICE_ONLY` / `REFERRAL` 三类，需院内操作 / 手术直接 `REFERRAL`。前端仍保留 `treatment_execution` 卡和 `submitTreatmentExecution` facade，代表后端业务层 / mock 的治疗预约、排队、执行能力；HTTP 联调时若后端业务层尚未补齐该能力，`treatment` 意图按 `referral` 或 `capability_insufficient` 收口。详见 §6.4、§10、`special-designs/api.md`。
 
 ## 6. API Facade 设计
 
@@ -614,19 +614,23 @@ streamAssistantMessage(input: StreamAssistantInput, handlers: StreamHandlers<Ass
 submitLabDecision(input: SubmitLabDecisionInput): Promise<FlowActionResult>
 submitPayment(input: SubmitPaymentInput): Promise<FlowActionResult>
 submitFulfillment(input: SubmitFulfillmentInput): Promise<FlowActionResult>
+submitTreatmentExecution(input: SubmitTreatmentExecutionInput): Promise<FlowActionResult>
 ackAdvice(input: AckAdviceInput): Promise<FlowActionResult>
 askLockedQuestion(input: AskLockedQuestionInput, handlers: StreamHandlers<AssistantStreamEvent>): Promise<void>
 classifyFollowUpIntent(input: ClassifyIntentInput): Promise<ClassifyIntentResult>
 streamConsultationReply(input: ConsultationInput, handlers: StreamHandlers<AssistantStreamEvent>): Promise<void>
+reportVitals(input: ReportVitalsInput): Promise<EmergencyRecheckResult>
 exitVisit(input: ExitVisitInput): Promise<ExitSettlementResult>
 pauseVisitTimer(input: PauseVisitTimerInput): Promise<VisitSession>
 resumeVisitTimer(input: ResumeVisitTimerInput): Promise<VisitSession>
 ```
 
 > 说明：
-> - 移除原 `submitTreatmentAction` 笼统方法，按 medAgent 实际动作拆为 `submitPayment`（检验费 / 药品费复用同一支付动作，由卡片 `paymentType` 区分）、`submitFulfillment`（取药方式：自取 / 配送）、`ackAdvice`（仅医嘱确认）。medAgent 无院内治疗执行，故无治疗预约类方法。
+> - 移除原 `submitTreatmentAction` 笼统方法，按患者实际动作拆为 `submitPayment`（检验费 / 药品费复用同一支付动作，由卡片 `purpose` 区分）、`submitFulfillment`（取药方式：自取 / 配送）、`submitTreatmentExecution`（自动化治疗预约 / 到号 / 执行确认）、`ackAdvice`（仅医嘱确认）。
+> - `submitTreatmentExecution` 不直接对应 medAgent。它属于后端业务层 / mock 的治疗执行能力，用于产品保留的自动化治疗分支；HTTP 模式下后端若尚未支持该分支，不应产出 `plan: 'treatment'`，而应返回 `referral` 或 `capability_insufficient` 终止。
 > - `askLockedQuestion`：阻塞卡锁定期间“我有疑问”通道，流式回复但不推进主流程（对应 UI §3.4）。
 > - `classifyFollowUpIntent` / `streamConsultationReply`：完成态输入的意图分类与咨询回答，**优先走 AI**（对应 UI §3.7 的咨询 / 复诊 / 不确定三分类）。
+> - `reportVitals`：锁定态或普通问诊中由患者主动上报“我现在很不舒服”等体征/急症信号，触发急症守护复检；若复检命中，后续仍以 `EMERGENCY_DETECTED` 事件进入急症覆盖态。
 
 命名约定：
 
@@ -655,6 +659,35 @@ export type SendMessageInput = z.infer<typeof sendMessageInputSchema>
 - UI 表单提交前校验输入 schema。
 - HTTP 响应和 mock fixtures 都过响应 schema。
 - schema 失败转成统一 `ApiError`，避免脏数据进入组件。
+- schema 命名统一为 `{methodName}InputSchema` / `{methodName}ResultSchema`，无入参的查询只保留 result schema。
+- `FlowCard`、`TimelineItem`、`AssistantStreamEvent` 必须使用 discriminated union，并以 `kind` / `type` 字段做分发。
+
+首批 schema 清单：
+
+| facade 方法 / 对象 | 输入 schema | 响应 schema | 关键约束 |
+| --- | --- | --- | --- |
+| `patientApi.verifyIdentity` | `verifyIdentityInputSchema` | `verifyIdentityResultSchema` | 身份证 / 手机等敏感字段只在输入中出现，响应只给患者摘要和可读上下文范围 |
+| `patientApi.getPatientContext` | `patientIdSchema` | `patientContextSchema` | 新出诊可无 `priorVisit`；复诊必须包含上次诊断、检验、处置摘要 |
+| `patientApi.updatePatientProfile` | `updatePatientProfileInputSchema` | `patientProfileSchema` | 过敏史、长期用药允许空数组，不允许 `undefined` 和空字符串混用 |
+| `visitsApi.listSessions` | `listSessionsInputSchema` | `pageResult(visitSessionSummarySchema)` | `cursor` 可选，`items` 按 `updatedAt` 倒序 |
+| `visitsApi.getSession` / `workbenchApi.getSession` | `sessionIdSchema` | `visitSessionSchema` | `VisitStatus`、`terminalReason`、`activeCardId` 必须互相自洽 |
+| `visitsApi.createSession` | `createSessionInputSchema` | `createSessionResultSchema` | `entryType: 'new'` 时不得传 `parentSessionId` |
+| `visitsApi.createFollowUp` | `createFollowUpInputSchema` | `createSessionResultSchema` | 必须传 `parentSessionId`，响应新 session 的 `entryType` 固定为 `follow_up` |
+| `visitsApi.getReadonlySnapshot` | `sessionIdSchema` | `visitSnapshotSchema` | 只读快照包含 timeline、诊断 / 终止摘要，不包含可执行动作 |
+| `workbenchApi.listTimeline` | `listTimelineInputSchema` | `pageResult(timelineItemSchema)` | item id 稳定，分页查询更早数据 |
+| `workbenchApi.sendMessage` | `sendMessageInputSchema` | `sendMessageResultSchema` | `clientMessageId` 用于乐观消息回填 |
+| `workbenchApi.streamAssistantMessage` | `streamAssistantInputSchema` | `assistantStreamEventSchema` | SSE 事件只允许 `delta/message_final/card/state/emergency/done/error` |
+| `workbenchApi.submitLabDecision` | `submitLabDecisionInputSchema` | `flowActionResultSchema` | `decision: 'accepted' | 'skipped' | 'vetoed'` |
+| `workbenchApi.submitPayment` | `submitPaymentInputSchema` | `flowActionResultSchema` | `purpose: 'lab' | 'medication'`，支付失败返回可重试错误和卡片状态 |
+| `workbenchApi.submitFulfillment` | `submitFulfillmentInputSchema` | `flowActionResultSchema` | `mode: 'pickup' | 'delivery'` |
+| `workbenchApi.submitTreatmentExecution` | `submitTreatmentExecutionInputSchema` | `flowActionResultSchema` | `action: 'schedule' | 'confirm_arrival' | 'start' | 'complete' | 'cancel'`；`cancel` 进入退出 / 转诊收口，不静默完成 |
+| `workbenchApi.ackAdvice` | `ackAdviceInputSchema` | `flowActionResultSchema` | 确认后必须生成完成卡或完成态系统事件 |
+| `workbenchApi.askLockedQuestion` | `askLockedQuestionInputSchema` | `assistantStreamEventSchema` | 回复进 timeline，但不得改变当前阻塞卡状态 |
+| `workbenchApi.classifyFollowUpIntent` | `classifyIntentInputSchema` | `classifyIntentResultSchema` | `intent: 'consultation' | 'follow_up' | 'uncertain'`，低置信度返回 `uncertain` |
+| `workbenchApi.streamConsultationReply` | `consultationInputSchema` | `assistantStreamEventSchema` | 只允许消息事件，不允许下发流程卡 |
+| `workbenchApi.reportVitals` | `reportVitalsInputSchema` | `emergencyRecheckResultSchema` | 命中时返回急症来源和建议，不命中时不解除阻塞 |
+| `workbenchApi.exitVisit` | `exitVisitInputSchema` | `exitSettlementResultSchema` | 结算结果必须说明已发生不可逆动作和退款 / 留档后果 |
+| `workbenchApi.pauseVisitTimer` / `resumeVisitTimer` | `visitTimerInputSchema` | `visitSessionSchema` | 暂离不暂停急症守护，只影响总超时本地显示 |
 
 ### 6.6 TanStack Query 封装
 
@@ -764,7 +797,7 @@ exited
 说明：
 
 - 处置分支映射：`medication → medicationPayment → medicationFulfillment`、`advice_only → adviceOnly`、`treatment → treatmentExecution`、`referral → terminated(reason: referral)`。
-- **`treatmentExecution`（自动化治疗）是产品保留分支，当前 medAgent 后端不实现院内治疗执行**（处置只 `MEDICATION` / `ADVICE_ONLY` / `REFERRAL`，需操作/手术直接 `REFERRAL`）。首版由前端 / mock 演示预约/排队/执行；本院不具备能力时进 `terminated(reason: capability_insufficient)`。接 HTTP 时该分支须等后端补齐治疗执行 contract，否则后端只会回 `REFERRAL`。详见 api.md「与 medAgent 后端的映射与边界」。
+- **`treatmentExecution`（自动化治疗）是产品保留分支，当前 medAgent 决策引擎不实现院内治疗执行**（处置只 `MEDICATION` / `ADVICE_ONLY` / `REFERRAL`，需操作/手术直接 `REFERRAL`）。首版由前端 / mock 通过 `submitTreatmentExecution` 演示预约、排队、执行和完成；本院不具备能力时进 `terminated(reason: capability_insufficient)`。接 HTTP 时该分支须等后端业务层补齐治疗执行 contract，否则后端只会回 `REFERRAL`。详见 api.md「与 medAgent 后端的映射与边界」。
 - 急症拆成两态：`emergencyPending` 是**可恢复**的覆盖态，对应 UI §4.1 的误报申诉（“情况已缓解/描述的是过去”）；患者确认“前往急诊”才落入 `terminated(reason: emergency)`。`context.previousStateBeforeOverlay` 仅在 `emergencyPending` 期间有效。
 - `terminated` 统一承载急症确认、超时、达上限、本院能力不足 / 后端 `REFERRAL`、退出结算后的终止，由 `context.terminalReason` 区分，与时间线的 `TerminalTimelineItem.reason` 对应。
 - 注意：medAgent 急症命中后**后端会话即关闭**（见接入指南 §10）。前端 `emergencyPending` 的“恢复”只在前端 / mock 层成立；接 HTTP 时若需可恢复语义，须由后端 contract 显式支持“申诉不关闭会话”，否则恢复后只能新开会话续诊。此约束记入待确认问题。
@@ -795,7 +828,33 @@ interface VisitMachineContext {
 事件示例：
 
 ```ts
+type VisitMachineStateValue =
+  | 'loadingContext'
+  | 'chatting'
+  | 'analyzing'
+  | 'labDecision'
+  | 'labPayment'
+  | 'labExecution'
+  | 'diagnosis'
+  | 'treatmentDecision'
+  | 'medicationPayment'
+  | 'medicationFulfillment'
+  | 'treatmentExecution'
+  | 'adviceOnly'
+  | 'completed'
+  | 'emergencyPending'
+  | 'terminated'
+  | 'exitSettlement'
+  | 'exited'
+
 type VisitMachineEvent =
+  | {
+      type: 'HYDRATE'
+      state: VisitMachineStateValue
+      session: VisitSession
+      currentCardId?: FlowCardId
+      terminalReason?: TerminalReason
+    }
   | { type: 'CONTEXT_LOADED'; session: VisitSession }
   | { type: 'MESSAGE_SENT'; content: string; clientMessageId: string }
   | { type: 'AGENT_ANALYSIS_STARTED' }
@@ -804,15 +863,21 @@ type VisitMachineEvent =
   | { type: 'LAB_SKIPPED'; cardId: FlowCardId }
   | { type: 'LAB_VETOED'; cardId: FlowCardId }
   | { type: 'LAB_PAYMENT_SUCCEEDED'; cardId: FlowCardId }
+  | { type: 'PAYMENT_FAILED'; cardId: FlowCardId; purpose: 'lab' | 'medication' }
+  | { type: 'PAYMENT_DEFERRED'; cardId: FlowCardId; purpose: 'lab' | 'medication' }
   | { type: 'LAB_RESULT_RECEIVED' }
   | { type: 'DIAGNOSIS_READY'; cardId: FlowCardId }
   | { type: 'TREATMENT_DECIDED'; cardId: FlowCardId; plan: 'medication' | 'treatment' | 'advice_only' | 'referral' }
   | { type: 'MEDICATION_PAID'; cardId: FlowCardId }
   | { type: 'MEDICATION_FULFILLED'; cardId: FlowCardId }
+  | { type: 'TREATMENT_SCHEDULED'; cardId: FlowCardId }
+  | { type: 'TREATMENT_ARRIVED'; cardId: FlowCardId }
+  | { type: 'TREATMENT_STARTED'; cardId: FlowCardId }
   | { type: 'TREATMENT_COMPLETED'; cardId: FlowCardId }
   | { type: 'ADVICE_ACKNOWLEDGED'; cardId: FlowCardId }
   | { type: 'VISIT_COMPLETED' }
   | { type: 'FOLLOW_UP_MESSAGE_SENT'; content: string }
+  | { type: 'EMERGENCY_RECHECK_REQUESTED'; cardId?: FlowCardId }
   | { type: 'EMERGENCY_DETECTED'; source: string }
   | { type: 'EMERGENCY_CONFIRMED' }        // 确认前往急诊 -> terminated
   | { type: 'EMERGENCY_DISMISSED' }        // 误报申诉 -> 恢复 previousStateBeforeOverlay
@@ -828,9 +893,46 @@ type VisitMachineEvent =
 - guards 放 `visit-machine.guards.ts`，例如 `isBlockingCardPending`、`canSendMessage`。
 - actions 放 `visit-machine.actions.ts`，例如 `assignCurrentCard`、`markTerminalReason`。
 - API 调用由 hook 或 machine actor 包装，不在 UI 组件里直接推进状态。
+- `HYDRATE` 仅由 `useWorkbenchSession` 在会话恢复时发送，用于一次性把服务端粗粒度状态和当前 pending 卡片映射成机器态；它不触发业务副作用。
+- `EMERGENCY_RECHECK_REQUESTED` 不解除当前阻塞卡。hook 调用 `workbenchApi.reportVitals` 后，若后端 / mock 判定急症命中，再发送 `EMERGENCY_DETECTED`；若未命中，只插入普通系统事件或提示。
 - 急症进入 `emergencyPending` 时，action 先保存 `previousStateBeforeOverlay` 并 abort 当前 SSE；`EMERGENCY_DISMISSED` 恢复该状态并插入 `emergency_dismissed` 系统事件，`EMERGENCY_CONFIRMED` 清空它并进入 `terminated`。
 - `TREATMENT_DECIDED` 的 `plan` 决定下一态：`medication → medicationPayment`、`treatment → treatmentExecution`、`advice_only → adviceOnly`、`referral → terminated`。前端不暴露处置分支选择按钮，`plan` 来自后端 / SSE。
-- `treatment` 分支（自动化治疗）当前无 medAgent 支撑，由前端 + mock 演示；HTTP 模式下后端若未实现院内治疗，会以 `referral` 替代，前端需兼容两种返回。`treatmentExecution` 完成发 `TREATMENT_COMPLETED → completed`，本院不具备能力时发 `TRANSFER_REQUIRED(reason: capability_insufficient) → terminated`。
+- `treatment` 分支（自动化治疗）当前无 medAgent 支撑，由后端业务层 / mock 演示；HTTP 模式下后端若未实现院内治疗，会以 `referral` 替代，前端需兼容两种返回。`treatmentExecution` 内部通过 `TREATMENT_SCHEDULED`、`TREATMENT_ARRIVED`、`TREATMENT_STARTED` 更新卡片状态，`TREATMENT_COMPLETED → completed`，本院不具备能力时发 `TRANSFER_REQUIRED(reason: capability_insufficient) → terminated`。
+
+首批状态转移矩阵：
+
+| 当前态 | 事件 | 目标态 | 主要动作 |
+| --- | --- | --- | --- |
+| `loadingContext` | `CONTEXT_LOADED` / `HYDRATE` | 目标机器态 | 初始化 context、写入当前卡 |
+| `chatting` | `MESSAGE_SENT` | `analyzing` | 插入患者乐观消息，启动本轮 SSE |
+| `analyzing` | `LAB_CARD_RAISED` | `labDecision` | 插入检验决策卡，锁定输入 |
+| `analyzing` | `DIAGNOSIS_READY` | `diagnosis` | 插入诊断卡 |
+| `analyzing` | `TRANSFER_REQUIRED` | `terminated` | 写入 `terminalReason` 和终止卡 |
+| `labDecision` | `LAB_ACCEPTED` | `labPayment` | 更新检验卡处理结果，生成缴费卡 |
+| `labDecision` | `LAB_SKIPPED` | `analyzing` | 标记不查，恢复 Agent 汇总分析 |
+| `labDecision` | `LAB_VETOED` | `chatting` | 标记暂不决定，解除锁定 |
+| `labPayment` | `LAB_PAYMENT_SUCCEEDED` | `labExecution` | 更新支付卡，生成检验执行卡 |
+| `labPayment` | `PAYMENT_FAILED` | `labPayment` | 标记支付失败，保留重试 / 更换方式 / 暂不缴费 |
+| `labPayment` | `PAYMENT_DEFERRED(purpose=lab)` | `chatting` | 标记暂不缴费，解除锁定 |
+| `labExecution` | `LAB_RESULT_RECEIVED` | `analyzing` | 插入检验结果摘要，回到 Agent 汇总 |
+| `diagnosis` | `TREATMENT_DECIDED(plan=medication)` | `medicationPayment` | 生成药品支付 / 取药相关卡 |
+| `diagnosis` | `TREATMENT_DECIDED(plan=advice_only)` | `adviceOnly` | 生成仅医嘱卡 |
+| `diagnosis` | `TREATMENT_DECIDED(plan=treatment)` | `treatmentExecution` | 生成自动化治疗执行卡 |
+| `diagnosis` | `TREATMENT_DECIDED(plan=referral)` | `terminated` | 写入转诊终止卡 |
+| `medicationPayment` | `MEDICATION_PAID` | `medicationFulfillment` | 更新药品支付状态 |
+| `medicationPayment` | `PAYMENT_FAILED` | `medicationPayment` | 标记支付失败，保留重试 / 更换方式 |
+| `medicationPayment` | `PAYMENT_DEFERRED(purpose=medication)` | `exitSettlement` | 药品暂不缴费需经退出 / 挂起结算收口 |
+| `medicationFulfillment` | `MEDICATION_FULFILLED` | `completed` | 生成完成卡 |
+| `treatmentExecution` | `TREATMENT_SCHEDULED` / `TREATMENT_ARRIVED` / `TREATMENT_STARTED` | `treatmentExecution` | 更新治疗卡状态，不解锁主输入 |
+| `treatmentExecution` | `TREATMENT_COMPLETED` | `completed` | 生成完成卡 |
+| `adviceOnly` | `ADVICE_ACKNOWLEDGED` | `completed` | 留痕并生成完成卡 |
+| `completed` | `FOLLOW_UP_MESSAGE_SENT` | `loadingContext` | 创建复诊 session 并加载上下文 |
+| 任意非终止态 | `EMERGENCY_DETECTED` | `emergencyPending` | abort SSE、禁用输入和卡片 |
+| `emergencyPending` | `EMERGENCY_DISMISSED` | 前态 | 恢复前态，插入误报恢复系统事件 |
+| `emergencyPending` | `EMERGENCY_CONFIRMED` | `terminated` | 写入急症终止卡 |
+| 任意非终止态 | `VISIT_TIMEOUT` | `terminated` | 写入超时终止卡 |
+| 任意非终止态 | `EXIT_REQUESTED` | `exitSettlement` | 打开退出结算 Sheet |
+| `exitSettlement` | `EXIT_SETTLED` | `terminated` | 写入退出终止卡和快照 |
 
 ## 8. 页面与组件拆分
 
@@ -919,7 +1021,7 @@ WorkbenchContainer
 
 1. 读取 `session`（含 `status`、`terminalReason`）和 timeline 首页，取出最后一条 `status: 'pending'` 的 `FlowCardTimelineItem` 作为 `currentCard`。
 2. `status` 非 `blocked` 时直接映射：`chatting/analyzing/diagnosis/completed → ` 同名机器态；`transferred/emergency_terminated/exited → terminated`（用 `terminalReason` 定去向）。
-3. `status === 'blocked'` 时由 `currentCard.kind` 决定具体阻塞态：`lab_decision → labDecision`、`payment → labPayment` 或 `medicationPayment`（看卡片 `paymentType`）、`lab_execution → labExecution`、`medication_fulfillment → medicationFulfillment`。
+3. `status === 'blocked'` 时由 `currentCard.kind` 决定具体阻塞态：`lab_decision → labDecision`、`payment → labPayment` 或 `medicationPayment`（看卡片 `purpose`）、`lab_execution → labExecution`、`medication_fulfillment → medicationFulfillment`、`treatment_execution → treatmentExecution`。
 4. 找不到对应未处理卡片时回退到 `chatting`，并记一条系统事件提示“已恢复到对话”，避免卡在无卡的 `blocked`。
 5. 恢复不重放历史事件，只用一次性 `HYDRATE` 把机器置于目标态；后续推进仍走正常事件。
 
@@ -971,13 +1073,13 @@ function TimelineRow({ item }: { item: TimelineItem }) {
 
 - 主输入禁用时显示，给出锁定原因（`card.lockReason`）。
 - 逃生入口一：`我现在很不舒服` —— 触发 `vitals` 上报 / 急症复检，不发普通消息。机器上发送 `EMERGENCY_RECHECK_REQUESTED`，由 hook 调 `workbenchApi.reportVitals` 让后端守护重判。
-- 逃生入口二：`我有疑问` —— 打开 `LockQuestionSheet` 最小输入，走“锁定态问答”：消息以 `mode: 'locked_question'` 发送，AI 回复进时间线但**不推进主流程状态**，阻塞卡保持 pending。
+- 逃生入口二：`我有疑问` —— 打开 `LockQuestionSheet` 最小输入，走 `askLockedQuestion` 锁定态问答，AI 回复进时间线但**不推进主流程状态**，阻塞卡保持 pending。
 - 锁定态问答中若分类出明确退出意图（如“不想做了”），等同卡片 `skip_lab`（不查）动作，由 `useFlowCardAction` 解除阻塞，而非新增状态分支。
 
 `LockQuestionSheet`：
 
 - HeroUI `Drawer`/`Sheet` 最小文本输入。
-- 仅在阻塞态可开；提交走 `sendMessage({ mode: 'locked_question', cardId })`。
+- 仅在阻塞态可开；提交走 `workbenchApi.askLockedQuestion({ sessionId, cardId, content }, handlers)`，由 hook 把回复写入时间线。
 - 回复不改变 `blocking`，仅作信息澄清。
 
 `InputAssistPanel`：
@@ -1091,6 +1193,7 @@ interface UseWorkbenchSessionResult {
     confirmExit: () => Promise<void>
     pauseVisit: () => Promise<void>
     resumeVisit: () => Promise<void>
+    reportVitals: (input: ReportVitalsInput) => Promise<void>
   }
 }
 ```
@@ -1136,6 +1239,7 @@ type FlowCardAction =
   | { type: 'submit_payment'; cardId: FlowCardId; paymentMethodId: string }
   | { type: 'defer_payment'; cardId: FlowCardId }
   | { type: 'choose_fulfillment'; cardId: FlowCardId; mode: 'pickup' | 'delivery' }
+  | { type: 'submit_treatment_execution'; cardId: FlowCardId; action: 'schedule' | 'confirm_arrival' | 'start' | 'complete' | 'cancel' }
   | { type: 'ack_advice'; cardId: FlowCardId }
   | { type: 'ask_card_question'; cardId: FlowCardId; content: string }
   | { type: 'save_terminal_summary'; cardId: FlowCardId }
@@ -1144,9 +1248,11 @@ type FlowCardAction =
 action 到 facade 的映射：
 
 - `accept_lab` / `skip_lab` / `veto_lab` -> `submitLabDecision`（`decision: accepted | skipped | vetoed`）。
-- `submit_payment` / `defer_payment` -> `submitPayment`，检验费与药费复用同一 `payment` 卡，由 `PaymentCardData.purpose: 'lab' | 'medication'` 区分。
-- `choose_fulfillment` / `ack_advice` -> `submitTreatmentAction`（对应 medAgent `MEDICATION` 取药方式确认 / `ADVICE_ONLY` 知晓）。
-- `ask_card_question` -> 锁定态疑问通道（见 §8.5），走 `sendMessage` 但不推进主流程；若问句表达明确放弃意图，按 `skip_lab` 处理。
+- `submit_payment` / `defer_payment` -> `submitPayment`，检验费与药费复用同一 `payment` 卡，由 `PaymentCardData.purpose: 'lab' | 'medication'` 区分；失败发送 `PAYMENT_FAILED`，暂不缴费发送 `PAYMENT_DEFERRED`。
+- `choose_fulfillment` -> `submitFulfillment`（对应 medAgent `MEDICATION` 取药方式确认）。
+- `submit_treatment_execution` -> `submitTreatmentExecution`（自动化治疗预约 / 到号 / 开始 / 完成 / 取消；仅 mock 或已补齐治疗执行 contract 的后端业务层会出现）。
+- `ack_advice` -> `ackAdvice`（对应 `ADVICE_ONLY` 知晓 / 留痕）。
+- `ask_card_question` -> `askLockedQuestion` 锁定态疑问通道（见 §8.5），流式回复但不推进主流程；若问句表达明确放弃意图，按 `skip_lab` 处理。
 - `save_terminal_summary` -> 终止卡的"保存问诊摘要"，读取 `getReadonlySnapshot`，不改变状态。
 
 ### 9.4 `useVisitCountdown`
@@ -1240,15 +1346,22 @@ SSE card(treatment_plan) + TREATMENT_DECIDED{ plan }
   -> plan = medication:
        MedicationFulfillmentCard / PaymentCard(purpose: medication)
        -> submitPayment -> MEDICATION_PAID -> medicationFulfillment
-       -> submitTreatmentAction(choose_fulfillment) -> MEDICATION_FULFILLED
+       -> submitFulfillment(choose_fulfillment) -> MEDICATION_FULFILLED
        -> CompletedVisitCard -> VISIT_COMPLETED
   -> plan = advice_only:
        AdviceOnlyCard
-       -> submitTreatmentAction(ack_advice) -> ADVICE_ACKNOWLEDGED
+       -> ackAdvice -> ADVICE_ACKNOWLEDGED
        -> CompletedVisitCard -> VISIT_COMPLETED
   -> plan = treatment:（待后端能力，本期 mock 演示）
        TreatmentExecutionCard（治疗项目 / 预约 / 排队 / 执行状态）
-       -> 本院具备能力: submitTreatmentAction -> TREATMENT_COMPLETED
+       -> 本院具备能力: submitTreatmentExecution(schedule)
+       -> TREATMENT_SCHEDULED -> 排队
+       -> submitTreatmentExecution(confirm_arrival)
+       -> TREATMENT_ARRIVED -> 到号
+       -> submitTreatmentExecution(start)
+       -> TREATMENT_STARTED -> 执行中
+       -> submitTreatmentExecution(complete)
+       -> TREATMENT_COMPLETED
        -> CompletedVisitCard -> VISIT_COMPLETED
        -> 本院不具备: TRANSFER_REQUIRED(reason: capability_insufficient) -> terminated
   -> plan = referral:
@@ -1258,14 +1371,14 @@ SSE card(treatment_plan) + TREATMENT_DECIDED{ plan }
 说明：
 
 - medAgent 的 `DRUG_QUERY`（查药品规格）对患者透明，前端不渲染卡片，仅 mock / 后端在内部完成后直接给出 `PURCHASE` 对应的 `medication_fulfillment` / `payment` 卡。
-- `treatment`（院内自动化治疗执行）分支**当前 medAgent 不支持**（其处置仅 medication / advice_only / referral）。本期按需求与 UI 文档保留该分支并以 mock 演示，待后端补充治疗执行能力后接入；HTTP 模式下后端若仍只返回三选一，则该分支不会出现，需在能力判断处直接走 `capability_insufficient` 转诊。
+- `treatment`（院内自动化治疗执行）分支**当前 medAgent 不支持**（其处置仅 medication / advice_only / referral）。本期按需求与 UI 文档保留该分支并以 mock 演示，待后端业务层补充治疗执行能力后接入；HTTP 模式下后端若仍只返回三选一，则该分支不会出现，需在能力判断处直接走 `capability_insufficient` 或 `referral` 终止。
 
 ### 10.6 完成后输入
 
 ```text
 completed 状态输入
   -> workbenchApi.classifyFollowUpIntent（AI 意图分类，见 §6.4）
-  -> consultation: 走 sendMessage，AI 基于本次记录回答，仍 completed，不触发复诊
+  -> consultation: 走 streamConsultationReply，AI 基于本次记录回答，仍 completed，不触发复诊
   -> follow_up: createFollowUp，跳转新 session（FOLLOW_UP_MESSAGE_SENT）
   -> uncertain: 内联提示患者选择"咨询本次"或"开始复诊"
 ```
@@ -1371,9 +1484,16 @@ Header X
 | `normal_no_lab` | 不检验直接确诊 |
 | `lab_success` | 检验、支付、结果回填完整链路 |
 | `payment_failed` | 支付失败与重试 |
+| `ask_limit_reached` | 追问轮次达到上限后转大医院 |
+| `lab_limit_reached` | 检验轮次达到上限后转大医院 |
+| `medication_success` | 用药、药品缴费、取药 / 配送完成 |
+| `advice_only` | 仅医嘱确认后完成 |
+| `treatment_success` | 自动化治疗预约、排队、执行、完成 |
+| `capability_insufficient` | 本院不具备治疗能力，生成终止卡 |
 | `emergency` | SSE 中途急症打断 |
 | `timeout` | 总超时终止 |
 | `exit_refund` | 已缴费未执行退出退款 |
+| `follow_up_context` | 复诊读取上次完整诊断、检验、处置摘要 |
 | `completed_follow_up` | 完成后自动复诊 |
 
 ### 12.3 MSW
@@ -1397,11 +1517,14 @@ Header X
 - 阻塞卡出现后主输入禁用，LockBar 显示。
 - `FlowCardRenderer` 根据 kind 分发正确卡片。
 - `CompletedVisitCard` 咨询和复诊入口。
+- `TreatmentExecutionCard` 的预约、到号、执行、完成动作不会暴露处置分支选择。
 
 集成测试：
 
 - 新建问诊 -> 发送消息 -> SSE 生成检验卡 -> 同意 -> 缴费 -> 结果回填 -> 确诊。
 - 暂不决定后输入恢复。
+- 追问上限、检验上限、本院能力不足都生成终止卡。
+- 用药、仅医嘱、自动化治疗三条处置路径都能进入完成卡。
 - 急症事件 abort stream 并展示 Overlay。
 - 退出结算按当前不可逆动作展示后果。
 - 历史页继续就诊、发起复诊、只读回看导航。
@@ -1429,7 +1552,7 @@ Header X
 
 ### M4 确诊、处置、完成和复诊
 
-- 实现诊断卡、处置卡、完成卡、转诊卡。
+- 实现诊断卡、处置卡、完成卡、终止卡（含转诊 / 超时 / 能力不足）。
 - 完成后输入意图分类与复诊创建。
 - 历史列表可回看完整快照。
 
@@ -1462,4 +1585,3 @@ Header X
 - `special-designs/api.md` 定义 REST/SSE contract 方向，本文定义 facade、transport、schema 和 hook 接入方式。
 - `tech-selection.md` 定义选型理由，本文定义这些技术在模块中的使用边界。
 - `requirements-analysis.md` 定义业务验收，本文把验收拆成里程碑和测试重点。
-
