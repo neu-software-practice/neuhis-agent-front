@@ -25,7 +25,7 @@ NEUHIS Agent 前端是一个 React + HeroUI 3 + Magic UI 的 AI 诊疗 Agent 聊
     requirements-analysis.md # 患者端需求分析，基于交互流程文档拆解范围、规则和验收
     ui-designs.md            # UI 设计文档，含患者视角原则、页面清单、路由映射、ASCII 草图、输入辅助和跳转关系
     detailed-design.md       # 前端详细设计，含目录分层、组件拆分、API facade、状态机、hooks、mock 和测试策略
-    detailed-design-completion-review.md # detailed-design.md 完成度评估与后续补齐建议
+    component-code-conventions.md # 组件代码设计通用约定，含 props、事件、状态来源、HeroUI/Magic UI、测试约定
     special-decisions.md     # 用户对 agent 下达的特殊要求记录
     tech-selection.md        # 前端技术选型文档
     map.md                   # 当前项目地图
@@ -60,5 +60,18 @@ NEUHIS Agent 前端是一个 React + HeroUI 3 + Magic UI 的 AI 诊疗 Agent 聊
 - [患者端需求分析](./requirements-analysis.md)
 - [UI 设计文档](./ui-designs.md)
 - [前端详细设计](./detailed-design.md)
+- [组件代码设计通用约定](./component-code-conventions.md)
 - [技术选型](./tech-selection.md)
 - [前端 API 合约与 Mock 设计](./special-designs/api.md)
+
+## 本次完成
+
+- 新增 `agent-workspace/component-code-conventions.md`，基于现有前端文档沉淀组件代码通用约定。
+- 明确组件分层、命名、props 传递、回调/action、状态来源、渲染分发、HeroUI/Magic UI、样式、错误态、表单、性能、可访问性和测试检查清单。
+- 补充 HeroUI 3 不默认添加 `HeroUIProvider` 的原因，并移除组件规范中对当前 `src` 具体文件的引用段落。
+- 同步更新本文档地图，方便后续编码 Agent 从入口定位组件实现规范。
+
+## 本次未完成
+
+- 未改动业务组件代码；当前项目仍是 Vite 示例页，尚未落地问诊工作台组件。
+- 未新增测试；本次为文档约定，不涉及运行时代码。

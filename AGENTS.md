@@ -37,6 +37,10 @@ agent-workspace/
   interaction-flow.md            # 患者端完整业务流程、检验子流程、全局打断/升级机制
   core-interaction-flow.md       # 核心卡片流转、阻塞卡片、完成后自动复诊
   tech-selection.md              # 前端技术选型、依赖用途、目录分层建议
+  requirements-analysis.md       # 患者端需求分析，拆解范围、规则和验收
+  ui-designs.md                  # UI 设计文档，页面清单、信息架构、ASCII 草图和跳转关系
+  detailed-design.md             # 前端详细设计，目录分层、API facade、状态机、hooks、mock 和测试策略
+  component-code-conventions.md  # 组件代码设计通用约定，props、事件、状态来源、样式和测试约定
   medagent-backend.md            # medAgent 诊疗流程与功能设计（后端参考，面向产品/功能设计者）
   special-designs/
     api.md                       # 前端 API 合约与 Mock 设计：前端先定义 REST/SSE contract，再 mock 和联调
