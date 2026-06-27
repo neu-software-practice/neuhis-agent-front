@@ -16,6 +16,10 @@
 
 references文件夹存放你需要的三方库的源代码。每给项目添加一个库，始终采用浅克隆把库源代码下载到该文件夹。开发中如有不理解的API可以随时查阅。
 
+### 后端参考
+
+- **medAgent**（`references/medAgent`）：后端的 AI 诊疗 Agent 模块（Go），负责问诊决策编排（问诊→收敛→处置→急症守护）。不是完整后端，而是后端中嵌入的 AI 决策引擎。前端 UI 流转（卡片、对话、检验、购药等）由该模块返回的 `Step.kind` 驱动。诊疗流程与功能设计见 `agent-workspace/medagent-backend.md`。
+
 ## 文档工作区
 
 本AGENTS.md/CLAUDE.md文档仅为入口点。可以随时编辑改动。
@@ -33,6 +37,7 @@ agent-workspace/
   interaction-flow.md            # 患者端完整业务流程、检验子流程、全局打断/升级机制
   core-interaction-flow.md       # 核心卡片流转、阻塞卡片、完成后自动复诊
   tech-selection.md              # 前端技术选型、依赖用途、目录分层建议
+  medagent-backend.md            # medAgent 诊疗流程与功能设计（后端参考，面向产品/功能设计者）
   special-designs/
     api.md                       # 前端 API 合约与 Mock 设计：前端先定义 REST/SSE contract，再 mock 和联调
   无人医院_患者端_交互原型.html  # 患者端交互原型

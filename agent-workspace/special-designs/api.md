@@ -67,26 +67,27 @@ src/
   mocks/
     api/
       fixtures/
-        chat.ts
-        visit.ts
         patient.ts
+        visits.ts
+        timeline.ts
+        flow-cards.ts
+      handlers/
+        patient-handlers.ts
+        visit-handlers.ts
+        chat-handlers.ts
       mock-transport.ts      # 实现 Transport
       mock-db.ts             # 内存数据与状态推进
+      stream-simulator.ts    # 逐段触发 SSE 事件
   features/
-    chat/
-      api/
-        index.ts             # chatApi facade
-        queries.ts           # queryOptions / mutationOptions
-        schemas.ts           # Zod schema
-        types.ts
-        stream.ts            # SSE 流式封装
-    visit-flow/
-      api/
-        index.ts
-        queries.ts
-        schemas.ts
-        types.ts
+    patient/
+      api/                   # patientApi facade（index/queries/schemas/types）
+    visits/
+      api/                   # visitsApi facade
+    workbench/
+      api/                   # workbenchApi facade（含 SSE stream 封装）
 ```
+
+> 此目录形态与 `detailed-design.md` §3 对齐：按 `patient` / `visits` / `workbench` 三个 feature 组织，不再用旧的 `chat` / `visit-flow` 分包。
 
 ## 环境变量
 
@@ -136,32 +137,51 @@ export interface ApiTransport {
 
 ## API Facade 设计
 
-业务对外只暴露按领域组织的 API：
+业务对外只暴露按领域组织的 API。facade 按 **patient / visits / workbench** 三域组织，与 `detailed-design.md` §6.4 完全一致（早期草案的 `chat / visit / patient` 已废弃）：
 
 ```ts
 export const api = {
-  chat: chatApi,
-  visit: visitApi,
   patient: patientApi,
+  visits: visitsApi,
+  workbench: workbenchApi,
 }
 ```
 
-示例方法：
+域划分理由：
+
+- `patient`：身份核验、患者上下文与资料维护，与具体会话无关。
+- `visits`：会话生命周期（列表、创建、复诊、只读快照），即"会话级别"操作。
+- `workbench`：单次会话进行中的工作台操作（时间线、发言、流式、卡片动作、计时、退出），即"会话内部"操作。
+
+示例方法（完整签名见 `detailed-design.md` §6.4）：
 
 ```ts
-chatApi.createSession(input)
-chatApi.getSession(sessionId)
-chatApi.listMessages(sessionId)
-chatApi.sendMessage(input)
-chatApi.streamAssistantMessage(input, handlers)
+patientApi.verifyIdentity(input)
+patientApi.getPatientContext(patientId)
+patientApi.updatePatientProfile(input)
 
-visitApi.getCurrentCard(sessionId)
-visitApi.submitLabDecision(input)
-visitApi.submitPayment(input)
-visitApi.getDiagnosis(sessionId)
-visitApi.submitTreatmentAction(input)
-visitApi.exitVisit(input)
+visitsApi.listSessions(input)
+visitsApi.getSession(sessionId)
+visitsApi.createSession(input)
+visitsApi.createFollowUp(input)
+visitsApi.getReadonlySnapshot(sessionId)
+
+workbenchApi.getSession(sessionId)
+workbenchApi.listTimeline(input)
+workbenchApi.sendMessage(input)
+workbenchApi.streamAssistantMessage(input, handlers)
+workbenchApi.submitLabDecision(input)
+workbenchApi.submitPayment(input)
+workbenchApi.submitTreatmentAction(input)
+workbenchApi.askLockedQuestion(input)
+workbenchApi.classifyFollowUpIntent(input)
+workbenchApi.askCompletedConsultation(input, handlers)
+workbenchApi.exitVisit(input)
+workbenchApi.pauseVisitTimer(input)
+workbenchApi.resumeVisitTimer(input)
 ```
+
+> `visitsApi.getSession` 与 `workbenchApi.getSession` 共享同一 endpoint 与响应类型：`visitsApi` 侧用于历史/导航场景的一次性读取，`workbenchApi` 侧用于工作台内与 timeline 联动的读取与缓存。两者保留是为各自 feature 的 query key 内聚，底层实现可复用。
 
 命名规则：
 
@@ -175,22 +195,37 @@ visitApi.exitVisit(input)
 
 REST/SSE 合约由前端维护，mock transport、MSW handler 和真实 HTTP transport 都必须围绕同一套 contract 实现。后端联调时以该 contract 为基线，若需要调整字段或状态枚举，必须同步更新 schema、mock 数据、契约测试和结项 REST API 文档。
 
-首批 endpoint 草案：
+facade 与 detailed-design §6.4 保持一致，按 `patient` / `visits` / `workbench` 三组组织。下表标注每个 endpoint 落在哪个 facade 方法，以及与 medAgent 后端的对应关系（详见后文「与 medAgent 后端的映射」）。
 
-| 领域 | Method | Endpoint | 用途 | Facade |
-| --- | --- | --- | --- | --- |
-| patient | `POST` | `/patients/verify` | 身份核验，返回患者摘要和历史病史可读范围 | `patientApi.verifyIdentity` |
-| visit | `POST` | `/visits` | 创建新出诊或复诊 session | `chatApi.createSession` |
-| visit | `GET` | `/visits` | 查询历史就诊列表 | `visitApi.listSessions` |
-| visit | `GET` | `/visits/:sessionId` | 查询会话详情、当前流程状态、摘要 | `chatApi.getSession` |
-| chat | `GET` | `/visits/:sessionId/timeline` | 分页查询聊天消息和流程卡片混排时间线 | `chatApi.listTimeline` |
-| chat | `POST` | `/visits/:sessionId/messages` | 发送患者消息，返回本轮消息占位和流程状态 | `chatApi.sendMessage` |
-| chat | `POST` | `/visits/:sessionId/assistant-stream` | SSE 流式生成 AI 回复和流程卡片事件 | `chatApi.streamAssistantMessage` |
-| lab | `POST` | `/visits/:sessionId/lab-decision` | 提交是否检验、暂不决定、不查等动作 | `visitApi.submitLabDecision` |
-| payment | `POST` | `/visits/:sessionId/payments` | 创建或确认检验/药品支付 | `visitApi.submitPayment` |
-| diagnosis | `GET` | `/visits/:sessionId/diagnosis` | 获取确诊结果和依据 | `visitApi.getDiagnosis` |
-| treatment | `POST` | `/visits/:sessionId/treatment-actions` | 提交取药方式、处置执行确认等动作 | `visitApi.submitTreatmentAction` |
-| visit | `POST` | `/visits/:sessionId/exit` | 主动退出并生成结算结果 | `visitApi.exitVisit` |
+首批 endpoint：
+
+| 领域 | Method | Endpoint | 用途 | Facade | medAgent 对应 |
+| --- | --- | --- | --- | --- | --- |
+| patient | `POST` | `/patients/verify` | 身份核验，返回患者摘要和历史病史可读范围 | `patientApi.verifyIdentity` | 后端职责（鉴权网关） |
+| patient | `GET` | `/patients/:patientId/context` | 读取新出诊/复诊上下文（病史、过敏史、上次诊断摘要） | `patientApi.getPatientContext` | 渲染进 `POST /sessions` 的 `profile`/`prior` |
+| patient | `PATCH` | `/patients/:patientId/profile` | 更新患者基础资料、过敏史、长期用药 | `patientApi.updatePatientProfile` | 后端职责 |
+| visit | `POST` | `/visits` | 创建新出诊 session | `visitsApi.createSession` | `POST /sessions`（`initial:true`） |
+| visit | `POST` | `/visits/:sessionId/follow-up` | 由已完成会话创建复诊 session（携带父会话纪要） | `visitsApi.createFollowUp` | `POST /sessions`（`initial:false`, `prior:[record]`） |
+| visit | `GET` | `/visits` | 查询历史就诊列表 | `visitsApi.listSessions` | 后端持久化（`GET /record` 导出后存库） |
+| visit | `GET` | `/visits/:sessionId` | 查询会话详情、当前流程状态、摘要 | `visitsApi.getSession` / `workbenchApi.getSession` | 由前端流程状态维护 + `GET /record` 快照 |
+| visit | `GET` | `/visits/:sessionId/snapshot` | 只读回看完整快照（时间线 + 结论 + 终止原因） | `visitsApi.getReadonlySnapshot` | `GET /record`（`SessionRecord`） |
+| chat | `GET` | `/visits/:sessionId/timeline` | 分页查询聊天消息和流程卡片混排时间线 | `workbenchApi.listTimeline` | 由 `SessionRecord.turns` 投影 |
+| chat | `POST` | `/visits/:sessionId/messages` | 发送患者消息，返回本轮消息占位和流程状态 | `workbenchApi.sendMessage` | `POST /sessions/{id}/patient-say` |
+| chat | `POST` | `/visits/:sessionId/assistant-stream` | SSE 流式生成 AI 回复和流程卡片事件 | `workbenchApi.streamAssistantMessage` | `patient-say` 的 `Step` 包装为 SSE 事件 |
+| lab | `POST` | `/visits/:sessionId/lab-decision` | 提交是否检验、暂不决定、不查等动作 | `workbenchApi.submitLabDecision` | 前端卡片交互（后端职责），accepted 后驱动检验 |
+| lab | `POST` | `/visits/:sessionId/lab-results` | 回填检验结果，触发 Agent 重新分析 | `workbenchApi`（内部，mock/后端驱动） | `POST /sessions/{id}/test-results` |
+| payment | `POST` | `/visits/:sessionId/payments` | 创建或确认检验/药品支付 | `workbenchApi.submitPayment` | 后端药品/支付子系统 |
+| treatment | `POST` | `/visits/:sessionId/treatment-actions` | 提交取药方式、仅医嘱确认等处置执行动作 | `workbenchApi.submitTreatmentAction` | `POST /sessions/{id}/purchase-result` |
+| consult | `POST` | `/visits/:sessionId/consult` | 完成态咨询类提问，AI 基于本次记录作答，不触发复诊 | `workbenchApi.askConsultation` | `GET /record` 上下文 + 一次 LLM 问答 |
+| consult | `POST` | `/visits/:sessionId/lock-question` | 锁定态疑问通道，AI 就当前卡片作答，不推进主流程 | `workbenchApi.askLockQuestion` | 旁路 LLM 问答（不进主决策） |
+| intent | `POST` | `/visits/:sessionId/classify-intent` | 完成态输入意图分类：咨询 / 复诊 / 不确定 | `workbenchApi.classifyFollowUpIntent` | AI 意图分类（走 LLM） |
+| visit | `POST` | `/visits/:sessionId/timer` | 暂停 / 恢复整次导诊总计时 | `workbenchApi.pauseVisitTimer` / `resumeVisitTimer` | 纯前端机制（medAgent 无总计时） |
+| visit | `POST` | `/visits/:sessionId/vitals` | 上报体征给急症守护 | `workbenchApi`（按需，mock/后端驱动） | `POST /sessions/{id}/vitals` |
+| visit | `POST` | `/visits/:sessionId/exit` | 主动退出并生成结算结果 | `workbenchApi.exitVisit` | `DELETE /sessions/{id}`（结算为后端职责） |
+
+> 确诊结果不再单独走 `GET /diagnosis`：诊断作为 `flow_card(kind:diagnosis)` 经 SSE `card` 事件下发，并落入时间线，与 medAgent `Step` 驱动一致。如需单独查询，从 `getReadonlySnapshot` 取。
+
+「能走 AI 尽量走 AI」落点：完成态咨询（`/consult`）、锁定态疑问通道（`/lock-question`）、完成态意图分类（`/classify-intent`）均由 LLM 承载，而非规则匹配；mock 阶段以关键词桩模拟，HTTP 阶段对接 medAgent 旁路问答 / 分类能力。
 
 分页约定：
 
@@ -208,6 +243,20 @@ SSE 事件约定：
 - `done`：本轮流式结束。
 - `error`：流式错误，结构遵循统一 `ApiError`。
 
+medAgent `Step.kind` 到 SSE 事件的映射（HTTP 模式下由 transport/adapter 层完成，mock 模式直接产出同样事件）：
+
+| medAgent Step.kind | SSE 产出 | 前端表现 |
+| --- | --- | --- |
+| `ASK` | `delta` * n + `message_final` | AI 追问气泡 |
+| `NEED_TESTS` | `card(kind:lab_decision)` + `state` | 是否检验阻塞卡（项目固定血常规） |
+| `DRUG_QUERY` | `state` 仅内部状态（对用户透明） | 不渲染卡片，可选「正在核对药品规格」系统事件 |
+| `PURCHASE` | `card(kind:medication_fulfillment)` + `state` | 购药/取药确认卡（含盒数） |
+| `EMERGENCY` | `emergency` | 急症 Overlay |
+| `DONE` | `card(kind:diagnosis)` + `card(kind:completed_visit)` 或 `card(kind:advice_only)` + `done` | 诊断卡 + 完成/医嘱卡 |
+
+> `DRUG_QUERY` 对用户透明：前端不出确认卡，后端 / mock 收到后自行查规格并回填 `drug-info`，引擎续跑到 `PURCHASE`。
+> medAgent 处置只有 `MEDICATION` / `ADVICE_ONLY` / `REFERRAL`，**无院内自动化治疗执行**；需院内操作 / 手术的情形后端直接给 `REFERRAL`，前端落成终止卡（`reason: referral`）。前端不存在「自动化治疗」执行分支。
+
 结项 REST API 文档要求：
 
 - 结项时在 `agent-workspace/special-designs/rest-api.md` 产出完整 REST API 文档。
@@ -219,11 +268,11 @@ SSE 事件约定：
 所有远端/契约状态通过 queryOptions/mutationOptions 统一封装。mock 模式和 HTTP 模式对 hook 层表现一致。
 
 ```ts
-export const chatQueries = {
+export const workbenchQueries = {
   session: (sessionId: SessionId) =>
     queryOptions({
-      queryKey: ['chat', 'session', sessionId],
-      queryFn: () => chatApi.getSession(sessionId),
+      queryKey: ['workbench', 'session', sessionId],
+      queryFn: () => workbenchApi.getSession(sessionId),
     }),
 }
 ```
@@ -277,7 +326,7 @@ mock handler 行为：
 建议封装：
 
 ```ts
-chatApi.streamAssistantMessage(
+workbenchApi.streamAssistantMessage(
   input,
   {
     signal,
@@ -328,21 +377,56 @@ XState 负责流程状态，不负责缓存。
 
 状态机可以调用：
 
-- `visitApi.submitLabDecision`
-- `visitApi.submitPayment`
-- `chatApi.streamAssistantMessage`
-- `visitApi.exitVisit`
+- `workbenchApi.submitLabDecision`
+- `workbenchApi.submitPayment`
+- `workbenchApi.streamAssistantMessage`
+- `workbenchApi.exitVisit`
 
 状态机接收结果后发送事件：
 
-- `LAB_DECISION_ACCEPTED`
-- `PAYMENT_COMPLETED`
+- `LAB_ACCEPTED` / `LAB_SKIPPED` / `LAB_VETOED`
+- `LAB_PAYMENT_SUCCEEDED` / `MEDICATION_PAID`
 - `DIAGNOSIS_READY`
-- `EMERGENCY_DETECTED`
+- `TREATMENT_DECIDED`
+- `EMERGENCY_DETECTED` / `EMERGENCY_CONFIRMED` / `EMERGENCY_DISMISSED`
 - `TRANSFER_REQUIRED`
 - `EXIT_CONFIRMED`
 
-这样流程跳转可追踪，API 来源可替换。
+事件命名以 `detailed-design.md` §7.3 的 `VisitMachineEvent` 为准，本节只示意调用关系。这样流程跳转可追踪，API 来源可替换。
+
+## 与 medAgent 后端的映射与边界
+
+medAgent（`references/medAgent`）是后端嵌入的 AI 决策引擎，只产出结构化决策（`Step`），不执行副作用。本前端 contract 不直接调用 medAgent，而是面向**后端业务层**；后端业务层把前端动作翻译成 medAgent 调用，并把 `Step` 翻译回前端的 SSE 事件 / 流程卡。映射关系如下：
+
+| 前端 endpoint / 动作 | medAgent 对应 | 说明 |
+| --- | --- | --- |
+| `POST /visits`（createSession / createFollowUp） | `POST /sessions`（`initial` + `prior`） | 初诊/复诊判定由后端决定；复诊把历史 `SessionRecord` 放入 `prior` |
+| `POST /visits/:id/messages` + assistant-stream | `POST /sessions/{id}/patient-say` → `Step` | 后端把 `Step.kind` 翻成 SSE 事件（见下表） |
+| `POST /visits/:id/lab-decision`（accepted） | （无直接对应） | medAgent 只在 `NEED_TESTS` 下发检验；"是否检验/暂不决定/不查"是**前端 + 后端业务层**的卡片交互，medAgent 不感知"暂不决定" |
+| `POST /visits/:id/payments`（检验费） | 缴费成功后后端 → `POST /sessions/{id}/test-results` | 支付是后端职责，回填检验结果才驱动 medAgent 续跑 |
+| `POST /visits/:id/payments`（药品费）+ fulfillment | 后端 → `POST /sessions/{id}/purchase-result` | `DRUG_QUERY` 查规格对用户透明，`PURCHASE` 才是用户确认点 |
+| `GET /visits/:id/diagnosis` / 诊断卡 | `Step.Result.diagnosis`（`DONE` 时） | 诊断随 `DONE` 的 `Result` 返回 |
+| `POST /visits/:id/follow-up-intent` | 前端 / 后端业务层 | 完成态咨询/复诊意图分类，medAgent 无此能力，由独立 LLM 分类 |
+| `POST /visits/:id/exit` | `DELETE /sessions/{id}`（+ 后端结算） | 退出结算、退款由后端业务层处理，medAgent 仅销毁会话 |
+
+`Step.kind` → 前端 SSE / 卡片：
+
+| medAgent `Step.kind` | 前端表现 |
+| --- | --- |
+| `ASK` | `delta` / `message_final` 流式医生追问 |
+| `NEED_TESTS`（恒血常规） | `card(lab_decision)` → 同意后 `card(payment)` |
+| `DRUG_QUERY` | 对用户透明，不产生卡片（后端内部查规格） |
+| `PURCHASE` | `card(medication_fulfillment)` 购药确认（药名 + 盒数） |
+| `EMERGENCY` | `emergency` 事件 → `EmergencyOverlay` |
+| `DONE` | `card(diagnosis)` + `card(advice_only)` / 药品卡，`state(completed)` |
+
+关键边界（已知差异，须在 contract 与 mock 中体现）：
+
+- **无院内治疗执行（暂）**：medAgent 处置只有 `MEDICATION` / `ADVICE_ONLY` / `REFERRAL`，需院内操作/手术直接 `REFERRAL`。需求与 UI 文档保留"自动化治疗"分支，本期由前端 / mock 演示，待后端补充治疗执行能力后接入；在仅有三选一的 HTTP 后端下，治疗类情形按 `REFERRAL` 映射为终止卡 `reason: referral` 或 `capability_insufficient`。
+- **无总计时**：medAgent 无总超时强制转诊。前端总超时是纯前端 / mock 机制，HTTP 模式由前端发起 `exitVisit` 或后端转诊收口。
+- **急症会话即关闭**：medAgent 命中急症后会话关闭，前端"误报申诉恢复"（`emergencyPending`）只在前端 / mock 成立；HTTP 模式若需可恢复语义，须后端 contract 显式支持（如不关闭会话或重开续诊）。
+- **检验固定血常规**：当前 `NEED_TESTS` 恒为血常规，检验卡可据此简化，但 schema 仍保留 `test_items` 数组以备扩展。
+- **"暂不决定 / 不查"是前端语义**：medAgent 不感知这两个动作，由前端 + 后端业务层在调用 medAgent 之前消化（暂不决定＝不调用 patient-say 推进；不查＝跳过检验直接续问/确诊）。
 
 ## 与 MSW 的关系
 
@@ -372,10 +456,10 @@ MSW 后续用于更接近真实网络的测试，并验证 REST/SSE contract：
 - 实现 mock transport 的基础路由、延迟和错误注入。
 - 增加 `.env.example`。
 
-### 第二阶段：聊天和问诊 API
+### 第二阶段：会话与问诊 API
 
-- 定义 chat/visit 的 types 和 schemas。
-- 实现 `chatApi`、`visitApi` facade。
+- 定义 patient/visits/workbench 的 types 和 schemas。
+- 实现 `patientApi`、`visitsApi`、`workbenchApi` facade。
 - 实现 mock fixtures 和 mock-db。
 - 实现 `streamAssistantMessage` 的 mock 流式输出。
 - 让 mock handler 严格复用 REST/SSE contract schema，不新增 mock-only 字段。
@@ -384,7 +468,7 @@ MSW 后续用于更接近真实网络的测试，并验证 REST/SSE contract：
 
 - 创建 QueryClient。
 - 定义 queryOptions/mutationOptions。
-- 补充首批 hook：`useChatSession`、`useVisitCard`、`useSubmitLabDecision`。
+- 补充首批 hook：`useWorkbenchSession`、`useFlowCardAction`、`useVisitHistory`。
 
 ### 第四阶段：测试
 
