@@ -122,10 +122,19 @@
   * {
     @apply border-border outline-ring/50;
     }
+  html,
   body {
-    @apply bg-background text-foreground;
+    @apply h-full;
+    }
+  body {
+    @apply bg-background text-foreground antialiased;
+    margin: 0;
     }
   html {
     @apply font-sans;
+    }
+  #root {
+    /* 移动端优先单列承载，不再使用 Vite 示例的固定宽度。 */
+    min-height: 100dvh;
     }
 }
