@@ -1,6 +1,6 @@
 import { memo } from "react"
 
-import type { TimelineItem } from "@/features/workbench/api"
+import type { FlowCardAction, TimelineItem } from "@/features/workbench/api"
 import { assertNever } from "@/lib/utils"
 import { MessageBubble } from "@/features/workbench/components/MessageBubble"
 import { SystemEventRow } from "@/features/workbench/components/SystemEventRow"
@@ -14,6 +14,7 @@ import { FlowCardRenderer } from "@/features/workbench/flow-cards/FlowCardRender
 
 interface TimelineRowProps {
   item: TimelineItem
+  onAction?: (action: FlowCardAction) => void
 }
 
 /**
@@ -22,12 +23,15 @@ interface TimelineRowProps {
  * 根据 item.kind 分发到对应渲染组件。
  * 使用 assertNever 确保 union 新增成员时编译期报错。
  */
-export const TimelineRow = memo(function TimelineRow({ item }: TimelineRowProps) {
+export const TimelineRow = memo(function TimelineRow({
+  item,
+  onAction,
+}: TimelineRowProps) {
   switch (item.kind) {
     case "message":
       return <MessageBubble item={item} />
     case "flow_card":
-      return <FlowCardRenderer card={item.card} />
+      return <FlowCardRenderer card={item.card} onAction={onAction} />
     case "system_event":
       return <SystemEventRow item={item} />
     case "terminal":

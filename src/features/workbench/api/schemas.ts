@@ -64,6 +64,7 @@ export const submitPaymentInputSchema = z.object({
   purpose: z.enum(["lab", "medication"]),
   paymentMethodId: z.string().trim().min(1).optional(),
   simulateStatus: paymentStatusSchema.optional(),
+  defer: z.boolean().optional(),
 })
 
 export const submitFulfillmentInputSchema = z.object({

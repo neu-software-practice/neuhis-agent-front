@@ -500,11 +500,17 @@ MSW 后续用于更接近真实网络的测试，并验证 REST/SSE contract：
 | 主动退出 | `exitVisit(reason: patient_request)` 生成终止时间线项和结算结果 |
 | 完成后咨询 | `streamConsultationReply` mock 流式回复，不创建 session |
 | 完成后复诊 | `createFollowUp` 基于 `parentSessionId` 创建复诊 session |
-| 自动化治疗 mock | schema 与 endpoint 已保留，完整演示路径留给 `P4.4` 扩展 |
+| 自动化治疗 mock | 检验支付后可按 mock 文本意图产出 `treatment_execution`，`submitTreatmentExecution(schedule -> confirm_arrival -> start -> complete)` 进入完成 |
+
+P4 补完后的 mock 处置分流规则：
+
+- 默认走 `medication`：检验结果回填后产出诊断卡、处置方案卡、药品支付卡，药品支付和取药确认后完成。
+- 文本包含“只要建议 / 不想买药 / 先观察 / 医嘱 / 不用药”等意图时走 `advice_only`：检验结果回填后产出诊断卡、处置方案卡、仅医嘱确认卡，确认后完成。
+- 文本包含“雾化 / 理疗 / 治疗执行 / 院内治疗 / 自动化治疗”等意图时走 `treatment`：检验结果回填后产出诊断卡、处置方案卡、治疗执行卡，按预约、到号、开始、完成推进。
+- 患者选择不查检验时，诊断卡只使用 `history` / `answer` 证据来源，不写入 `lab_result`。
 
 当前明确未完成：
 
-- 状态机尚未接入 `useWorkbenchSession`、`useAssistantStream`、UI 时间线和流程卡动作；接入留给 `P4.1-P4.3`。
 - MSW handler 尚未实现；目前测试走 mock transport。
 - `special-designs/rest-api.md` 结项 REST API 文档尚未产出。
 - HTTP transport 只提供 contract 请求骨架和 SSE 解析骨架，尚未做后端字段 adapter。

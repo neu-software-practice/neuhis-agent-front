@@ -261,6 +261,10 @@ export const visitMachine = visitMachineSetup.createMachine({
     },
     diagnosis: {
       on: {
+        ADVICE_CARD_RAISED: {
+          target: "adviceOnly",
+          actions: "assignCurrentCard",
+        },
         TREATMENT_DECIDED: [
           {
             guard: "treatmentMedication",
@@ -287,6 +291,10 @@ export const visitMachine = visitMachineSetup.createMachine({
     },
     treatmentDecision: {
       on: {
+        ADVICE_CARD_RAISED: {
+          target: "adviceOnly",
+          actions: "assignCurrentCard",
+        },
         TREATMENT_DECIDED: [
           {
             guard: "treatmentMedication",
@@ -313,6 +321,9 @@ export const visitMachine = visitMachineSetup.createMachine({
     },
     medicationPayment: {
       on: {
+        MEDICATION_PAYMENT_RAISED: {
+          actions: "assignCurrentCard",
+        },
         MEDICATION_PAID: {
           target: "medicationFulfillment",
           actions: "assignCurrentCard",
@@ -347,6 +358,9 @@ export const visitMachine = visitMachineSetup.createMachine({
     },
     treatmentExecution: {
       on: {
+        TREATMENT_EXECUTION_RAISED: {
+          actions: "assignCurrentCard",
+        },
         TREATMENT_SCHEDULED: {
           actions: "assignCurrentCard",
         },
@@ -364,6 +378,9 @@ export const visitMachine = visitMachineSetup.createMachine({
     },
     adviceOnly: {
       on: {
+        ADVICE_CARD_RAISED: {
+          actions: "assignCurrentCard",
+        },
         ADVICE_ACKNOWLEDGED: {
           target: "completed",
           actions: "markCompleted",

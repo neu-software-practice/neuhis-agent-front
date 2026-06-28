@@ -52,6 +52,7 @@ import {
   createLabPaymentCard,
   createMedicationFulfillmentCard,
   createMedicationPaymentCard,
+  createTreatmentExecutionCard,
   createTreatmentPlanCard,
 } from "@/mocks/api/fixtures/flow-cards"
 import { mockPatient, mockPatientContext } from "@/mocks/api/fixtures/patient"
@@ -71,6 +72,8 @@ interface MockDbState {
   timelines: Record<SessionId, TimelineItem[]>
   nextId: number
 }
+
+type MockTreatmentPlan = Extract<FlowCard, { kind: "treatment_plan" }>["plan"]
 
 function clone<T>(value: T): T {
   return structuredClone(value)
@@ -409,6 +412,25 @@ class MockDb {
       return this.flowResult(input.sessionId, [], undefined, "当前卡片不是支付卡。")
     }
 
+    if (input.defer) {
+      card.status = "invalidated"
+      card.paymentStatus = "unpaid"
+      card.blocking = false
+      card.handledAt = nowIso()
+      const item = this.systemItem(
+        input.sessionId,
+        "暂不缴费",
+        "已暂停当前支付，患者可继续补充症状或稍后再处理。",
+      )
+      this.pushTimeline(input.sessionId, item)
+      this.updateSession(input.sessionId, {
+        status: "chatting",
+        activeCardId: undefined,
+        updatedAt: nowIso(),
+      })
+      return this.flowResult(input.sessionId, [item], card)
+    }
+
     if (input.simulateStatus === "failed") {
       card.status = "failed"
       card.paymentStatus = "failed"
@@ -421,6 +443,7 @@ class MockDb {
     card.handledAt = nowIso()
 
     if (input.purpose === "lab") {
+      const plan = this.inferTreatmentPlan(input.sessionId)
       const labItem = this.cardItem(
         input.sessionId,
         createCompletedLabExecutionCard(input.sessionId, this.id("card")),
@@ -431,8 +454,61 @@ class MockDb {
       )
       const planItem = this.cardItem(
         input.sessionId,
-        createTreatmentPlanCard(input.sessionId, this.id("card")),
+        createTreatmentPlanCard(input.sessionId, this.id("card"), plan),
       )
+
+      if (plan === "advice_only") {
+        const adviceCard = this.createAdviceOnlyCard(
+          input.sessionId,
+          "检验结果已回填，当前建议先按保守医嘱观察。",
+        )
+        const adviceItem = this.cardItem(input.sessionId, adviceCard)
+        this.pushTimeline(
+          input.sessionId,
+          this.systemItem(input.sessionId, "检验已完成", "血常规结果已自动回填。"),
+          labItem,
+          diagnosisItem,
+          planItem,
+          adviceItem,
+        )
+        this.updateSession(input.sessionId, {
+          status: "blocked",
+          activeCardId: adviceCard.id,
+          updatedAt: nowIso(),
+        })
+        return this.flowResult(
+          input.sessionId,
+          [labItem, diagnosisItem, planItem, adviceItem],
+          adviceCard,
+        )
+      }
+
+      if (plan === "treatment") {
+        const treatmentCard = createTreatmentExecutionCard(
+          input.sessionId,
+          this.id("card"),
+        )
+        const treatmentItem = this.cardItem(input.sessionId, treatmentCard)
+        this.pushTimeline(
+          input.sessionId,
+          this.systemItem(input.sessionId, "检验已完成", "血常规结果已自动回填。"),
+          labItem,
+          diagnosisItem,
+          planItem,
+          treatmentItem,
+        )
+        this.updateSession(input.sessionId, {
+          status: "blocked",
+          activeCardId: treatmentCard.id,
+          updatedAt: nowIso(),
+        })
+        return this.flowResult(
+          input.sessionId,
+          [labItem, diagnosisItem, planItem, treatmentItem],
+          treatmentCard,
+        )
+      }
+
       const medicationPayment = createMedicationPaymentCard(
         input.sessionId,
         this.id("card"),
@@ -497,18 +573,36 @@ class MockDb {
       card.executionStatus = "completed"
       card.blocking = false
       card.handledAt = nowIso()
+      card.availableActions = []
       return this.completeVisit(input.sessionId)
     }
 
-    card.status = "processing"
-    card.executionStatus =
-      input.action === "schedule"
-        ? "scheduled"
-        : input.action === "confirm_arrival"
-          ? "arrived"
-          : input.action === "start"
-            ? "in_progress"
-            : "canceled"
+    if (input.action === "schedule") {
+      card.status = "pending"
+      card.executionStatus = "scheduled"
+      card.appointmentAt = new Date(Date.now() + 20 * 60_000).toISOString()
+      card.queueNo = "W-018"
+      card.availableActions = ["confirm_arrival", "cancel"]
+    } else if (input.action === "confirm_arrival") {
+      card.status = "pending"
+      card.executionStatus = "arrived"
+      card.availableActions = ["start", "cancel"]
+    } else if (input.action === "start") {
+      card.status = "pending"
+      card.executionStatus = "in_progress"
+      card.availableActions = ["complete"]
+    } else {
+      card.status = "invalidated"
+      card.executionStatus = "canceled"
+      card.blocking = false
+      card.handledAt = nowIso()
+      card.availableActions = []
+      this.updateSession(input.sessionId, {
+        status: "chatting",
+        activeCardId: undefined,
+        updatedAt: nowIso(),
+      })
+    }
     return this.flowResult(input.sessionId, [], card)
   }
 
@@ -579,6 +673,24 @@ class MockDb {
   }
 
   appendAssistantMessage(sessionId: SessionId, content: string) {
+    const timeline = this.state.timelines[sessionId] ?? []
+    for (let i = timeline.length - 1; i >= 0; i--) {
+      const item = timeline[i]
+      if (
+        item.kind === "message" &&
+        item.role === "assistant" &&
+        item.status === "streaming"
+      ) {
+        const finalized: TimelineItem = {
+          ...item,
+          status: "done",
+          content,
+        }
+        timeline[i] = finalized
+        return finalized
+      }
+    }
+
     const item: TimelineItem = {
       id: this.id("tl"),
       sessionId,
@@ -593,8 +705,23 @@ class MockDb {
   }
 
   private completeAdviceOnly(sessionId: SessionId, reason: string): FlowActionResult {
-    const diagnosisItem = this.cardItem(sessionId, createDiagnosisCard(sessionId, this.id("card")))
-    const adviceCard: FlowCard = {
+    const diagnosisItem = this.cardItem(
+      sessionId,
+      createDiagnosisCard(sessionId, this.id("card"), { includeLabEvidence: false }),
+    )
+    const adviceCard = this.createAdviceOnlyCard(sessionId, reason)
+    const adviceItem = this.cardItem(sessionId, adviceCard)
+    this.pushTimeline(sessionId, diagnosisItem, adviceItem)
+    this.updateSession(sessionId, {
+      status: "blocked",
+      activeCardId: adviceCard.id,
+      updatedAt: nowIso(),
+    })
+    return this.flowResult(sessionId, [diagnosisItem, adviceItem], adviceCard)
+  }
+
+  private createAdviceOnlyCard(sessionId: SessionId, reason: string): FlowCard {
+    return {
       id: this.id("card"),
       sessionId,
       kind: "advice_only",
@@ -606,14 +733,18 @@ class MockDb {
       watchItems: ["持续高热", "呼吸困难", "精神状态明显变差"],
       followUpRecommendation: reason,
     }
-    const adviceItem = this.cardItem(sessionId, adviceCard)
-    this.pushTimeline(sessionId, diagnosisItem, adviceItem)
-    this.updateSession(sessionId, {
-      status: "blocked",
-      activeCardId: adviceCard.id,
-      updatedAt: nowIso(),
-    })
-    return this.flowResult(sessionId, [diagnosisItem, adviceItem], adviceCard)
+  }
+
+  private inferTreatmentPlan(sessionId: SessionId): MockTreatmentPlan {
+    const summary = this.requireSession(sessionId).summary
+    const text = `${summary.chiefComplaint ?? ""} ${summary.lastMessage ?? ""}`
+    if (/只要建议|不想买药|不买药|先观察|观察|医嘱|不用药/.test(text)) {
+      return "advice_only"
+    }
+    if (/雾化|理疗|治疗执行|院内治疗|自动化治疗/.test(text)) {
+      return "treatment"
+    }
+    return "medication"
   }
 
   private completeVisit(sessionId: SessionId): FlowActionResult {

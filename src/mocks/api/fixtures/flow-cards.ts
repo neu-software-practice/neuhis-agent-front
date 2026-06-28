@@ -1,6 +1,7 @@
 import type { FlowCard } from "@/features/workbench/api/timeline-types"
 
 const baseTime = "2026-06-28T02:00:00.000Z"
+type TreatmentPlanKind = Extract<FlowCard, { kind: "treatment_plan" }>["plan"]
 
 export function createLabDecisionCard(sessionId: string, id: string): FlowCard {
   return {
@@ -88,7 +89,12 @@ export function createCompletedLabExecutionCard(
   }
 }
 
-export function createDiagnosisCard(sessionId: string, id: string): FlowCard {
+export function createDiagnosisCard(
+  sessionId: string,
+  id: string,
+  options: { includeLabEvidence?: boolean } = {},
+): FlowCard {
+  const includeLabEvidence = options.includeLabEvidence ?? true
   return {
     id,
     sessionId,
@@ -99,13 +105,50 @@ export function createDiagnosisCard(sessionId: string, id: string): FlowCard {
     createdAt: baseTime,
     diagnosis: "急性上呼吸道感染，细菌感染可能",
     confidence: "medium",
-    evidence: ["发热两天", "咽痛", "血常规白细胞轻度升高"],
-    evidenceSources: ["history", "answer", "lab_result"],
+    evidence: includeLabEvidence
+      ? ["发热两天", "咽痛", "血常规白细胞轻度升高"]
+      : ["发热两天", "咽痛", "患者选择暂不进行检验"],
+    evidenceSources: includeLabEvidence
+      ? ["history", "answer", "lab_result"]
+      : ["history", "answer"],
     riskSignals: ["如出现呼吸困难、持续高热不退，应立即线下急诊。"],
   }
 }
 
-export function createTreatmentPlanCard(sessionId: string, id: string): FlowCard {
+export function createTreatmentPlanCard(
+  sessionId: string,
+  id: string,
+  plan: TreatmentPlanKind = "medication",
+): FlowCard {
+  const planConfig: Record<
+    TreatmentPlanKind,
+    Pick<
+      Extract<FlowCard, { kind: "treatment_plan" }>,
+      "capability" | "summary" | "actions"
+    >
+  > = {
+    medication: {
+      capability: "available",
+      summary: "建议对症用药、补液休息，并观察 48 小时。",
+      actions: ["退热止痛", "缓解咽痛", "观察体温"],
+    },
+    treatment: {
+      capability: "available",
+      summary: "建议预约院内雾化治疗，并按到号后流程执行。",
+      actions: ["预约雾化治疗", "确认到号", "开始治疗", "完成治疗"],
+    },
+    advice_only: {
+      capability: "available",
+      summary: "当前可先按保守医嘱观察，暂不进入药品或治疗执行。",
+      actions: ["休息补液", "监测体温", "必要时复诊"],
+    },
+    referral: {
+      capability: "unavailable",
+      summary: "当前能力不足，建议转线下专科进一步评估。",
+      actions: ["线下就医", "携带既往资料"],
+    },
+  }
+  const config = planConfig[plan]
   return {
     id,
     sessionId,
@@ -114,10 +157,29 @@ export function createTreatmentPlanCard(sessionId: string, id: string): FlowCard
     blocking: false,
     title: "处置建议",
     createdAt: baseTime,
-    plan: "medication",
+    plan,
+    ...config,
+  }
+}
+
+export function createTreatmentExecutionCard(
+  sessionId: string,
+  id: string,
+): FlowCard {
+  return {
+    id,
+    sessionId,
+    kind: "treatment_execution",
+    status: "pending",
+    blocking: true,
+    title: "雾化治疗执行",
+    createdAt: baseTime,
+    lockReason: "需要先完成治疗执行流程，AI 才能结束本次问诊。",
+    treatmentName: "雾化吸入治疗",
     capability: "available",
-    summary: "建议对症用药、补液休息，并观察 48 小时。",
-    actions: ["退热止痛", "缓解咽痛", "观察体温"],
+    executionStatus: "pending",
+    notices: ["治疗前请确认无明显呼吸困难", "治疗过程中如不适请立即告知护士"],
+    availableActions: ["schedule", "cancel"],
   }
 }
 

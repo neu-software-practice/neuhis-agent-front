@@ -54,8 +54,13 @@ export const TreatmentExecutionCard = memo(
     const config = executionStatusConfig[card.executionStatus]
     const Icon = config?.icon ?? Activity
     const isCompleted = card.executionStatus === "completed"
-    const isPending = card.status === "pending" && !isCompleted
-    const isLocked = disabled || !isPending
+    const canAct =
+      !isCompleted &&
+      card.status !== "completed" &&
+      card.status !== "failed" &&
+      card.status !== "invalidated" &&
+      card.availableActions.length > 0
+    const isLocked = disabled || !canAct
 
     return (
       <Card className="w-full border border-divider">
@@ -156,7 +161,7 @@ export const TreatmentExecutionCard = memo(
           ) : null}
         </Card.Content>
 
-        {isPending && card.availableActions.length > 0 ? (
+        {canAct ? (
           <CardFooter className="flex flex-wrap gap-2 pt-0">
             {card.availableActions.map((action) => {
               const isDestructive = action === "cancel"
