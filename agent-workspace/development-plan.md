@@ -255,7 +255,7 @@ subagent 分组和文件所有权：
 - 以 `special-designs/api.md` 的首批 endpoint 表为准，整理 `patient / visits / workbench` 三域 endpoint 清单。
 - 明确每个 endpoint 的 facade 方法、请求 schema 名、响应 schema 名、错误模型、分页方式和是否会写入时间线。
 - 明确核心实体最小字段：`PatientContext`、`VisitSession`、`TimelineItem`、`FlowCard`、`AssistantStreamEvent`、`FlowActionResult`、`ExitSettlementResult`、`ApiError`、`PageResult`。
-- 明确 `TimelineItem.type`、`FlowCard.kind`、SSE `event.type`、`VisitStatus`、`VisitMachineState`、`TerminationReason`、`PaymentStatus` 等枚举的首版取值。
+- 明确 `TimelineItem.kind`、`FlowCard.kind`、SSE `event.type`、`VisitStatus`、`VisitMachineState`、`TerminationReason`、`PaymentStatus` 等枚举的首版取值。
 - 为每个高风险流程列一条数据样例路径：新出诊追问、检验同意、检验不查、暂不决定、支付失败、诊断完成、用药完成、仅医嘱完成、自动化治疗 mock、急症、超时、主动退出、完成后咨询、完成后复诊。
 - 标注 medAgent 不支持但前端 contract 预留的边界：自动化治疗执行、总计时、急症误报恢复、暂不决定 / 不查前端语义。
 
@@ -360,6 +360,17 @@ subagent 分组和文件所有权：
 - 切换 `VITE_API_MODE` 不需要改业务组件。
 - 同一套 facade 可跑在 mock transport；HTTP transport 字段不一致时只能在 adapter 层显式映射。
 
+完成产出（2026-06-28）：
+
+- `P2.0` 契约清单已同步到 `agent-workspace/special-designs/api.md` 的「当前实现进度」：包含三域 endpoint、核心对象、枚举取值和首批 mock 样例路径。
+- `P2.1` 已实现：`.env.example`、`src/lib/api/{config,types,errors,transport,client,index}.ts`，支持 mock/http transport 选择，HTTP transport 使用 ky + fetch-event-source 骨架，Zod/HTTP/stream 错误统一转 `ApiError`。
+- `P2.2` 已实现：`patient / visits / workbench` 三域 schema 与 types；`FlowCard`、`TimelineItem`、`AssistantStreamEvent` 为 discriminated union；核心 parse/safeParse 边界函数已导出。
+- `P2.3` 已实现：`src/mocks/api/fixtures/*`、`handlers/*`、`mock-db.ts`、`mock-transport.ts`、`stream-simulator.ts`。mock-db 支持创建新问诊、复诊、读取历史、时间线、发送消息、SSE 检验卡、检验决策、支付、取药、仅医嘱、意图分类、急症复检、退出和计时暂停/恢复。
+- `P2.4` 已实现：`patientApi`、`visitsApi`、`workbenchApi`，`patientQueries`、`visitsQueries`、`workbenchQueries`，以及首批 mutation options；新增聚合入口 `src/features/api.ts`。
+- 已补契约测试：`src/features/workbench/api/workbench-api.test.ts` 覆盖 mock facade 创建会话、发送消息、流式下发检验卡、检验决策和支付推进。
+- 验证：`pnpm test`、`pnpm lint`、`pnpm build` 均通过。
+- 未完成：`P2.5` 状态机骨架尚未启动；完整自动化治疗演示、完成后咨询/复诊的 UI 串联和 MSW handler 留给后续阶段。
+
 #### P2.5 XState 状态机骨架
 
 依赖：`P2.0`、`P2.2`、`P2.3` 的流程样例。
@@ -382,6 +393,17 @@ subagent 分组和文件所有权：
 - 状态机单元测试覆盖关键转移。
 - 阻塞态下普通 `MESSAGE_SENT` 不推进主流程。
 - 从 mock session 快照 hydration 后能恢复到正确阻塞态、完成态或终止态。
+
+完成产出（2026-06-28）：
+
+- 已新增 `src/features/workbench/machine/visit-machine.ts`、`visit-machine.types.ts`、`visit-machine.guards.ts`、`visit-machine.actions.ts`。
+- 已建立计划要求的全部机器态：`loadingContext`、`chatting`、`analyzing`、`labDecision`、`labPayment`、`labExecution`、`diagnosis`、`treatmentDecision`、`medicationPayment`、`medicationFulfillment`、`treatmentExecution`、`adviceOnly`、`completed`、`emergencyPending`、`terminated`、`exitSettlement`、`exited`。
+- `VisitMachineContext` 只保存流程运行所需的轻量上下文：`sessionId`、`currentCardId`、`terminalReason`、`askRound`、`labRound`、`blocking`、`timerPaused`、`streamRequestId`、急症覆盖态前态等；不复制 session/timeline/card 大对象。
+- `HYDRATE` 已支持直接恢复到任一目标机器态，并同步 session 轮次、计时、阻塞卡和终止原因；该事件不触发 API 副作用。
+- 已实现关键全局打断：`EMERGENCY_DETECTED` 进入 `emergencyPending` 并保存前态，急症态屏蔽超时 / 转诊 / 退出，`EMERGENCY_DISMISSED` 恢复前态，`EMERGENCY_CONFIRMED` 进入 `terminated(reason: emergency)`；`VISIT_TIMEOUT`、`TRANSFER_REQUIRED`、`EXIT_REQUESTED` 分别收口到终止 / 退出结算路径。
+- 已补 `src/features/workbench/machine/visit-machine.test.ts`，覆盖 hydration、阻塞态普通消息不推进、检验决策链路、急症误报恢复、急症确认、超时优先级和处置分支跳转。
+- 验证：`pnpm test`、`pnpm lint`、`pnpm build` 均通过。
+- 未完成：状态机尚未接入 `useWorkbenchSession`、`useAssistantStream`、UI 时间线和流程卡动作；这些留给 `P4.1-P4.3`。
 
 ### P3. 页面和组件静态骨架
 

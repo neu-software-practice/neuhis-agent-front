@@ -458,6 +458,57 @@ MSW 后续用于更接近真实网络的测试，并验证 REST/SSE contract：
 - 接口联调：`VITE_API_MODE=http` 使用真实服务端，并按前端 contract 做契约测试。
 - 测试阶段：unit 使用 mock transport，integration 使用 MSW。
 
+## 当前实现进度（2026-06-28）
+
+本轮已启动并完成首批可编码地基，实际覆盖 `development-plan.md` 的 `P2.0-P2.5` 主要内容：
+
+- API 基础层：`src/lib/api/{config,types,errors,transport,client,index}.ts`。
+- 环境变量样例：`.env.example`。
+- 三域 facade：`src/features/patient/api`、`src/features/visits/api`、`src/features/workbench/api`。
+- 统一聚合入口：`src/features/api.ts` 导出 `api.patient`、`api.visits`、`api.workbench`。
+- mock：`src/mocks/api/{fixtures,handlers,mock-db,mock-transport,stream-simulator}.ts`。
+- 契约测试：`src/features/workbench/api/workbench-api.test.ts`。
+- 状态机骨架：`src/features/workbench/machine/{visit-machine,visit-machine.types,visit-machine.guards,visit-machine.actions}.ts`。
+- 状态机测试：`src/features/workbench/machine/visit-machine.test.ts`。
+
+首批稳定枚举与对象：
+
+| 对象 | 实现位置 | 首版取值 / 范围 |
+| --- | --- | --- |
+| `VisitStatus` | `src/lib/api/types.ts` | `loading_context`、`chatting`、`analyzing`、`blocked`、`diagnosis`、`treatment`、`completed`、`transferred`、`emergency_terminated`、`exited` |
+| `VisitMachineState` | `src/lib/api/types.ts` | `loadingContext`、`chatting`、`analyzing`、`labDecision`、`labPayment`、`labExecution`、`diagnosis`、`treatmentDecision`、`medicationPayment`、`medicationFulfillment`、`treatmentExecution`、`adviceOnly`、`completed`、`emergencyPending`、`terminated`、`exitSettlement`、`exited` |
+| `TerminalReason` | `src/lib/api/types.ts` | `emergency`、`timeout`、`ask_limit_reached`、`lab_limit_reached`、`referral`、`capability_insufficient`、`exited` |
+| `PaymentStatus` | `src/lib/api/types.ts` | `unpaid`、`pending`、`paid`、`failed`、`refunded` |
+| `FlowCard.kind` | `src/features/workbench/api/timeline-schemas.ts` | `lab_decision`、`payment`、`lab_execution`、`diagnosis`、`treatment_plan`、`medication_fulfillment`、`treatment_execution`、`advice_only`、`completed_visit` |
+| `TimelineItem.kind` | `src/features/workbench/api/timeline-schemas.ts` | `message`、`flow_card`、`system_event`、`terminal` |
+| `AssistantStreamEvent.type` | `src/features/workbench/api/timeline-schemas.ts` | `delta`、`message_final`、`card`、`state`、`emergency`、`done`、`error` |
+
+首批 mock 样例路径：
+
+| 样例路径 | 当前覆盖情况 |
+| --- | --- |
+| 新出诊追问 | `createSession` + `sendMessage` + `streamAssistantMessage` |
+| 检验同意 | `submitLabDecision(decision: accepted)` 产出检验支付卡 |
+| 检验不查 | `submitLabDecision(decision: skipped)` 走诊断 + 仅医嘱分支 |
+| 暂不决定 | `submitLabDecision(decision: vetoed)` 解除阻塞并回到 `chatting` |
+| 支付失败 | `submitPayment(simulateStatus: failed)` 返回失败卡状态 |
+| 诊断完成 | 检验支付成功后产出 `diagnosis` 与 `treatment_plan` |
+| 用药完成 | 药品支付后产出取药卡，`submitFulfillment` 进入完成 |
+| 仅医嘱完成 | `ackAdvice` 进入完成 |
+| 急症 | stream 关键词或 `reportVitals` 命中返回急症事件 / 结果 |
+| 超时 | 已有 `exitVisit(reason: timeout)` 收口；倒计时 hook 留给 `P5.2` |
+| 主动退出 | `exitVisit(reason: patient_request)` 生成终止时间线项和结算结果 |
+| 完成后咨询 | `streamConsultationReply` mock 流式回复，不创建 session |
+| 完成后复诊 | `createFollowUp` 基于 `parentSessionId` 创建复诊 session |
+| 自动化治疗 mock | schema 与 endpoint 已保留，完整演示路径留给 `P4.4` 扩展 |
+
+当前明确未完成：
+
+- 状态机尚未接入 `useWorkbenchSession`、`useAssistantStream`、UI 时间线和流程卡动作；接入留给 `P4.1-P4.3`。
+- MSW handler 尚未实现；目前测试走 mock transport。
+- `special-designs/rest-api.md` 结项 REST API 文档尚未产出。
+- HTTP transport 只提供 contract 请求骨架和 SSE 解析骨架，尚未做后端字段 adapter。
+
 ## 实施计划
 
 ### 第一阶段：前端 API contract 与请求层骨架

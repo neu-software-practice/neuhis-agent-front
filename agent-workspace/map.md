@@ -38,6 +38,25 @@ NEUHIS Agent 前端是一个 React + HeroUI 3 + Magic UI 的 AI 诊疗 Agent 聊
     lib/query-client.ts      # 全局 QueryClient 单例
     lib/ids.ts               # 纯前端本地 ID 生成
     lib/time.ts              # 时间格式化工具
+    lib/api/
+      config.ts              # API_MODE / BASE_URL / mock 延迟配置
+      types.ts               # ApiError、ID、分页、状态枚举等通用契约
+      errors.ts              # ApiException、错误标准化、Zod 错误转换
+      transport.ts           # ApiTransport、RequestOptions、StreamHandlers
+      client.ts              # ky HTTP transport + fetch-event-source SSE 骨架
+      index.ts               # getTransport() mock/http 选择器
+    features/
+      api.ts                 # 统一 api facade 聚合：patient / visits / workbench
+      patient/api/           # 患者 schema、types、facade、query/mutation options
+      visits/api/            # 会话 schema、types、facade、query/mutation options
+      workbench/api/         # 时间线/流程卡/SSE schema、types、facade、query/mutation options
+      workbench/machine/     # XState visitMachine、事件/上下文类型、guards、actions、状态机测试
+    mocks/api/
+      fixtures/              # patient / visits / timeline / flow-cards fixture 工厂
+      handlers/              # patient / visit / chat mock handler
+      mock-db.ts             # 内存 mock 状态与流程推进
+      mock-transport.ts      # ApiTransport mock 实现
+      stream-simulator.ts    # assistant-stream / lock-question / consult mock SSE
     test/setup.ts            # Vitest + jest-dom 初始化
   agent-workspace/
     special-designs/api.md  # 前端 API 合约与 Mock 设计，含 REST/SSE contract 和结项 REST 文档要求
@@ -87,18 +106,37 @@ NEUHIS Agent 前端是一个 React + HeroUI 3 + Magic UI 的 AI 诊疗 Agent 聊
 - [技术选型](./tech-selection.md)
 - [前端 API 合约与 Mock 设计](./special-designs/api.md)
 
-## 本次完成（P1 全局基础骨架）
+## 阶段完成记录
 
-- P1.1 应用入口与路由骨架：新增 `src/app/{App,providers,router,error-boundary}.tsx`，采用 React Router Data Router（`createBrowserRouter` + `RouterProvider`），建立 `/`、`/history`、`/profile`、`/workbench/new`、`/workbench/:sessionId`、`/history/:sessionId` 路由；新增 `src/pages/home/{HomePage,HistoryPage,ProfilePage}.tsx` 与 `src/pages/workbench/{NewWorkbenchPage,WorkbenchPage,ReadonlyVisitPage}.tsx` 占位骨架；`workbench-loaders.ts` 只做参数解析与轻量校验，不预取业务数据、不推进状态。
-- P1.2 全局 Provider 与 QueryClient：新增 `src/lib/query-client.ts` 单例；`AppProviders` 接入 `QueryClientProvider` 与开发态 `ReactQueryDevtools`，遵循 HeroUI 3 约定不加 `HeroUIProvider`。
-- P1.3 全局样式清理与布局基线：`main.tsx` 改为 `RouterProvider` + 统一引入 `globals.css`；删除 Vite 示例 `App.tsx`、`App.css`、`index.css`、`assets/{hero.png,react.svg,vite.svg}`；`globals.css` `@layer base` 补移动端单列、安全区、`#root` 最小高度基线；`index.html` 标题改为「东软云脑智能医疗」。
-- P1.4 通用工具与共享 UI 基础：`lib/utils.ts` 补 `assertNever`；新增 `lib/ids.ts`（`createLocalId`）、`lib/time.ts`；新增 `features/shared/components/{PageShell,EmptyState,StatusPill,AppBottomTabs}.tsx`，均为弱业务组件，`StatusPill` 用通用 tone 不绑定业务枚举，`AppBottomTabs` 用 `NavLink` 渲染 首页/历史/我的。
-- 验证：`pnpm lint`、`pnpm build`（tsc -b + vite build）、`pnpm test` 均通过（暂无测试文件）。
+### P1 全局基础骨架
 
-## 本次未完成
+- 完成应用入口、Data Router 路由表、AppProviders、QueryClient、全局样式基线和共享弱业务组件。
+- 页面仍是占位骨架，loader 只做参数解析和轻量校验，不预取业务数据、不推进流程状态。
+- P1 验证：`pnpm lint`、`pnpm build`、`pnpm test` 通过。
 
-- 未落地任何业务数据结构（`VisitSession`、`TimelineItem`、`FlowCard` 等）；P1 按计划只做最小运行壳。
-- 未创建 `features/*/api`、`mocks`、状态机；留给 P2 数据先行地基。
-- 页面均为占位骨架，未接入 feature query / mutation 与真实业务逻辑。
-- 未新增测试文件；测试随 P2 起旁路推进。
-- 下一步：P2.0 数据契约清单和样例矩阵，由 `api-contract` 单点启动。
+### P2.0-P2.4 契约、mock 和 API facade
+
+- 新增 `.env.example`，包含 `VITE_API_MODE`、`VITE_API_BASE_URL`、`VITE_MOCK_DELAY_MS`。
+- 新增 `src/lib/api/*`：统一 `ApiTransport`、mock/http transport 选择、ky HTTP transport 骨架、SSE transport 骨架、统一 `ApiError` 与 Zod 解析错误转换。
+- 新增 `patient / visits / workbench` 三域 schema、types、facade、query options 和 mutation options；类型从 Zod schema 推导，`FlowCard`、`TimelineItem`、`AssistantStreamEvent` 使用 discriminated union。
+- 新增 `src/features/api.ts` 聚合 `api.patient`、`api.visits`、`api.workbench`，业务层后续不直接调用 transport。
+- 新增 `src/mocks/api/*`：fixtures、handler、mock-db、mock transport 和 stream simulator。mock 可创建新问诊、创建复诊、读取历史、读取时间线、发送消息、流式产出 `delta/message_final/card/state/done`、推进检验决策、检验支付、药品支付、取药完成、仅医嘱、意图分类、急症复检、主动退出、暂停/恢复计时。
+- 新增 `src/features/workbench/api/workbench-api.test.ts`，覆盖 mock facade 创建会话、发送消息、流式下发检验卡、检验决策和支付推进。
+- P2 验证：`pnpm test`、`pnpm lint`、`pnpm build` 均通过。
+
+### P2.5 XState 状态机骨架
+
+- 新增 `src/features/workbench/machine/{visit-machine,visit-machine.types,visit-machine.guards,visit-machine.actions}.ts`。
+- 建立 `loadingContext`、`chatting`、`analyzing`、`labDecision`、`labPayment`、`labExecution`、`diagnosis`、`treatmentDecision`、`medicationPayment`、`medicationFulfillment`、`treatmentExecution`、`adviceOnly`、`completed`、`emergencyPending`、`terminated`、`exitSettlement`、`exited` 全部状态。
+- `VisitMachineContext` 只保存 `sessionId`、当前卡 ID、终止原因、计时暂停标记、轮次、stream request id、急症覆盖态前态等必要流程上下文；不保存完整 `VisitSession`、timeline 或 card 数据。
+- 已实现 `HYDRATE` 直接恢复到目标机器态，且不触发 API 副作用；阻塞态下 `MESSAGE_SENT` 不推进主流程。
+- 已实现全局打断优先级骨架：急症进入 `emergencyPending` 并保存前态，确认后 `terminated(reason: emergency)`，误报恢复前态；超时 / 转诊进入 `terminated`；主动退出进入 `exitSettlement` 后 `exited`。
+- 已补 `src/features/workbench/machine/visit-machine.test.ts`，覆盖 hydration、阻塞态消息不推进、检验卡链路、急症恢复 / 确认、超时优先级和处置分支跳转。
+- P2.5 验证：`pnpm test`、`pnpm lint`、`pnpm build` 均通过。
+
+## 当前未完成
+
+- 页面仍未接入 `patientQueries`、`visitsQueries`、`workbenchQueries`；`P3` 开始后不得再使用临时页面对象。
+- mock 主链路已覆盖新出诊、检验同意、支付、诊断、用药取药、退出、急症复检等基础路径；支付失败、自动化治疗完整路径、完成后复诊/咨询仍需在 P4/P5 扩展测试。
+- `visitMachine` 已有骨架与关键测试，但还未接入 `useWorkbenchSession`、`useAssistantStream` 和真实 UI；P4.1 负责总装。
+- 尚未产出结项 `special-designs/rest-api.md`；等 schema、MSW/契约测试和 UI 主流程稳定后整理。
