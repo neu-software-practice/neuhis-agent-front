@@ -11,4 +11,12 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  optimizeDeps: {
+    entries: ["index.html"],
+  },
+  server: {
+    fs: {
+      allow: [".", "node_modules"],
+    },
+  },
 })

@@ -55,3 +55,23 @@ export type ExitVisitInput = z.infer<typeof exitVisitInputSchema>
 export type ExitSettlementResult = z.infer<typeof exitSettlementResultSchema>
 export type PauseVisitTimerInput = z.infer<typeof pauseVisitTimerInputSchema>
 export type ResumeVisitTimerInput = z.infer<typeof resumeVisitTimerInputSchema>
+
+/**
+ * FlowCard 用户操作。
+ *
+ * UI 层通过 onAction 回调发送，P4 状态机层消费。
+ * 定义在 api 层以便 UI 和状态机共享合约。
+ */
+export type FlowCardAction =
+  | { type: "accept_lab"; cardId: string }
+  | { type: "veto_lab"; cardId: string }
+  | { type: "skip_lab"; cardId: string }
+  | { type: "submit_payment"; cardId: string; paymentMethodId: string }
+  | { type: "defer_payment"; cardId: string }
+  | { type: "choose_fulfillment"; cardId: string; mode: "pickup" | "delivery" }
+  | {
+      type: "submit_treatment_execution"
+      cardId: string
+      action: "schedule" | "confirm_arrival" | "start" | "complete" | "cancel"
+    }
+  | { type: "ack_advice"; cardId: string }

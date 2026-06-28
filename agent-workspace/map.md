@@ -1,6 +1,6 @@
 # 项目地图
 
-更新时间：2026-06-28
+更新时间：2026-06-28（P3 完成）
 
 ## 项目定位
 
@@ -20,9 +20,9 @@ NEUHIS Agent 前端是一个 React + HeroUI 3 + Magic UI 的 AI 诊疗 Agent 聊
       router.tsx             # createBrowserRouter 路由表
       error-boundary.tsx     # 路由级错误边界，患者可理解兜底页
     pages/
-      home/HomePage.tsx      # 首页占位：症状输入 + 开始问诊跳转
-      home/HistoryPage.tsx   # 历史占位骨架
-      home/ProfilePage.tsx   # 个人中心占位骨架
+      home/HomePage.tsx      # 首页：TanStack Query 活跃会话 + 症状快速填充 + 创建新会话
+      home/HistoryPage.tsx   # 历史就诊：筛选 tab + TanStack Query 列表 + SessionCard
+      home/ProfilePage.tsx   # 个人中心：TanStack Query 患者上下文 + PatientSummaryCard
       workbench/NewWorkbenchPage.tsx    # 新建问诊占位（解析 draft/followUpFrom）
       workbench/WorkbenchPage.tsx       # 进行中工作台占位（解析 sessionId）
       workbench/ReadonlyVisitPage.tsx   # 只读回看占位
@@ -48,9 +48,13 @@ NEUHIS Agent 前端是一个 React + HeroUI 3 + Magic UI 的 AI 诊疗 Agent 聊
     features/
       api.ts                 # 统一 api facade 聚合：patient / visits / workbench
       patient/api/           # 患者 schema、types、facade、query/mutation options
+      patient/components/    # PatientSummaryCard（患者档案摘要卡片）
       visits/api/            # 会话 schema、types、facade、query/mutation options
+      visits/components/     # VisitStatusBadge（就诊状态标签）、SessionCard（就诊会话卡片）
       workbench/api/         # 时间线/流程卡/SSE schema、types、facade、query/mutation options
       workbench/machine/     # XState visitMachine、事件/上下文类型、guards、actions、状态机测试
+      workbench/store/       # Zustand stores：composer-store（输入草稿）、workbench-ui-store（UI 状态）
+      workbench/components/  # 工作台 UI 组件：ChatTimeline、MessageBubble、TimelineRow、SystemEventRow、TerminalEventRow、AssistantThinkingRow、InputDock、InputAssistPanel、LockBar、LockQuestionSheet
     mocks/api/
       fixtures/              # patient / visits / timeline / flow-cards fixture 工厂
       handlers/              # patient / visit / chat mock handler
@@ -134,9 +138,56 @@ NEUHIS Agent 前端是一个 React + HeroUI 3 + Magic UI 的 AI 诊疗 Agent 聊
 - 已补 `src/features/workbench/machine/visit-machine.test.ts`，覆盖 hydration、阻塞态消息不推进、检验卡链路、急症恢复 / 确认、超时优先级和处置分支跳转。
 - P2.5 验证：`pnpm test`、`pnpm lint`、`pnpm build` 均通过。
 
+### P3.1 首页 / 历史 / 个人中心登录态页面
+
+- 新增 `src/features/visits/components/VisitStatusBadge.tsx`：将 VisitStatus 映射为 StatusPill 的 tone 和中文文案。
+- 新增 `src/features/visits/components/SessionCard.tsx`：使用 HeroUI Card compound 展示会话摘要，根据状态显示继续就诊/发起复诊/回看记录按钮。
+- 新增 `src/features/patient/components/PatientSummaryCard.tsx`：患者档案摘要卡片，展示姓名/性别/年龄/电话/过敏史/慢性病/长期用药。
+- 重写 `src/pages/home/HomePage.tsx`：接入 `visitsQueries.list` 获取全部会话，本地过滤活跃会话显示 SessionCard；症状输入区 + 常见症状快速填充（发烧、咳嗽等六个 chip）+ `useMutation(visitsMutations.createSession())` 创建新会话，fallback 为 draft 跳转。
+- 重写 `src/pages/home/HistoryPage.tsx`：接入 `visitsQueries.list`，四个筛选 tab（全部/进行中/已完成/已终止），列表渲染 SessionCard，支持继续就诊/复诊/回看导航。
+- 重写 `src/pages/home/ProfilePage.tsx`：接入 `patientQueries.context("patient-mock-001")`，展示 PatientSummaryCard + 既往病史 + 上次就诊摘要，支持 loading skeleton 和 error EmptyState 重试。
+- P3.1 验证：`pnpm lint` 通过。
+
+### P3.2 工作台 Shell 和顶层布局组件
+
+- 新增 `src/features/workbench/components/WorkbenchShell.tsx`：工作台布局壳，使用显式命名 slot props（header/timeline/input/overlays）。Mobile 默认单列全高，PC 居中主列（max-w-[640px]）+ 右侧边栏（240px）。
+- 新增 `src/features/workbench/components/WorkbenchHeader.tsx`：顶部栏，左侧 AI 头像 + 名称，右侧超时警告、暂停/恢复、紧急盾牌、退出按钮。移动端按优先级互斥显示，PC 端全部可见。
+- 新增 `src/features/workbench/components/ContextSummaryBar.tsx`：可折叠上下文摘要条，单行显示 "患者: {name} | 主诉: {complaint} | 第{n}轮"，点击打开 Drawer。
+- 新增 `src/features/workbench/components/ContextSummaryDrawer.tsx`：基于 HeroUI v3 Drawer 的上下文详情，展示患者姓名、主诉、轮次/上限、超时时间。
+- 重写 `src/pages/workbench/WorkbenchPage.tsx`：接入 `visitsQueries.session` 加载会话数据，展示 loading/error（EmptyState）/data 三态。数据就绪后装配 WorkbenchShell，时间线和输入区域为临时占位（P3.3/P4.1 替换）。
+- 重写 `src/pages/workbench/NewWorkbenchPage.tsx`：挂载时自动创建会话（useMutation），支持初诊和复诊（followUpFrom），创建成功后 navigate 到 `/workbench/:sessionId`，展示 loading/error（含重试按钮）态。
+- P3.2 验证：`pnpm lint`、`pnpm test` 通过。
+
+### P3.3 工作台 Timeline、消息气泡和输入组件
+
+- 新增 `src/features/workbench/store/composer-store.ts`：Zustand store，管理输入草稿，按 sessionId 持久化。
+- 新增 `src/features/workbench/store/workbench-ui-store.ts`：Zustand store，管理工作台 UI 状态（上下文抽屉、右侧边栏折叠、时间线底部跟踪、阻断疑问 Sheet）。
+- 新增 `src/features/workbench/components/ChatTimeline.tsx`：基于 react-virtuoso 的虚拟滚动时间线，支持加载更多、底部跟踪、浮动"回到底部"按钮。
+- 新增 `src/features/workbench/components/TimelineRow.tsx`：timeline item kind 分发器（memo），含 assertNever 穷尽检查。
+- 新增 `src/features/workbench/components/MessageBubble.tsx`：患者/助手消息气泡（memo），支持 streaming 光标、failed 错误提示、invalidated 降级显示、interruptedBy 打断标记。
+- 新增 `src/features/workbench/components/SystemEventRow.tsx`：居中系统事件行，事件类型对应 lucide 图标。
+- 新增 `src/features/workbench/components/AssistantThinkingRow.tsx`：AI 分析指示器，脉冲动画 + Brain 图标。
+- 新增 `src/features/workbench/components/TerminalEventRow.tsx`：终诊事件卡片，reason 对应图标和颜色，支持转诊科室建议。
+- 新增 `src/features/workbench/components/InputDock.tsx`：主输入区，HeroUI Textarea 多行自动增长，Enter 发送/Shift+Enter 换行。
+- 新增 `src/features/workbench/components/InputAssistPanel.tsx`：输入辅助 chip 面板，draft（outline）和 quick_answer（filled）分两行不混排。
+- 新增 `src/features/workbench/components/LockBar.tsx`：阻断状态栏，锁图标 + 原因 + 两个逃生按钮（上报急症、疑问）。
+- 新增 `src/features/workbench/components/LockQuestionSheet.tsx`：阻断疑问输入 Drawer，HeroUI Drawer 底部弹出，包含 Textarea 和提交/取消按钮。
+- TimelineRow 依赖 `FlowCardRenderer`（P3.4 创建），已在 P3.4 合入后解决。
+- P3.3 验证：`pnpm lint` 通过。
+
+### P3.4 流程卡叶子组件
+
+- 新增 `src/features/workbench/flow-cards/FlowCardRenderer.tsx`：按 `card.kind` 穷尽分发 9 种流程卡，使用 `assertNever` 收口。
+- 新增交互式卡片（含 onAction）：`LabDecisionCard`（检验项目/原因/费用，同意/不查/暂不决定）、`PaymentCard`（支付明细/医保/自费，确认支付/暂不缴费）、`MedicationFulfillmentCard`（药品清单/自取/配送）、`TreatmentExecutionCard`（治疗预约/排队/执行，动态动作按钮）、`AdviceOnlyCard`（医嘱/观察项/复诊建议，已知晓确认）。
+- 新增展示式卡片（无操作）：`LabExecutionCard`（执行状态 + 结果摘要）、`DiagnosisCard`（诊断/置信度/依据来源/风险信号）、`TreatmentPlanCard`（处置方案/能力判断/动作清单，患者不选分支）、`CompletedVisitCard`（诊断摘要/处置摘要/随访提醒）。
+- 新增非 FlowCard 终止展示：`TerminalCard`（按 reason 区分图标/颜色/文案，转诊科室，保存摘要按钮）。
+- 新增 `src/features/workbench/api/types.ts` 中 `FlowCardAction` discriminated union 类型（7 种 action）。
+- 所有卡片使用 HeroUI v3 Card compound pattern、memo 包裹、`formatDate` 时间戳、`onAction` 回调（不调 API）。
+- P3.4 验证：`pnpm lint`、`pnpm tsc --noEmit` 通过。
+
 ## 当前未完成
 
-- 页面仍未接入 `patientQueries`、`visitsQueries`、`workbenchQueries`；`P3` 开始后不得再使用临时页面对象。
+- 页面已接入 `patientQueries`、`visitsQueries`，但工作台时间线和输入仍为占位，待 P4.1 `useWorkbenchSession` 总装后替换为真实组件。
 - mock 主链路已覆盖新出诊、检验同意、支付、诊断、用药取药、退出、急症复检等基础路径；支付失败、自动化治疗完整路径、完成后复诊/咨询仍需在 P4/P5 扩展测试。
 - `visitMachine` 已有骨架与关键测试，但还未接入 `useWorkbenchSession`、`useAssistantStream` 和真实 UI；P4.1 负责总装。
 - 尚未产出结项 `special-designs/rest-api.md`；等 schema、MSW/契约测试和 UI 主流程稳定后整理。
