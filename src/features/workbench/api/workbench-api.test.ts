@@ -103,6 +103,26 @@ describe("workbench API facade with mock transport", () => {
     expect(session.activeCardId).toBeTruthy()
   })
 
+  it("writes the chief complaint as the last patient message so the workbench can auto-reply", async () => {
+    // 回归：首页输入主诉建会话进工作台后，必须能据「最后一条是未回复的患者消息」
+    // 自动触发首轮 AI 回复（useWorkbenchSession 首轮自动回复依赖此前置）。
+    const created = await api.visits.createSession({
+      patientId: "patient-mock-001",
+      entryType: "new",
+      chiefComplaint: "发热两天，伴有咽痛。",
+    })
+
+    const messages = created.initialTimeline.filter(
+      (item) => item.kind === "message",
+    )
+    const lastMessage = messages.at(-1)
+    expect(lastMessage).toBeDefined()
+    expect(lastMessage?.kind === "message" && lastMessage.role).toBe("patient")
+    expect(lastMessage?.kind === "message" && lastMessage.content).toBe(
+      "发热两天，伴有咽痛。",
+    )
+  })
+
   it("advances lab decision and payment through schema-validated mock handlers", async () => {
     await api.workbench.sendMessage({
       sessionId: "visit-mock-active",

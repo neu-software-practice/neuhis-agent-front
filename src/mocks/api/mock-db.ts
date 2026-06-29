@@ -96,6 +96,18 @@ function nowIso() {
   return new Date().toISOString()
 }
 
+// 种子活跃会话的时间戳在 fixture 里是写死的绝对时间，随真实日期推移会立即过期，
+// 一进工作台就触发超时 Overlay。这里在每次初始化 mock 状态时把它重置成相对当前
+// 时间（刚开始问诊、距超时还有 30 分钟），保证 mock 走查长期有效。
+function seedActiveSession(): VisitSession {
+  const session = clone(mockActiveSession)
+  const now = Date.now()
+  session.startedAt = new Date(now - 5 * 60_000).toISOString()
+  session.updatedAt = new Date(now - 1 * 60_000).toISOString()
+  session.timeoutAt = new Date(now + 30 * 60_000).toISOString()
+  return session
+}
+
 function createInitialState(): MockDbState {
   return {
     patients: {
@@ -105,7 +117,7 @@ function createInitialState(): MockDbState {
       [mockPatient.id]: clone(mockPatientContext),
     },
     sessions: {
-      [mockActiveSession.id]: clone(mockActiveSession),
+      [mockActiveSession.id]: seedActiveSession(),
       [mockCompletedSession.id]: clone(mockCompletedSession),
     },
     timelines: {

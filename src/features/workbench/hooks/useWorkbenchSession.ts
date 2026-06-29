@@ -406,6 +406,62 @@ export function useWorkbenchSession(
     ),
   })
 
+  // ---- 首轮自动回复 ----
+  // 从首页/新建会话进入工作台时，createSession 已把主诉写成首条患者消息，但
+  // 不会自动触发 AI 回复（只有 sendMessage 才启动 stream）。这里在全新 chatting
+  // 会话、且时间线最后一条实质消息是「未被回复的患者消息」时，自动启动首轮流式回复，
+  // 否则用户进来只看到自己那句话、AI 永远不回，像「没进聊天」。
+  const autoRepliedSessionIdRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (autoRepliedSessionIdRef.current === sessionId) return
+    // 等 hydration 完成、时间线就绪
+    if (hydratedSessionIdRef.current !== sessionId) return
+    if (stateLabel !== "chatting" || isStreaming) return
+    if (items.length === 0) return
+
+    // 找最后一条 message
+    let lastMessage: TimelineItem | undefined
+    for (let i = items.length - 1; i >= 0; i--) {
+      if (items[i].kind === "message") {
+        lastMessage = items[i]
+        break
+      }
+    }
+    if (
+      !lastMessage ||
+      lastMessage.kind !== "message" ||
+      lastMessage.role !== "patient"
+    ) {
+      return
+    }
+
+    autoRepliedSessionIdRef.current = sessionId
+
+    const streamMsg = createStreamingAssistantMessage(sessionId)
+    queryClient.setQueryData<InfiniteData<ListTimelineResult>>(
+      workbenchQueryKeys.timeline(sessionId),
+      (old) => {
+        if (!old) return old
+        return appendToLastPage(old, streamMsg)
+      },
+    )
+    actorRef.send({
+      type: "MESSAGE_SENT",
+      content: lastMessage.content,
+      clientMessageId: generateClientMessageId(),
+    })
+    startStream({ streamMessageId: streamMsg.id })
+  }, [
+    sessionId,
+    stateLabel,
+    isStreaming,
+    items,
+    actorRef,
+    queryClient,
+    startStream,
+  ])
+
   // ---- Flow Card Actions (P4.3) ----
   const findCardById = useCallback(
     (cardId: string): FlowCard | undefined => {
