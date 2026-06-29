@@ -1,5 +1,6 @@
 import { Pause, Play, ShieldAlert, X } from "lucide-react"
 
+import anthropicLogo from "@/assets/anthropic.svg"
 import { cn } from "@/lib/utils"
 
 interface WorkbenchHeaderProps {
@@ -53,8 +54,16 @@ export function WorkbenchHeader({
     >
       {/* 左侧：头像 + 名称（有警告时允许名称收缩以让出空间） */}
       <div className="flex min-w-0 items-center gap-2">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
-          {aiAvatar ?? aiName.charAt(0)}
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+          {aiAvatar ? (
+            <span className="text-xs font-semibold">{aiAvatar}</span>
+          ) : (
+            <img
+              src={anthropicLogo}
+              alt="AI 医生头像"
+              className="h-4 w-4"
+            />
+          )}
         </div>
         <span className="truncate text-sm font-medium">{aiName}</span>
       </div>
