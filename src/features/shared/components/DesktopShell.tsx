@@ -17,13 +17,13 @@ interface DesktopShellProps {
  */
 export function DesktopShell({ children }: DesktopShellProps) {
   return (
-    <div className="flex min-h-dvh bg-background text-foreground">
+    <div className="flex h-dvh overflow-hidden bg-background text-foreground">
       {/* PC 侧边导航 */}
       <AppSidebar />
 
       {/* 主内容区 */}
-      <div className="flex min-h-dvh flex-1 flex-col">
-        <main className="flex-1">{children}</main>
+      <div className="flex min-h-0 flex-1 flex-col">
+        <main className="min-h-0 flex-1">{children}</main>
 
         {/* Mobile 底部导航 */}
         <footer className="sticky bottom-0 z-20 border-t border-border bg-background pb-[env(safe-area-inset-bottom)] md:hidden">
