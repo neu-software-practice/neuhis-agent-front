@@ -30,11 +30,19 @@ export interface LoginInput {
   password: string
 }
 
-/** 注册请求。 */
+/** 注册请求（提交后端的字段）。 */
 export interface RegisterInput {
   phone: string
   password: string
+  /** 性别：male / female / 自定义字符串。 */
+  gender: string
+  birthDate: string
   realName?: string
+}
+
+/** 注册表单（含前端校验用字段）。 */
+export interface RegisterFormValues extends RegisterInput {
+  confirmPassword: string
 }
 
 /** 登录/注册统一响应。 */
