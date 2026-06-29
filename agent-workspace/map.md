@@ -1,6 +1,6 @@
 # 项目地图
 
-更新时间：2026-06-29（修复历史页发起复诊后工作台卡死）
+更新时间：2026-06-29（合并 PC 端独立布局与复诊卡死修复）
 
 ## 项目定位
 
@@ -27,11 +27,15 @@ NEUHIS Agent 前端是一个 React + HeroUI 3 + Magic UI 的 AI 诊疗 Agent 聊
       workbench/WorkbenchPage.tsx       # 进行中工作台：装配 overlays slot（急症/超时/退出）+ 倒计时 + 退出结算
       workbench/ReadonlyVisitPage.tsx   # 只读回看页：只读快照时间线，四态，无输入框，不触发主循环
       workbench/workbench-loaders.ts    # 路由 loader，仅参数解析与轻量校验
+    layouts/
+      HomeLayout.tsx         # 首页系列 Layout Route，包裹 DesktopShell + Outlet
     features/shared/components/
-      PageShell.tsx          # 通用页面壳：移动端单列 + 安全区 + header/footer slot
+      PageShell.tsx          # 通用页面壳：移动端单列 + 安全区 + header/footer slot，PC 端放宽内容区宽度
       EmptyState.tsx         # 通用空态 / 占位组件
       StatusPill.tsx         # 通用状态标签（通用 tone，不绑业务枚举）
-      AppBottomTabs.tsx      # 底部主导航（NavLink：首页/历史/我的）
+      AppBottomTabs.tsx      # 底部主导航（NavLink：首页/历史/我的），PC 端 md:hidden
+      AppSidebar.tsx         # PC 端左侧固定侧边导航（w-[220px]），替代底部 Tab，Mobile 隐藏
+      DesktopShell.tsx       # PC 布局壳：左侧 AppSidebar + 右侧内容区，Mobile 退化为纯内容区 + 底部 tabs
     components/ui/button.tsx # shadcn 风格 Button
     components/ui/button-variants.ts # Button 样式 variants
     lib/utils.ts             # cn 工具 + assertNever 穷尽检查
@@ -56,7 +60,7 @@ NEUHIS Agent 前端是一个 React + HeroUI 3 + Magic UI 的 AI 诊疗 Agent 聊
       workbench/machine/     # XState visitMachine、事件/上下文类型、guards、actions、状态机测试
       workbench/store/       # Zustand stores：composer-store（输入草稿）、workbench-ui-store（UI 状态 + timeoutOverlayOpen/exitSheetOpen flag）
       workbench/hooks/       # useWorkbenchSession（含 dismiss/confirm 急症、triggerTimeout、confirmExit 先进结算）、useTimeline、useAssistantStream、useFlowCardAction、useVisitCountdown（剩余时间纯计算 normal/warn5/warn2/expired）、useExitSettlement（客户端派生退出后果四档文案）
-      workbench/components/  # 工作台 UI 组件：ChatTimeline、MessageBubble、TimelineRow、SystemEventRow、TerminalEventRow、AssistantThinkingRow、InputDock、InputAssistPanel、LockBar、LockQuestionSheet、EmergencyOverlay、SuspendOverlay、ExitVisitSheet
+      workbench/components/  # 工作台 UI 组件：ChatTimeline、MessageBubble、TimelineRow、SystemEventRow、TerminalEventRow、AssistantThinkingRow、InputDock、InputAssistPanel、LockBar、LockQuestionSheet、EmergencyOverlay、SuspendOverlay、ExitVisitSheet、WorkbenchSidebar（PC 右侧上下文摘要栏）
     mocks/api/
       fixtures/              # patient / visits / timeline / flow-cards fixture 工厂
       handlers/              # patient / visit / chat mock handler
@@ -296,6 +300,41 @@ P6 按「文件所有权分波次」并行实现：5 个 quality / docs lane 各
 
 - 新增 `agent-workspace/special-designs/rest-api.md`（约 640 行）：endpoint 清单（21 端点 + 写入时间线标记）、鉴权 / 患者身份上下文、环境与运行模式、`ApiError` 错误模型 + 错误码、cursor 分页、ISO8601 / ID 约定、11 组状态枚举附录、按 patient / visits / workbench 分组的逐端点请求 / 响应详解、`TimelineItem` 四类与 `AssistantStreamEvent` 七型目录、`FlowCard` 九类字段、medAgent `Step.kind` → SSE 映射、典型时序（主流程 / 急症 / 超时 / 四档退出 / 咨询复诊）和边界与未实现。
 - 全部字段、枚举取值与 SSE 事件均逐字取自已实现的 Zod schema 与 facade，附「来源核对」清单。
+
+### 个人中心编辑功能（2026-06-29）
+
+- 新增 `src/features/patient/components/EditableChipList.tsx`：可编辑 Chip 列表组件，展示态 chip + 编辑图标；编辑态可删除/添加/保存/取消。
+- 修改 `src/features/patient/components/PatientSummaryCard.tsx`：新增 `hideMedicalSections` prop，由外部 EditableChipList 接管可编辑医疗信息展示。
+- 修改 `src/pages/home/ProfilePage.tsx`：引入 `useMutation(patientMutations.updateProfile())`，管理四个 section 的编辑状态（allergies / chronicDiseases / longTermMedications / medicalHistory），用 EditableChipList 替换静态展示。
+- 修改 `src/features/patient/api/schemas.ts`：`updatePatientProfileInputSchema` 新增可选字段 `medicalHistory`（非破坏性扩展）。
+- 修改 `src/mocks/api/mock-db.ts`：`updatePatientProfile` 支持写入 `medicalHistory` 到 context。
+- 新增 `agent-workspace/special-designs/rest-api-patch-v2.md`：API 变更文档。
+- 验证：`pnpm build`（tsc -b + vite）通过。
+
+### PC 端独立布局（2026-06-29）
+
+- 新增 `src/features/shared/components/AppSidebar.tsx`：PC 端左侧固定侧边导航（w-[220px]），NavLink 保持激活态，Mobile 隐藏（`hidden md:flex`）。
+- 新增 `src/features/shared/components/DesktopShell.tsx`：PC 布局壳，左侧 AppSidebar + 右侧内容区；Mobile 退化为纯内容区 + 底部 tabs。
+- 新增 `src/layouts/HomeLayout.tsx`：首页系列 Layout Route，包裹 DesktopShell + Outlet。
+- 新增 `src/features/workbench/components/WorkbenchSidebar.tsx`：PC 端右侧上下文摘要栏（240px），展示患者信息/主诉/轮次/已完成步骤，Mobile 隐藏。
+- 修改 `src/app/router.tsx`：首页系列路由包裹 HomeLayout（layout route），工作台保持独立布局。
+- 修改 `src/features/shared/components/AppBottomTabs.tsx`：添加 `md:hidden`，PC 端隐藏。
+- 修改 `src/features/shared/components/PageShell.tsx`：footer 添加 `md:hidden`，PC 端内容区放宽。
+- 修改 `src/pages/home/HomePage.tsx`：内容区 `max-w-md md:max-w-lg`，chip 可自然展开。
+- 修改 `src/pages/home/HistoryPage.tsx`：内容区 `max-w-md md:max-w-2xl`，会话卡片 PC 端 `grid-cols-2` 双列。
+- 修改 `src/pages/home/ProfilePage.tsx`：内容区 `max-w-md md:max-w-lg`。
+- 修改 `src/features/workbench/components/WorkbenchShell.tsx`：aside 填充 sidebar prop 内容。
+- 修改 `src/features/workbench/components/WorkbenchHeader.tsx`：PC 端（md:）按钮旁显示文字标签（暂停/恢复/急症/退出），无互斥。
+- 修改 `src/pages/workbench/WorkbenchPage.tsx`：传入 WorkbenchSidebar 到 WorkbenchShell sidebar prop。
+- 响应式切换全部通过 Tailwind CSS `md:` 前缀实现，无新依赖，纯 CSS 驱动。
+- 验证：`pnpm build`（tsc -b + vite）通过。
+
+### 个人中心编辑功能（2026-06-29）
+
+- 新增 `src/features/patient/components/EditableChipList.tsx`：可编辑 Chip 列表组件，展示模式显示 chip + 编辑图标按钮，编辑模式下 chip 带删除按钮 + 输入框添加 + 保存/取消操作。
+- 修改 `src/features/patient/components/PatientSummaryCard.tsx`：新增 `hideMedicalSections` prop，为 true 时隐藏过敏史/慢性病/长期用药 section（由外部 EditableChipList 接管）。
+- 修改 `src/pages/home/ProfilePage.tsx`：引入 `useMutation(patientMutations.updateProfile())`，管理三段编辑状态（allergies/chronicDiseases/longTermMedications），用 EditableChipList 替换静态 chip 展示，保存成功后 invalidate query cache 刷新。
+- 验证：`pnpm build`（tsc -b + vite）通过。
 
 ## 当前未完成
 

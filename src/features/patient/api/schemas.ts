@@ -53,6 +53,7 @@ export const updatePatientProfileInputSchema = z.object({
   allergies: z.array(z.string().trim().min(1)).optional(),
   chronicDiseases: z.array(z.string().trim().min(1)).optional(),
   longTermMedications: z.array(z.string().trim().min(1)).optional(),
+  medicalHistory: z.array(z.string().trim().min(1)).optional(),
 })
 
 export function parsePatientProfile(value: unknown) {

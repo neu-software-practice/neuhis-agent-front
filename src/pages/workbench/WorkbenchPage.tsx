@@ -16,6 +16,7 @@ import { LockQuestionSheet } from "@/features/workbench/components/LockQuestionS
 import { SuspendOverlay } from "@/features/workbench/components/SuspendOverlay"
 import { WorkbenchHeader } from "@/features/workbench/components/WorkbenchHeader"
 import { WorkbenchShell } from "@/features/workbench/components/WorkbenchShell"
+import { WorkbenchSidebar } from "@/features/workbench/components/WorkbenchSidebar"
 import { useExitSettlement } from "@/features/workbench/hooks/useExitSettlement"
 import { useVisitCountdown } from "@/features/workbench/hooks/useVisitCountdown"
 import type { WorkbenchLoaderData } from "@/pages/workbench/workbench-loaders"
@@ -136,10 +137,20 @@ export default function WorkbenchPage() {
 
   return (
     <WorkbenchShell
+      sidebar={
+        <WorkbenchSidebar
+          patientName={session?.patientId}
+          chiefComplaint={session?.summary?.chiefComplaint}
+          visitRound={session?.askRound}
+          askRoundLimit={session?.askRoundLimit}
+          lastActivityAt={session?.lastActivityAt}
+        />
+      }
       header={
         <WorkbenchHeader
           timeoutWarning={timeoutWarning}
           timerPaused={context.timerPaused}
+          isTerminated={isTerminated}
           onPause={actions.pauseVisit}
           onResume={actions.resumeVisit}
           onReportEmergency={() => {
@@ -241,7 +252,7 @@ export default function WorkbenchPage() {
             }}
           />
           <ExitVisitSheet
-            open={exitSheetOpen}
+            open={exitSheetOpen && !isTerminated}
             onOpenChange={setExitSheetOpen}
             consequence={consequence}
             onConfirm={() => {

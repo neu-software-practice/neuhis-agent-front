@@ -18,6 +18,8 @@ const GENDER_LABEL: Record<string, string> = {
 interface PatientSummaryCardProps {
   /** 患者档案。 */
   patient: PatientProfile
+  /** 隐藏可编辑的医疗信息（过敏/慢性病/用药），由外部 EditableChipList 接管。 */
+  hideMedicalSections?: boolean
   className?: string
 }
 
@@ -29,6 +31,7 @@ interface PatientSummaryCardProps {
  */
 export function PatientSummaryCard({
   patient,
+  hideMedicalSections = false,
   className,
 }: PatientSummaryCardProps) {
   return (
@@ -49,63 +52,65 @@ export function PatientSummaryCard({
         ) : null}
       </CardHeader>
 
-      <CardContent className="flex flex-col gap-3">
-        {/* 过敏史 */}
-        {patient.allergies.length > 0 ? (
-          <section>
-            <div className="mb-1.5 flex items-center gap-1 text-sm font-medium text-red-600 dark:text-red-400">
-              <ShieldAlert className="size-4" />
-              <span>过敏史</span>
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {patient.allergies.map((allergy) => (
-                <Chip key={allergy} color="danger" variant="soft" size="sm">
-                  {allergy}
-                </Chip>
-              ))}
-            </div>
-          </section>
-        ) : null}
+      {!hideMedicalSections ? (
+        <CardContent className="flex flex-col gap-3">
+          {/* 过敏史 */}
+          {patient.allergies.length > 0 ? (
+            <section>
+              <div className="mb-1.5 flex items-center gap-1 text-sm font-medium text-red-600 dark:text-red-400">
+                <ShieldAlert className="size-4" />
+                <span>过敏史</span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {patient.allergies.map((allergy) => (
+                  <Chip key={allergy} color="danger" variant="soft" size="sm">
+                    {allergy}
+                  </Chip>
+                ))}
+              </div>
+            </section>
+          ) : null}
 
-        {/* 慢性病 */}
-        {patient.chronicDiseases.length > 0 ? (
-          <section>
-            <div className="mb-1.5 text-sm font-medium text-foreground">
-              慢性病
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {patient.chronicDiseases.map((disease) => (
-                <Chip key={disease} color="warning" variant="soft" size="sm">
-                  {disease}
-                </Chip>
-              ))}
-            </div>
-          </section>
-        ) : null}
+          {/* 慢性病 */}
+          {patient.chronicDiseases.length > 0 ? (
+            <section>
+              <div className="mb-1.5 text-sm font-medium text-foreground">
+                慢性病
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {patient.chronicDiseases.map((disease) => (
+                  <Chip key={disease} color="warning" variant="soft" size="sm">
+                    {disease}
+                  </Chip>
+                ))}
+              </div>
+            </section>
+          ) : null}
 
-        {/* 长期用药 */}
-        {patient.longTermMedications.length > 0 ? (
-          <section>
-            <div className="mb-1.5 text-sm font-medium text-foreground">
-              长期用药
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {patient.longTermMedications.map((med) => (
-                <Chip key={med} color="default" variant="soft" size="sm">
-                  {med}
-                </Chip>
-              ))}
-            </div>
-          </section>
-        ) : null}
+          {/* 长期用药 */}
+          {patient.longTermMedications.length > 0 ? (
+            <section>
+              <div className="mb-1.5 text-sm font-medium text-foreground">
+                长期用药
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {patient.longTermMedications.map((med) => (
+                  <Chip key={med} color="default" variant="soft" size="sm">
+                    {med}
+                  </Chip>
+                ))}
+              </div>
+            </section>
+          ) : null}
 
-        {/* 无任何医疗记录 */}
-        {patient.allergies.length === 0 &&
-        patient.chronicDiseases.length === 0 &&
-        patient.longTermMedications.length === 0 ? (
-          <p className="text-sm text-muted-foreground">暂无医疗记录</p>
-        ) : null}
-      </CardContent>
+          {/* 无任何医疗记录 */}
+          {patient.allergies.length === 0 &&
+          patient.chronicDiseases.length === 0 &&
+          patient.longTermMedications.length === 0 ? (
+            <p className="text-sm text-muted-foreground">暂无医疗记录</p>
+          ) : null}
+        </CardContent>
+      ) : null}
     </Card>
   )
 }

@@ -25,7 +25,7 @@ const TABS: readonly TabItem[] = [
  */
 export function AppBottomTabs() {
   return (
-    <nav aria-label="主导航" className="flex items-stretch">
+    <nav aria-label="主导航" className="flex items-stretch md:hidden">
       {TABS.map(({ to, label, icon: Icon, end }) => (
         <NavLink
           key={to}

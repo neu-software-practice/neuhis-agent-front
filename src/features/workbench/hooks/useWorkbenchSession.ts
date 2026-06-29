@@ -747,6 +747,10 @@ export function useWorkbenchSession(
 
   /** 确认退出：进入退出结算 → 提交 exitVisit → 终止。 */
   const confirmExit = useCallback(async () => {
+    // 防御：已终止态不重复调用
+    const snap = actorRef.getSnapshot()
+    if (snap.value === "terminated" || snap.value === "exited") return
+
     abortStream("exit")
     actorRef.send({ type: "EXIT_REQUESTED" })
     const result = await workbenchApi.exitVisit({ sessionId, reason: "patient_request" })

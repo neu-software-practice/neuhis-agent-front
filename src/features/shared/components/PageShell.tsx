@@ -20,15 +20,15 @@ interface PageShellProps {
  */
 export function PageShell({ children, header, footer, className }: PageShellProps) {
   return (
-    <div className="flex min-h-dvh flex-col bg-background text-foreground">
+    <div className="flex h-dvh flex-col overflow-hidden bg-background text-foreground">
       {header ? (
         <header className="sticky top-0 z-20 border-b border-border bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           {header}
         </header>
       ) : null}
-      <main className={cn("flex-1 overflow-y-auto", className)}>{children}</main>
+      <main className={cn("min-h-0 flex-1 overflow-y-auto", className)}>{children}</main>
       {footer ? (
-        <footer className="sticky bottom-0 z-20 border-t border-border bg-background pb-[env(safe-area-inset-bottom)]">
+        <footer className="z-20 border-t border-border bg-background pb-[env(safe-area-inset-bottom)] md:hidden">
           {footer}
         </footer>
       ) : null}

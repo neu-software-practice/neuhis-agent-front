@@ -4,6 +4,8 @@ interface WorkbenchShellProps {
   header: React.ReactNode
   timeline: React.ReactNode
   input: React.ReactNode
+  /** PC 端右侧边栏内容（WorkbenchSidebar）。 */
+  sidebar?: React.ReactNode
   overlays?: React.ReactNode
   className?: string
 }
@@ -19,6 +21,7 @@ export function WorkbenchShell({
   header,
   timeline,
   input,
+  sidebar,
   overlays,
   className,
 }: WorkbenchShellProps) {
@@ -50,8 +53,10 @@ export function WorkbenchShell({
         </footer>
       </div>
 
-      {/* PC 右侧边栏（未来扩展：上下文摘要、用药提醒等） */}
-      <aside className="hidden md:block md:w-[240px] md:shrink-0" />
+      {/* PC 右侧边栏：上下文摘要 */}
+      <aside className="hidden md:block md:w-[240px] md:shrink-0 md:overflow-y-auto md:py-4">
+        {sidebar}
+      </aside>
 
       {/* 全局覆盖层：Drawer、Sheet、Modal 等 */}
       {overlays}

@@ -72,7 +72,7 @@ export default function HomePage() {
 
   return (
     <PageShell footer={<AppBottomTabs />}>
-      <div className="mx-auto flex w-full max-w-md flex-col gap-6 px-4 py-6">
+      <div className="mx-auto flex w-full max-w-md flex-col gap-6 px-4 py-6 md:max-w-xl md:py-10">
         <h1 className="text-xl font-semibold">东软云脑智能医疗</h1>
 
         {/* ── 进行中会话 ── */}

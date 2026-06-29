@@ -1,5 +1,6 @@
 import { Pause, Play, ShieldAlert, X } from "lucide-react"
 
+import anthropicLogo from "@/assets/anthropic.svg"
 import { cn } from "@/lib/utils"
 
 interface WorkbenchHeaderProps {
@@ -11,6 +12,8 @@ interface WorkbenchHeaderProps {
   timeoutWarning?: string
   /** 计时是否已暂停。 */
   timerPaused?: boolean
+  /** 会话是否已终止（terminated/exited），终止态隐藏操作按钮。 */
+  isTerminated?: boolean
   /** 暂停计时回调。 */
   onPause?: () => void
   /** 恢复计时回调。 */
@@ -35,6 +38,7 @@ export function WorkbenchHeader({
   aiAvatar,
   timeoutWarning,
   timerPaused = false,
+  isTerminated = false,
   onPause,
   onResume,
   onReportEmergency,
@@ -48,69 +52,82 @@ export function WorkbenchHeader({
         className,
       )}
     >
-      {/* 左侧：头像 + 名称 */}
-      <div className="flex shrink-0 items-center gap-2">
-        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
-          {aiAvatar ?? aiName.charAt(0)}
+      {/* 左侧：头像 + 名称（有警告时允许名称收缩以让出空间） */}
+      <div className="flex min-w-0 items-center gap-2">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+          {aiAvatar ? (
+            <span className="text-xs font-semibold">{aiAvatar}</span>
+          ) : (
+            <img
+              src={anthropicLogo}
+              alt="AI 医生头像"
+              className="h-4 w-4"
+            />
+          )}
         </div>
         <span className="truncate text-sm font-medium">{aiName}</span>
       </div>
 
-      {/* 右侧：操作区 */}
-      <div className="flex items-center gap-1">
-        {/* 超时警告：移动端在有警告文字时优先显示 */}
-        {timeoutWarning ? (
-          <span className="truncate text-xs font-medium text-danger whitespace-nowrap max-w-[140px]">
-            {timeoutWarning}
-          </span>
-        ) : null}
+      {/* 右侧：操作区（终止态隐藏所有操作按钮） */}
+      {!isTerminated && (
+        <div className="flex items-center gap-1">
+          {/* 超时警告：移动端在有警告文字时优先显示，允许收缩但保留可读最小宽度 */}
+          {timeoutWarning ? (
+            <span className="min-w-[4em] shrink truncate text-xs font-medium text-danger">
+              {timeoutWarning}
+            </span>
+          ) : null}
 
-        {/* 暂停/恢复按钮 */}
-        {timerPaused ? (
+          {/* 暂停/恢复按钮：移动端仅图标，PC 端显示文字 */}
+          {timerPaused ? (
+            <button
+              type="button"
+              aria-label="恢复计时"
+              title="恢复计时"
+              className="flex h-9 items-center justify-center gap-1 rounded-full px-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              onClick={onResume}
+            >
+              <Play className="h-4 w-4" />
+              <span className="hidden text-xs font-medium md:inline">继续</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              aria-label="暂停计时"
+              title="暂停计时"
+              className="flex h-9 items-center justify-center gap-1 rounded-full px-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              onClick={onPause}
+            >
+              <Pause className="h-4 w-4" />
+              <span className="hidden text-xs font-medium md:inline">暂离</span>
+            </button>
+          )}
+
+          {/* 急症求助：移动端仅图标，PC 端显示文字 */}
           <button
             type="button"
-            aria-label="恢复计时"
-            title="恢复计时"
-            className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            onClick={onResume}
+            aria-label="急症求助"
+            title="急症求助"
+            className="flex h-9 items-center justify-center gap-1 rounded-full px-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            onClick={onReportEmergency}
           >
-            <Play className="h-4 w-4" />
+            <ShieldAlert className="h-4 w-4" />
+            <span className="hidden text-xs font-medium md:inline">急症求助</span>
           </button>
-        ) : (
+
+          {/* 退出按钮：移动端仅图标，PC 端显示文字 */}
           <button
             type="button"
-            aria-label="暂停计时"
-            title="暂停计时"
-            className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            onClick={onPause}
+            aria-label="退出问诊"
+            title="退出问诊"
+            className="flex h-9 items-center justify-center gap-1 rounded-full px-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            onClick={onExit}
           >
-            <Pause className="h-4 w-4" />
+            <X className="h-4 w-4" />
+            <span className="hidden text-xs font-medium md:inline">退出</span>
           </button>
-        )}
-
-        {/* 急症求助：始终可见，点击患者主动上报不适 */}
-        <button
-          type="button"
-          aria-label="急症求助"
-          title="急症求助"
-          className="flex h-9 items-center justify-center gap-1 rounded-full px-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          onClick={onReportEmergency}
-        >
-          <ShieldAlert className="h-4 w-4" />
-          <span className="text-xs font-medium">急症</span>
-        </button>
-
-        {/* 退出按钮 */}
-        <button
-          type="button"
-          aria-label="退出问诊"
-          title="退出问诊"
-          className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          onClick={onExit}
-        >
-          <X className="h-4 w-4" />
-        </button>
-      </div>
+        </div>
+      )}
     </div>
   )
 }
