@@ -38,14 +38,14 @@ export function WorkbenchShell({
     >
       {/* 主列：header + timeline + input */}
       <div className="flex min-h-0 flex-1 flex-col md:mx-auto md:max-w-[640px]">
-        {/* header：顶部固定 */}
-        <header className="sticky top-0 z-20 border-b border-border/50 bg-background/70 backdrop-blur-lg backdrop-saturate-150 supports-[backdrop-filter]:bg-background/50">
-          {header}
-        </header>
-
-        {/* timeline：撑满可滚动区域；min-h-0 让 flex 子项能收缩到容器内滚动，
-            overscroll-contain 防止滚动链冒泡到文档触发 pull-to-refresh。 */}
-        <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain">{timeline}</main>
+        {/* 滚动区域：header sticky 浮于 timeline 之上，内容滚动时穿过 header 底部，
+            backdrop-blur 才能产生毛玻璃效果。overscroll-contain 防止滚动链冒泡。 */}
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+          <header className="sticky top-0 z-20 border-b border-border bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+            {header}
+          </header>
+          {timeline}
+        </div>
 
         {/* input：底部固定 */}
         <footer className="sticky bottom-0 z-20 border-t border-border bg-background pb-[env(safe-area-inset-bottom)]">

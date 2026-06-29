@@ -21,12 +21,15 @@ interface PageShellProps {
 export function PageShell({ children, header, footer, className }: PageShellProps) {
   return (
     <div className="flex h-full flex-col overflow-hidden bg-background text-foreground">
-      {header ? (
-        <header className="sticky top-0 z-20 border-b border-border/50 bg-background/70 backdrop-blur-lg backdrop-saturate-150 supports-[backdrop-filter]:bg-background/50">
-          {header}
-        </header>
-      ) : null}
-      <main className={cn("min-h-0 flex-1 overflow-y-auto", className)}>{children}</main>
+      {/* 滚动区域：header sticky 浮于内容之上，滚动时内容穿过 header，毛玻璃生效。 */}
+      <div className={cn("min-h-0 flex-1 overflow-y-auto", className)}>
+        {header ? (
+          <header className="sticky top-0 z-20 border-b border-border bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+            {header}
+          </header>
+        ) : null}
+        <main>{children}</main>
+      </div>
       {footer ? (
         <footer className="z-20 border-t border-border bg-background pb-[env(safe-area-inset-bottom)] md:hidden">
           {footer}
