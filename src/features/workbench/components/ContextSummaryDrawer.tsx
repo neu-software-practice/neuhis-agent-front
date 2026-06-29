@@ -7,10 +7,6 @@ interface ContextSummaryDrawerProps {
   patientName?: string
   /** 主诉。 */
   chiefComplaint?: string
-  /** 当前问诊轮次。 */
-  visitRound?: number
-  /** 最大问诊轮次限制。 */
-  askRoundLimit?: number
   /** 最后一次操作时间（ISO 字符串）。 */
   lastActivityAt?: string
 }
@@ -26,8 +22,6 @@ export function ContextSummaryDrawer({
   onOpenChange,
   patientName,
   chiefComplaint,
-  visitRound,
-  askRoundLimit,
   lastActivityAt,
 }: ContextSummaryDrawerProps) {
   return (
@@ -51,14 +45,6 @@ export function ContextSummaryDrawer({
                 {chiefComplaint ? (
                   <InfoRow label="主诉" value={chiefComplaint} />
                 ) : null}
-
-                {/* 当前轮次 / 最大轮次 */}
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">问诊轮次</span>
-                  <span className="font-medium">
-                    {visitRound ?? "-"} / {askRoundLimit ?? "-"}
-                  </span>
-                </div>
 
                 {/* 最后操作时间 */}
                 {lastActivityAt ? (

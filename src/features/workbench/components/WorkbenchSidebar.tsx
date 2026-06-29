@@ -7,10 +7,6 @@ interface WorkbenchSidebarProps {
   patientName?: string
   /** 主诉。 */
   chiefComplaint?: string
-  /** 当前问诊轮次。 */
-  visitRound?: number
-  /** 最大问诊轮次限制。 */
-  askRoundLimit?: number
   /** 最后一次操作时间（ISO 字符串）。 */
   lastActivityAt?: string
   /** 入口类型描述（如 "新出诊" / "复诊"）。 */
@@ -44,8 +40,6 @@ const STATUS_LABELS: Record<string, string> = {
 export function WorkbenchSidebar({
   patientName,
   chiefComplaint,
-  visitRound,
-  askRoundLimit,
   lastActivityAt,
   entryType,
   sessionStatus,
@@ -83,15 +77,6 @@ export function WorkbenchSidebar({
       {/* 主诉 */}
       {chiefComplaint ? (
         <InfoItem icon={<FileText className="size-3.5" />} label="主诉" value={chiefComplaint} />
-      ) : null}
-
-      {/* 问诊轮次 */}
-      {visitRound !== undefined ? (
-        <InfoItem
-          icon={<Clock className="size-3.5" />}
-          label="问诊轮次"
-          value={`${visitRound} / ${askRoundLimit ?? "∞"}`}
-        />
       ) : null}
 
       {/* 最后操作时间 */}

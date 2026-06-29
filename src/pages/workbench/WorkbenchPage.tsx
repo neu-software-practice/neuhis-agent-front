@@ -141,8 +141,6 @@ export default function WorkbenchPage() {
         <WorkbenchSidebar
           patientName={session?.patientId}
           chiefComplaint={session?.summary?.chiefComplaint}
-          visitRound={session?.askRound}
-          askRoundLimit={session?.askRoundLimit}
           lastActivityAt={session?.lastActivityAt}
         />
       }
@@ -168,7 +166,6 @@ export default function WorkbenchPage() {
           <ContextSummaryBar
             patientName={session?.patientId}
             chiefComplaint={session?.summary?.chiefComplaint}
-            visitRound={session?.askRound}
             onClick={() => setDrawerOpen(true)}
           />
           <ChatTimeline
@@ -221,8 +218,6 @@ export default function WorkbenchPage() {
             onOpenChange={setDrawerOpen}
             patientName={session?.patientId}
             chiefComplaint={session?.summary?.chiefComplaint}
-            visitRound={session?.askRound}
-            askRoundLimit={session?.askRoundLimit}
             lastActivityAt={session?.lastActivityAt}
           />
           <LockQuestionSheet

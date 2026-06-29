@@ -145,7 +145,6 @@ function ReadonlyVisitReady({ snapshot }: { snapshot: VisitSnapshot }) {
     return {
       patientName: session.patientId,
       chiefComplaint: s.chiefComplaint,
-      visitRound: session.askRound,
     }
   }, [session])
 
@@ -155,7 +154,6 @@ function ReadonlyVisitReady({ snapshot }: { snapshot: VisitSnapshot }) {
         <ContextSummaryBar
           patientName={summaryParts.patientName}
           chiefComplaint={summaryParts.chiefComplaint}
-          visitRound={summaryParts.visitRound}
         />
       </div>
       {/* 只读时间线：readonly 透传 → 流程卡禁用，不传 onAction → 动作 no-op */}

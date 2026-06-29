@@ -7,8 +7,6 @@ interface ContextSummaryBarProps {
   patientName?: string
   /** 主诉。 */
   chiefComplaint?: string
-  /** 当前问诊轮次。 */
-  visitRound?: number
   /** 点击展开完整 Drawer。 */
   onClick?: () => void
   className?: string
@@ -17,18 +15,16 @@ interface ContextSummaryBarProps {
 /**
  * 可折叠的上下文摘要条。
  *
- * 移动端默认折叠为单行，显示 "患者: {name} | 主诉: {complaint} | 第{n}轮"。
+ * 移动端默认折叠为单行，显示 "患者: {name} | 主诉: {complaint}"。
  * 点击调用 onClick 打开完整 ContextSummaryDrawer。
- * PC 端可展开显示更多内容。
  */
 export function ContextSummaryBar({
   patientName,
   chiefComplaint,
-  visitRound,
   onClick,
   className,
 }: ContextSummaryBarProps) {
-  const hasContext = patientName || chiefComplaint || visitRound !== undefined
+  const hasContext = patientName || chiefComplaint
 
   if (!hasContext) {
     return null
@@ -37,7 +33,6 @@ export function ContextSummaryBar({
   const parts: string[] = []
   if (patientName) parts.push(`患者: ${patientName}`)
   if (chiefComplaint) parts.push(`主诉: ${chiefComplaint}`)
-  if (visitRound !== undefined) parts.push(`第${visitRound}轮`)
 
   return (
     <button
