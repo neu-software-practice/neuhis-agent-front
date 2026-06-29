@@ -21,23 +21,23 @@ const reasonIconMap: Record<
   TerminalTimelineItem["reason"],
   { icon: React.ComponentType<{ className?: string }>; color: string; bg: string }
 > = {
-  emergency: { icon: Siren, color: "text-red-500", bg: "bg-red-50" },
-  timeout: { icon: Clock, color: "text-orange-500", bg: "bg-orange-50" },
+  emergency: { icon: Siren, color: "text-danger", bg: "bg-danger-foreground" },
+  timeout: { icon: Clock, color: "text-warning", bg: "bg-warning-foreground" },
   ask_limit_reached: {
     icon: AlertTriangle,
-    color: "text-amber-500",
-    bg: "bg-amber-50",
+    color: "text-warning",
+    bg: "bg-warning-foreground",
   },
   lab_limit_reached: {
     icon: AlertTriangle,
-    color: "text-amber-500",
-    bg: "bg-amber-50",
+    color: "text-warning",
+    bg: "bg-warning-foreground",
   },
-  referral: { icon: ArrowRight, color: "text-blue-500", bg: "bg-blue-50" },
+  referral: { icon: ArrowRight, color: "text-info", bg: "bg-info-foreground" },
   capability_insufficient: {
     icon: AlertTriangle,
-    color: "text-amber-500",
-    bg: "bg-amber-50",
+    color: "text-warning",
+    bg: "bg-warning-foreground",
   },
   exited: { icon: LogOut, color: "text-muted-foreground", bg: "bg-muted/20" },
 }
@@ -75,7 +75,7 @@ export const TerminalCard = memo(function TerminalCard({
         </span>
       ) : null}
       {card.suggestedDepartment ? (
-        <span className="text-center text-xs font-medium text-blue-600">
+        <span className="text-center text-xs font-medium text-info">
           建议转至：{card.suggestedDepartment}
         </span>
       ) : null}
