@@ -94,13 +94,13 @@
     --sidebar-ring: oklch(0.44 0.13 250);
     /* Semantic status tokens */
     --info: oklch(0.44 0.13 250);
-    --info-foreground: oklch(0.95 0.025 240);
+    --info-foreground: oklch(0.97 0.004 240);
     --success: oklch(0.48 0.11 165);
-    --success-foreground: oklch(0.95 0.03 165);
+    --success-foreground: oklch(0.97 0.004 165);
     --warning: oklch(0.48 0.12 70);
-    --warning-foreground: oklch(0.95 0.04 85);
+    --warning-foreground: oklch(0.97 0.004 85);
     --danger: oklch(0.44 0.16 25);
-    --danger-foreground: oklch(0.95 0.02 20);
+    --danger-foreground: oklch(0.97 0.004 20);
 }
 
 .dark {
@@ -137,13 +137,13 @@
     --sidebar-ring: oklch(0.65 0.15 250);
     /* Semantic status tokens (dark) */
     --info: oklch(0.65 0.15 250);
-    --info-foreground: oklch(0.22 0.06 240);
+    --info-foreground: oklch(0.22 0.008 240);
     --success: oklch(0.65 0.12 165);
-    --success-foreground: oklch(0.22 0.04 165);
+    --success-foreground: oklch(0.22 0.008 165);
     --warning: oklch(0.65 0.12 70);
-    --warning-foreground: oklch(0.22 0.04 70);
+    --warning-foreground: oklch(0.22 0.008 70);
     --danger: oklch(0.65 0.16 25);
-    --danger-foreground: oklch(0.22 0.04 25);
+    --danger-foreground: oklch(0.22 0.008 25);
 }
 
 /* 隐藏浏览器原生密码显示按钮，使用自定义图标 */
