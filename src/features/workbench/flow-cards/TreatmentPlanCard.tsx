@@ -39,7 +39,7 @@ export const TreatmentPlanCard = memo(function TreatmentPlanCard({
   const cap = capabilityConfig[card.capability]
 
   return (
-    <Card className="w-full border border-divider">
+    <Card className="w-full border border-divider bg-info-foreground">
       <CardHeader className="flex items-center justify-between gap-2 pb-2">
         <div className="flex items-center gap-2">
           <ClipboardList className="size-4 text-primary" />
