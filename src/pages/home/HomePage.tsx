@@ -9,6 +9,7 @@ import { EmptyState } from "@/features/shared/components/EmptyState"
 import { PageShell } from "@/features/shared/components/PageShell"
 import { SessionCard } from "@/features/visits/components/SessionCard"
 import { visitsQueries, visitsMutations } from "@/features/visits/api/queries"
+import { useAuthStore } from "@/features/auth/store/auth-store"
 import type { VisitSessionSummary } from "@/features/visits/api"
 
 /** 进行中状态集合，用于首页定位活跃会话。 */
@@ -33,6 +34,7 @@ const COMMON_SYMPTOMS = ["发烧", "咳嗽", "咽痛", "头痛", "腹痛", "乏�
 export default function HomePage() {
   const navigate = useNavigate()
   const [draft, setDraft] = useState("")
+  const patientId = useAuthStore((s) => s.user?.patientId) ?? "patient-mock-001"
 
   // ── 获取全部会话，本地过滤活跃态 ──
   const { data: sessionsData, isLoading: sessionsLoading } = useQuery(
@@ -52,7 +54,7 @@ export default function HomePage() {
 
     try {
       const result = await createMutation.mutateAsync({
-        patientId: "patient-mock-001",
+        patientId,
         entryType: "new",
         chiefComplaint: trimmed || undefined,
       })

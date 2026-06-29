@@ -40,6 +40,12 @@ import {
   handleSubmitTreatmentExecution,
 } from "@/mocks/api/handlers/chat-handlers"
 import {
+  handleLogin,
+  handleLogout,
+  handleRefresh,
+  handleRegister,
+} from "@/mocks/api/handlers/auth-handlers"
+import {
   simulateAssistantStream,
   simulateSimpleReplyStream,
 } from "@/mocks/api/stream-simulator"
@@ -56,6 +62,20 @@ async function delayed<T>(value: T): Promise<T> {
 }
 
 function route(method: MockMethod, path: string, body?: unknown, options?: RequestOptions) {
+  // ── Auth 路由（公开，不需 token） ──
+  if (method === "POST" && path === "/auth/login") {
+    return handleLogin(body)
+  }
+  if (method === "POST" && path === "/auth/register") {
+    return handleRegister(body)
+  }
+  if (method === "POST" && path === "/auth/refresh") {
+    return handleRefresh(body)
+  }
+  if (method === "POST" && path === "/auth/logout") {
+    return handleLogout(body)
+  }
+
   if (method === "POST" && path === "/patients/verify") {
     return handleVerifyIdentity()
   }

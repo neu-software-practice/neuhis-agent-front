@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react"
+import { useNavigate } from "react-router"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { ClipboardList, Pill, RefreshCw, ShieldAlert, Stethoscope, User } from "lucide-react"
+import { ClipboardList, LogOut, Pill, RefreshCw, ShieldAlert, Stethoscope, User } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { AppBottomTabs } from "@/features/shared/components/AppBottomTabs"
@@ -13,10 +14,9 @@ import {
   patientQueries,
   patientQueryKeys,
 } from "@/features/patient/api/queries"
+import { useAuthStore } from "@/features/auth/store/auth-store"
 
 type EditingSection = "allergies" | "chronicDiseases" | "longTermMedications" | "medicalHistory" | null
-
-const PATIENT_ID = "patient-mock-001"
 
 /**
  * 个人中心页。
@@ -26,7 +26,11 @@ const PATIENT_ID = "patient-mock-001"
  * - 展示 PatientSummaryCard 基础信息 + EditableChipList 可编辑医疗信息。
  */
 export default function ProfilePage() {
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const user = useAuthStore((s) => s.user)
+  const logout = useAuthStore((s) => s.logout)
+  const patientId = user?.patientId ?? ""
 
   const {
     data: context,
@@ -34,7 +38,7 @@ export default function ProfilePage() {
     isError,
     error,
     refetch,
-  } = useQuery(patientQueries.context(PATIENT_ID))
+  } = useQuery({ ...patientQueries.context(patientId), enabled: !!patientId })
 
   // ---- 编辑状态（同一时间仅一个 section 可编辑）----
   const [editingSection, setEditingSection] = useState<EditingSection>(null)
@@ -45,14 +49,14 @@ export default function ProfilePage() {
     onSuccess: () => {
       setEditingSection(null)
       void queryClient.invalidateQueries({
-        queryKey: patientQueryKeys.context(PATIENT_ID),
+        queryKey: patientQueryKeys.context(patientId),
       })
     },
   })
 
   const handleSave = useCallback(
     (field: "allergies" | "chronicDiseases" | "longTermMedications" | "medicalHistory", items: string[]) => {
-      mutate({ patientId: PATIENT_ID, [field]: items })
+      mutate({ patientId, [field]: items })
     },
     [mutate],
   )
@@ -183,6 +187,21 @@ export default function ProfilePage() {
                 </div>
               </section>
             ) : null}
+
+            {/* 退出登录 */}
+            <div className="pt-4">
+              <Button
+                variant="outline"
+                className="w-full text-destructive"
+                onClick={() => {
+                  logout()
+                  navigate("/login", { replace: true })
+                }}
+              >
+                <LogOut className="size-4" />
+                退出登录
+              </Button>
+            </div>
           </div>
         ) : null}
       </div>

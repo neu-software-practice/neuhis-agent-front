@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/features/shared/components/EmptyState"
 import { PageShell } from "@/features/shared/components/PageShell"
 import { visitsApi } from "@/features/visits/api"
+import { useAuthStore } from "@/features/auth/store/auth-store"
 import type { NewWorkbenchLoaderData } from "@/pages/workbench/workbench-loaders"
 
 /**
@@ -18,6 +19,7 @@ export default function NewWorkbenchPage() {
   const { draft, followUpFrom } = useLoaderData() as NewWorkbenchLoaderData
   const navigate = useNavigate()
   const hasCreated = useRef(false)
+  const patientId = useAuthStore((s) => s.user?.patientId ?? "")
 
   const {
     mutate,
@@ -29,13 +31,13 @@ export default function NewWorkbenchPage() {
     mutationFn: () => {
       if (followUpFrom) {
         return visitsApi.createFollowUp({
-          patientId: "patient-mock-001",
+          patientId,
           parentSessionId: followUpFrom,
           chiefComplaint: draft || undefined,
         })
       }
       return visitsApi.createSession({
-        patientId: "patient-mock-001",
+        patientId,
         entryType: "new",
         chiefComplaint: draft || undefined,
       })

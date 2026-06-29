@@ -45,6 +45,7 @@ agent-workspace/
   special-designs/
     api.md                       # 前端 API 合约与 Mock 设计：前端先定义 REST/SSE contract，再 mock 和联调
     rest-api-patch-v2.md         # REST API Patch v2：updatePatientProfile 新增 medicalHistory 字段
+    rest-api-patch-v3.md         # REST API Patch v3：JWT 认证体系（accessToken + refreshToken rotation）
   无人医院_患者端_交互原型.html  # 患者端交互原型
 ```
 

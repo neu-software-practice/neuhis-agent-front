@@ -24,4 +24,5 @@ dist-ssr
 *.sw?
 
 references/
-.agent/worktrees
+.agents/worktrees
+.agents/plans

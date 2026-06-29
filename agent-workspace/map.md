@@ -1,6 +1,6 @@
 # 项目地图
 
-更新时间：2026-06-29（PC 端独立布局实现）
+更新时间：2026-06-29（JWT 认证体系实现）
 
 ## 项目定位
 
@@ -20,9 +20,11 @@ NEUHIS Agent 前端是一个 React + HeroUI 3 + Magic UI 的 AI 诊疗 Agent 聊
       router.tsx             # createBrowserRouter 路由表
       error-boundary.tsx     # 路由级错误边界，患者可理解兜底页
     pages/
+      auth/LoginPage.tsx     # 登录页：react-hook-form + zod + authApi.login
+      auth/RegisterPage.tsx  # 注册页：react-hook-form + zod + authApi.register
       home/HomePage.tsx      # 首页：TanStack Query 活跃会话 + 症状快速填充 + 创建新会话 + 首用引导空态
       home/HistoryPage.tsx   # 历史就诊：筛选 tab + TanStack Query 列表 + SessionCard + 首用/筛选无结果两类空态
-      home/ProfilePage.tsx   # 个人中心：TanStack Query 患者上下文 + PatientSummaryCard
+      home/ProfilePage.tsx   # 个人中心：TanStack Query 患者上下文 + PatientSummaryCard + 退出登录
       workbench/NewWorkbenchPage.tsx    # 新建问诊占位（解析 draft/followUpFrom）
       workbench/WorkbenchPage.tsx       # 进行中工作台：装配 overlays slot（急症/超时/退出）+ 倒计时 + 退出结算
       workbench/ReadonlyVisitPage.tsx   # 只读回看页：只读快照时间线，四态，无输入框，不触发主循环
@@ -52,6 +54,12 @@ NEUHIS Agent 前端是一个 React + HeroUI 3 + Magic UI 的 AI 诊疗 Agent 聊
       index.ts               # getTransport() mock/http 选择器
     features/
       api.ts                 # 统一 api facade 聚合：patient / visits / workbench
+      auth/api/types.ts      # AuthUser、TokenPair、AuthResponse、RefreshResponse 类型
+      auth/api/schemas.ts    # loginInputSchema、registerInputSchema（Zod）
+      auth/api/auth-api.ts   # authApi facade：login、register、refresh、logout
+      auth/store/auth-store.ts # Zustand + persist：tokens、user、login/logout/updateTokens
+      auth/hooks/useAuthGuard.ts # 认证守卫逻辑 hook
+      auth/components/AuthGuard.tsx # 路由级认证守卫布局组件
       patient/api/           # 患者 schema、types、facade、query/mutation options
       patient/components/    # PatientSummaryCard（患者档案摘要卡片）
       visits/api/            # 会话 schema、types、facade、query/mutation options
@@ -335,6 +343,27 @@ P6 按「文件所有权分波次」并行实现：5 个 quality / docs lane 各
 - 修改 `src/features/patient/components/PatientSummaryCard.tsx`：新增 `hideMedicalSections` prop，为 true 时隐藏过敏史/慢性病/长期用药 section（由外部 EditableChipList 接管）。
 - 修改 `src/pages/home/ProfilePage.tsx`：引入 `useMutation(patientMutations.updateProfile())`，管理三段编辑状态（allergies/chronicDiseases/longTermMedications），用 EditableChipList 替换静态 chip 展示，保存成功后 invalidate query cache 刷新。
 - 验证：`pnpm build`（tsc -b + vite）通过。
+
+### JWT 认证体系（2026-06-29）
+
+- 新增 `src/features/auth/api/types.ts`：AuthUser（id/phoneMasked/patientId/realName?）、TokenPair（accessToken/refreshToken/expiresIn）、AuthResponse、RefreshResponse、LoginInput、RegisterInput 类型。
+- 新增 `src/features/auth/api/schemas.ts`：loginInputSchema（手机号11位+密码≥6位）、registerInputSchema（+可选 realName）Zod 校验。
+- 新增 `src/features/auth/api/auth-api.ts`：authApi facade，封装 login/register/refresh/logout 对 transport 的调用。
+- 新增 `src/features/auth/store/auth-store.ts`：Zustand + persist（localStorage key `neuhis-auth`），accessToken/refreshToken/user/isAuthenticated + login/logout/updateTokens actions。
+- 新增 `src/features/auth/components/AuthGuard.tsx`：路由级守卫布局组件，未认证 redirect `/login?redirectTo=...`。
+- 新增 `src/features/auth/hooks/useAuthGuard.ts`：hook 封装。
+- 新增 `src/pages/auth/LoginPage.tsx`：手机号+密码登录，react-hook-form + zodResolver，登录成功后跳转 redirectTo。
+- 新增 `src/pages/auth/RegisterPage.tsx`：手机号+密码+可选姓名注册，注册成功自动登录跳转首页。
+- 新增 `src/mocks/api/handlers/auth-handlers.ts`：handleLogin/handleRegister/handleRefresh/handleLogout，调用 mockDb 方法。
+- 修改 `src/lib/api/client.ts`：非公开路径自动注入 Bearer token；401 自动 refresh（共享 promise 去重）+ retry；失败 logout。
+- 修改 `src/mocks/api/mock-transport.ts`：route() 顶部新增四条 auth 路由。
+- 修改 `src/mocks/api/mock-db.ts`：新增 MockUser 接口、users/refreshTokens 状态、种子用户（13800002468/123456）、register/login/refreshToken/logout/issueTokens 方法。
+- 修改 `src/app/router.tsx`：/login、/register 为公开路由；现有受保护路由包裹 AuthGuard layout route。
+- 修改 `src/pages/home/HomePage.tsx`：patientId 从 auth store 读取（fallback mock）。
+- 修改 `src/pages/workbench/NewWorkbenchPage.tsx`：patientId 从 auth store 读取。
+- 修改 `src/pages/home/ProfilePage.tsx`：patientId 从 auth store 读取 + 退出登录按钮。
+- 新增 `agent-workspace/special-designs/rest-api-patch-v3.md`：交付后端的 JWT 认证 REST API 文档。
+- 验证：`pnpm build`（tsc -b + vite）通过，零 TS 错误。
 
 ## 当前未完成
 

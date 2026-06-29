@@ -9,6 +9,61 @@ import type {
   StreamHandlers,
 } from "@/lib/api/transport"
 import type { ApiError } from "@/lib/api/types"
+import { useAuthStore } from "@/features/auth/store/auth-store"
+import type { TokenPair } from "@/features/auth/api/types"
+
+// ── Auth helpers ──
+
+/** 不需要注入 token 的路径前缀。 */
+const PUBLIC_PATHS = ["/auth/login", "/auth/register", "/auth/refresh"]
+
+function isPublicPath(path: string): boolean {
+  return PUBLIC_PATHS.some((p) => path.startsWith(p))
+}
+
+function getAccessToken(): string | null {
+  return useAuthStore.getState().accessToken
+}
+
+/**
+ * 尝试使用 refreshToken 获取新 token pair。
+ * 成功返回 true（store 已更新），失败返回 false 并触发 logout。
+ */
+let refreshPromise: Promise<boolean> | null = null
+
+async function tryRefreshToken(): Promise<boolean> {
+  // 避免并发多次 refresh
+  if (refreshPromise) return refreshPromise
+
+  refreshPromise = (async () => {
+    const { refreshToken, updateTokens, logout } = useAuthStore.getState()
+    if (!refreshToken) {
+      logout()
+      return false
+    }
+
+    try {
+      const res = await ky
+        .post(`${apiConfig.baseUrl.replace(/^\//, "")}auth/refresh`, {
+          json: { refreshToken },
+          timeout: 10_000,
+        })
+        .json<TokenPair>()
+
+      updateTokens(res)
+      return true
+    } catch {
+      logout()
+      return false
+    } finally {
+      refreshPromise = null
+    }
+  })()
+
+  return refreshPromise
+}
+
+// ── Transport utilities ──
 
 function normalizeSearchParams(options?: RequestOptions) {
   const searchParams = options?.searchParams
@@ -53,15 +108,45 @@ async function request<T>(
   body?: unknown,
   options?: RequestOptions,
 ): Promise<T> {
+  const authHeaders: Record<string, string> = {}
+  if (!isPublicPath(path)) {
+    const token = getAccessToken()
+    if (token) {
+      authHeaders["Authorization"] = `Bearer ${token}`
+    }
+  }
+
   try {
     return await httpClient(path.replace(/^\//, ""), {
       method,
       json: body,
       searchParams: normalizeSearchParams(options),
-      headers: options?.headers,
+      headers: { ...authHeaders, ...options?.headers },
       signal: options?.signal,
     }).json<T>()
   } catch (error) {
+    // 401 自动 refresh + retry（仅非公开路径）
+    if (
+      !isPublicPath(path) &&
+      error instanceof Error &&
+      "response" in error &&
+      (error as { response?: Response }).response?.status === 401
+    ) {
+      const refreshed = await tryRefreshToken()
+      if (refreshed) {
+        const retryToken = getAccessToken()
+        return await httpClient(path.replace(/^\//, ""), {
+          method,
+          json: body,
+          searchParams: normalizeSearchParams(options),
+          headers: {
+            ...options?.headers,
+            ...(retryToken ? { Authorization: `Bearer ${retryToken}` } : {}),
+          },
+          signal: options?.signal,
+        }).json<T>()
+      }
+    }
     throwApiError(await normalizeHttpError(error))
   }
 }
@@ -78,12 +163,18 @@ export function createHttpTransport(): ApiTransport {
       handlers: StreamHandlers<TEvent>,
     ) {
       try {
+        const token = getAccessToken()
+        const headers: Record<string, string> = {
+          "Content-Type": "application/json",
+        }
+        if (token) {
+          headers["Authorization"] = `Bearer ${token}`
+        }
+
         await fetchEventSource(`${apiConfig.baseUrl}${path}`, {
           method: "POST",
           body: JSON.stringify(body),
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers,
           signal: handlers.signal,
           onopen: async () => {
             handlers.onOpen?.()

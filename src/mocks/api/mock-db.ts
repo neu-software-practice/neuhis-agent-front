@@ -75,6 +75,16 @@ interface EmergencyRestorePoint {
   activeCardId?: string
 }
 
+/** Mock 用户（密码明文存储，仅限 mock 环境）。 */
+export interface MockUser {
+  id: string
+  phone: string
+  password: string
+  realName?: string
+  patientId: PatientId
+  createdAt: string
+}
+
 interface MockDbState {
   patients: Record<PatientId, PatientProfile>
   contexts: Record<PatientId, PatientContext>
@@ -83,6 +93,9 @@ interface MockDbState {
   // 急症误报恢复点：进入 emergency_terminated 前的可恢复状态。
   // dismissEmergency 据此把会话还原到急症发生前。
   emergencyRestore: Record<SessionId, EmergencyRestorePoint>
+  // Auth
+  users: Record<string, MockUser>
+  refreshTokens: Set<string>
   nextId: number
 }
 
@@ -125,6 +138,17 @@ function createInitialState(): MockDbState {
       [mockCompletedSession.id]: clone(mockCompletedTimeline),
     },
     emergencyRestore: {},
+    users: {
+      "user-seed-001": {
+        id: "user-seed-001",
+        phone: "13800002468",
+        password: "123456",
+        realName: "李明",
+        patientId: mockPatient.id,
+        createdAt: "2026-06-01T00:00:00.000Z",
+      },
+    },
+    refreshTokens: new Set<string>(),
     nextId: 1,
   }
 }
@@ -1166,6 +1190,121 @@ class MockDb {
       )
     }
     return item.card
+  }
+
+  // ─── Auth ───────────────────────────────────────────────────────────────────
+
+  register(input: { phone: string; password: string; realName?: string }): {
+    user: MockUser
+    accessToken: string
+    refreshToken: string
+  } {
+    const existing = Object.values(this.state.users).find(
+      (u) => u.phone === input.phone,
+    )
+    if (existing) {
+      throwApiError(
+        createApiError({
+          code: "PHONE_ALREADY_REGISTERED",
+          message: "该手机号已注册",
+          status: 409,
+          retriable: false,
+        }),
+      )
+    }
+
+    const userId = this.id("user")
+    const patientId = this.id("patient") as PatientId
+    const user: MockUser = {
+      id: userId,
+      phone: input.phone,
+      password: input.password,
+      realName: input.realName,
+      patientId,
+      createdAt: nowIso(),
+    }
+    this.state.users[userId] = user
+
+    // 同步创建空 patient profile
+    this.state.patients[patientId] = parsePatientProfile({
+      id: patientId,
+      name: input.realName ?? `用户${input.phone.slice(-4)}`,
+      gender: "unknown",
+      age: 0,
+      phoneMasked: `${input.phone.slice(0, 3)}****${input.phone.slice(-4)}`,
+      idCardMasked: "",
+      allergies: [],
+      chronicDiseases: [],
+      longTermMedications: [],
+      updatedAt: nowIso(),
+    })
+    this.state.contexts[patientId] = {
+      patient: this.state.patients[patientId],
+      chiefComplaint: undefined,
+      medicalHistory: [],
+      allergies: [],
+      longTermMedications: [],
+    }
+
+    const tokens = this.issueTokens(userId)
+    return { user, ...tokens }
+  }
+
+  login(input: { phone: string; password: string }): {
+    user: MockUser
+    accessToken: string
+    refreshToken: string
+  } {
+    const user = Object.values(this.state.users).find(
+      (u) => u.phone === input.phone,
+    )
+    if (!user || user.password !== input.password) {
+      throwApiError(
+        createApiError({
+          code: "INVALID_CREDENTIALS",
+          message: "手机号或密码错误",
+          status: 401,
+          retriable: false,
+        }),
+      )
+    }
+
+    const tokens = this.issueTokens(user.id)
+    return { user, ...tokens }
+  }
+
+  refreshToken(token: string): { accessToken: string; refreshToken: string } {
+    if (!this.state.refreshTokens.has(token)) {
+      throwApiError(
+        createApiError({
+          code: "INVALID_REFRESH_TOKEN",
+          message: "刷新令牌无效或已过期",
+          status: 401,
+          retriable: false,
+        }),
+      )
+    }
+    // Rotation: invalidate old token
+    this.state.refreshTokens.delete(token)
+    // Extract userId from token (mock format: "mock-refresh-<userId>-<ts>")
+    const parts = token.split("-")
+    const userId = parts.slice(2, -1).join("-")
+    return this.issueTokens(userId)
+  }
+
+  logout(token: string) {
+    this.state.refreshTokens.delete(token)
+  }
+
+  private issueTokens(userId: string): {
+    accessToken: string
+    refreshToken: string
+  } {
+    const ts = Date.now()
+    const accessToken = `mock-access-${userId}-${ts}`
+    const refreshToken = `mock-refresh-${userId}-${ts}`
+    this.state.refreshTokens.add(refreshToken)
+    return { accessToken, refreshToken }
   }
 
   private updateSession(sessionId: SessionId, patch: Partial<VisitSession>) {
