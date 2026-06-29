@@ -685,6 +685,24 @@ class MockDb {
   }
 
   exitVisit(input: ExitVisitInput): ExitSettlementResult {
+    // 防御：已终止的会话不重复生成终诊卡片
+    const current = this.requireSession(input.sessionId)
+    if (
+      current.status === "exited" ||
+      current.status === "emergency_terminated" ||
+      current.status === "transferred"
+    ) {
+      const settlement = this.computeSettlement(input.sessionId)
+      return parseExitSettlementResult({
+        sessionId: input.sessionId,
+        terminalReason: current.terminalReason ?? "exited",
+        refundAmount: settlement.refundAmount,
+        payableAmount: settlement.payableAmount,
+        timelineItem: this.terminalItem(input.sessionId, current.terminalReason ?? "exited", "本次问诊已结束"),
+        consequence: settlement.consequence,
+      })
+    }
+
     const reason: TerminalReason =
       input.reason === "emergency"
         ? "emergency"

@@ -150,6 +150,7 @@ export default function WorkbenchPage() {
         <WorkbenchHeader
           timeoutWarning={timeoutWarning}
           timerPaused={context.timerPaused}
+          isTerminated={isTerminated}
           onPause={actions.pauseVisit}
           onResume={actions.resumeVisit}
           onReportEmergency={() => {
@@ -251,7 +252,7 @@ export default function WorkbenchPage() {
             }}
           />
           <ExitVisitSheet
-            open={exitSheetOpen}
+            open={exitSheetOpen && !isTerminated}
             onOpenChange={setExitSheetOpen}
             consequence={consequence}
             onConfirm={() => {

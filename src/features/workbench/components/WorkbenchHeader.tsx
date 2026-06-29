@@ -11,6 +11,8 @@ interface WorkbenchHeaderProps {
   timeoutWarning?: string
   /** 计时是否已暂停。 */
   timerPaused?: boolean
+  /** 会话是否已终止（terminated/exited），终止态隐藏操作按钮。 */
+  isTerminated?: boolean
   /** 暂停计时回调。 */
   onPause?: () => void
   /** 恢复计时回调。 */
@@ -35,6 +37,7 @@ export function WorkbenchHeader({
   aiAvatar,
   timeoutWarning,
   timerPaused = false,
+  isTerminated = false,
   onPause,
   onResume,
   onReportEmergency,
@@ -56,64 +59,66 @@ export function WorkbenchHeader({
         <span className="truncate text-sm font-medium">{aiName}</span>
       </div>
 
-      {/* 右侧：操作区 */}
-      <div className="flex items-center gap-1">
-        {/* 超时警告：移动端在有警告文字时优先显示 */}
-        {timeoutWarning ? (
-          <span className="truncate text-xs font-medium text-danger whitespace-nowrap max-w-[140px]">
-            {timeoutWarning}
-          </span>
-        ) : null}
+      {/* 右侧：操作区（终止态隐藏所有操作按钮） */}
+      {!isTerminated && (
+        <div className="flex items-center gap-1">
+          {/* 超时警告：移动端在有警告文字时优先显示 */}
+          {timeoutWarning ? (
+            <span className="truncate text-xs font-medium text-danger whitespace-nowrap max-w-[140px]">
+              {timeoutWarning}
+            </span>
+          ) : null}
 
-        {/* 暂停/恢复按钮：移动端仅图标，PC 端显示文字 */}
-        {timerPaused ? (
+          {/* 暂停/恢复按钮：移动端仅图标，PC 端显示文字 */}
+          {timerPaused ? (
+            <button
+              type="button"
+              aria-label="恢复计时"
+              title="恢复计时"
+              className="flex h-9 items-center justify-center gap-1 rounded-full px-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              onClick={onResume}
+            >
+              <Play className="h-4 w-4" />
+              <span className="hidden text-xs font-medium md:inline">继续</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              aria-label="暂停计时"
+              title="暂停计时"
+              className="flex h-9 items-center justify-center gap-1 rounded-full px-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              onClick={onPause}
+            >
+              <Pause className="h-4 w-4" />
+              <span className="hidden text-xs font-medium md:inline">暂离</span>
+            </button>
+          )}
+
+          {/* 急症求助：移动端仅图标，PC 端显示文字 */}
           <button
             type="button"
-            aria-label="恢复计时"
-            title="恢复计时"
+            aria-label="急症求助"
+            title="急症求助"
             className="flex h-9 items-center justify-center gap-1 rounded-full px-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            onClick={onResume}
+            onClick={onReportEmergency}
           >
-            <Play className="h-4 w-4" />
-            <span className="hidden text-xs font-medium md:inline">继续</span>
+            <ShieldAlert className="h-4 w-4" />
+            <span className="hidden text-xs font-medium md:inline">急症求助</span>
           </button>
-        ) : (
+
+          {/* 退出按钮：移动端仅图标，PC 端显示文字 */}
           <button
             type="button"
-            aria-label="暂停计时"
-            title="暂停计时"
+            aria-label="退出问诊"
+            title="退出问诊"
             className="flex h-9 items-center justify-center gap-1 rounded-full px-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            onClick={onPause}
+            onClick={onExit}
           >
-            <Pause className="h-4 w-4" />
-            <span className="hidden text-xs font-medium md:inline">暂离</span>
+            <X className="h-4 w-4" />
+            <span className="hidden text-xs font-medium md:inline">退出</span>
           </button>
-        )}
-
-        {/* 急症求助：移动端仅图标，PC 端显示文字 */}
-        <button
-          type="button"
-          aria-label="急症求助"
-          title="急症求助"
-          className="flex h-9 items-center justify-center gap-1 rounded-full px-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          onClick={onReportEmergency}
-        >
-          <ShieldAlert className="h-4 w-4" />
-          <span className="hidden text-xs font-medium md:inline">急症求助</span>
-        </button>
-
-        {/* 退出按钮：移动端仅图标，PC 端显示文字 */}
-        <button
-          type="button"
-          aria-label="退出问诊"
-          title="退出问诊"
-          className="flex h-9 items-center justify-center gap-1 rounded-full px-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          onClick={onExit}
-        >
-          <X className="h-4 w-4" />
-          <span className="hidden text-xs font-medium md:inline">退出</span>
-        </button>
-      </div>
+        </div>
+      )}
     </div>
   )
 }
