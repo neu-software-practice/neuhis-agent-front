@@ -5,6 +5,7 @@ import {
   CheckCircle,
   FlaskConical,
   LogOut,
+  PauseCircle,
   Pill,
   RefreshCw,
   ShieldOff,
@@ -24,6 +25,7 @@ const eventIconMap: Record<
   follow_up_started: RefreshCw,
   emergency_dismissed: ShieldOff,
   exit_settled: LogOut,
+  session_suspended: PauseCircle,
 }
 
 interface SystemEventRowProps {

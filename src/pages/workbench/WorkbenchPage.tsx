@@ -13,7 +13,7 @@ import { ExitVisitSheet } from "@/features/workbench/components/ExitVisitSheet"
 import { InputDock } from "@/features/workbench/components/InputDock"
 import { LockBar } from "@/features/workbench/components/LockBar"
 import { LockQuestionSheet } from "@/features/workbench/components/LockQuestionSheet"
-import { TimeoutOverlay } from "@/features/workbench/components/TimeoutOverlay"
+import { SuspendOverlay } from "@/features/workbench/components/SuspendOverlay"
 import { WorkbenchHeader } from "@/features/workbench/components/WorkbenchHeader"
 import { WorkbenchShell } from "@/features/workbench/components/WorkbenchShell"
 import { useExitSettlement } from "@/features/workbench/hooks/useExitSettlement"
@@ -70,19 +70,21 @@ export default function WorkbenchPage() {
   const exitSheetOpen = useWorkbenchUiStore((s) => s.exitSheetOpen)
   const setExitSheetOpen = useWorkbenchUiStore((s) => s.setExitSheetOpen)
 
-  // ---- 倒计时（会话级单一计时，completed / 终止态停止）----
+  // ---- 空闲计时（基于最后一次操作，达到阈值自动挂起；completed / 挂起 / 终止态停止）----
   const isTerminated = state === "terminated" || state === "exited"
-  const countdownActive = !isTerminated && state !== "completed"
-  const handleExpire = useCallback(() => {
+  const isSuspended = state === "suspended" || session?.status === "suspended"
+  const countdownActive =
+    !isTerminated && !isSuspended && state !== "completed"
+  const handleIdleExpire = useCallback(() => {
     setTimeoutOverlayOpen(true)
-    actions.triggerTimeout()
+    void actions.suspendVisit()
   }, [setTimeoutOverlayOpen, actions])
   const { warningText } = useVisitCountdown({
-    timeoutAt: session?.timeoutAt,
+    lastActivityAt: session?.lastActivityAt,
     pausedAt: session?.pausedAt,
     timerPaused: context.timerPaused,
     active: countdownActive,
-    onExpire: handleExpire,
+    onIdleExpire: handleIdleExpire,
   })
 
   // ---- 退出后果（从时间线派生）----
@@ -210,14 +212,17 @@ export default function WorkbenchPage() {
             chiefComplaint={session?.summary?.chiefComplaint}
             visitRound={session?.askRound}
             askRoundLimit={session?.askRoundLimit}
-            timeoutAt={session?.timeoutAt}
+            lastActivityAt={session?.lastActivityAt}
           />
           <LockQuestionSheet
             open={lockQuestionSheetOpen}
             onOpenChange={(open) => setLockQuestionSheet(open, open ? lockQuestionCardId : undefined)}
             cardTitle={blockingCard?.title}
             onSubmit={(content) => {
-              actions.sendMessage(content)
+              const cardId = lockQuestionCardId ?? blockingCard?.id
+              if (cardId) {
+                void actions.askLockedQuestion(content, cardId)
+              }
             }}
           />
           <EmergencyOverlay
@@ -228,10 +233,11 @@ export default function WorkbenchPage() {
               void actions.dismissEmergency()
             }}
           />
-          <TimeoutOverlay
-            open={timeoutOverlayOpen}
-            onConfirm={() => {
+          <SuspendOverlay
+            open={timeoutOverlayOpen || isSuspended}
+            onContinue={() => {
               setTimeoutOverlayOpen(false)
+              void actions.resumeFromSuspended()
             }}
           />
           <ExitVisitSheet
@@ -239,7 +245,10 @@ export default function WorkbenchPage() {
             onOpenChange={setExitSheetOpen}
             consequence={consequence}
             onConfirm={() => {
-              void actions.confirmExit()
+              void actions.confirmExit().then(() => {
+                setExitSheetOpen(false)
+                navigate("/")
+              })
             }}
             onCancel={() => setExitSheetOpen(false)}
           />

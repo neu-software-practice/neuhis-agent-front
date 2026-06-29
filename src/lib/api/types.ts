@@ -30,6 +30,8 @@ export const visitStatusSchema = z.enum([
   "diagnosis",
   "treatment",
   "completed",
+  // 空闲挂起：达到空闲阈值后自动中断会话。非终态，可按复诊流程继续。
+  "suspended",
   "transferred",
   "emergency_terminated",
   "exited",
@@ -49,6 +51,7 @@ export const visitMachineStateSchema = z.enum([
   "treatmentExecution",
   "adviceOnly",
   "completed",
+  "suspended",
   "emergencyPending",
   "terminated",
   "exitSettlement",

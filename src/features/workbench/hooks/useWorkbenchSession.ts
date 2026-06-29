@@ -35,6 +35,7 @@ import { useAssistantStream } from "@/features/workbench/hooks/useAssistantStrea
 
 export interface UseWorkbenchSessionActions {
   sendMessage: (content: string) => Promise<void>
+  askLockedQuestion: (content: string, cardId: string) => Promise<void>
   submitFlowAction: (action: FlowCardAction) => Promise<void>
   requestExit: () => void
   confirmExit: () => Promise<void>
@@ -47,6 +48,10 @@ export interface UseWorkbenchSessionActions {
   confirmEmergency: () => void
   /** 到期触发超时终止：abort 流 + VISIT_TIMEOUT → terminated(timeout)。 */
   triggerTimeout: () => void
+  /** 空闲到期自动挂起：abort 流 + 持久化 suspended + VISIT_SUSPENDED。非终态，可复诊继续。 */
+  suspendVisit: () => Promise<void>
+  /** 从挂起态继续：按复诊流程创建新 session 并跳转（可携带刚输入的主诉）。 */
+  resumeFromSuspended: (content?: string) => Promise<void>
 }
 
 export interface UseWorkbenchSessionResult {
@@ -156,6 +161,7 @@ function resolveHydrationTarget(
     diagnosis: "diagnosis",
     treatment: "treatmentDecision",
     completed: "completed",
+    suspended: "suspended",
   }
 
   if (status in directMap) {
@@ -522,6 +528,43 @@ export function useWorkbenchSession(
     [queryClient, sessionId],
   )
 
+  /**
+   * 基于当前会话创建复诊 session 并跳转。
+   *
+   * 完成态意图分类命中复诊、以及挂起态「继续问诊」共用此入口：以本会话为
+   * parentSessionId 创建 follow_up，把新 session / 首条时间线写入 cache，
+   * 失活旧 cache 后回调 onFollowUpCreated 让页面导航到新 session。
+   */
+  const startFollowUp = useCallback(
+    async (content?: string) => {
+      const chiefComplaint = content?.trim()
+      const result = await visitsApi.createFollowUp({
+        patientId: sessionQuery.data?.patientId ?? "patient-mock-001",
+        parentSessionId: sessionId,
+        chiefComplaint: chiefComplaint || undefined,
+      })
+      queryClient.setQueryData(
+        visitsQueryKeys.session(result.session.id),
+        result.session,
+      )
+      queryClient.setQueryData<InfiniteData<ListTimelineResult>>(
+        workbenchQueryKeys.timeline(result.session.id),
+        {
+          pages: [
+            {
+              items: result.initialTimeline,
+              hasMore: false,
+            },
+          ],
+          pageParams: [undefined],
+        },
+      )
+      queryClient.invalidateQueries({ queryKey: visitsQueryKeys.all })
+      onFollowUpCreated?.(result.session.id)
+    },
+    [onFollowUpCreated, queryClient, sessionId, sessionQuery.data?.patientId],
+  )
+
   const handleCompletedMessage = useCallback(
     async (content: string) => {
       const intent = await workbenchApi.classifyFollowUpIntent({
@@ -532,17 +575,7 @@ export function useWorkbenchSession(
       useComposerStore.getState().clearDraft(sessionId)
 
       if (intent.intent === "follow_up") {
-        const result = await visitsApi.createFollowUp({
-          patientId: sessionQuery.data?.patientId ?? "patient-mock-001",
-          parentSessionId: sessionId,
-          chiefComplaint: content,
-        })
-        queryClient.setQueryData(
-          visitsQueryKeys.session(result.session.id),
-          result.session,
-        )
-        queryClient.invalidateQueries({ queryKey: visitsQueryKeys.all })
-        onFollowUpCreated?.(result.session.id)
+        await startFollowUp(content)
         return
       }
 
@@ -575,10 +608,8 @@ export function useWorkbenchSession(
     [
       actorRef,
       appendTimelineItem,
-      onFollowUpCreated,
-      queryClient,
       sessionId,
-      sessionQuery.data?.patientId,
+      startFollowUp,
       startStream,
     ],
   )
@@ -587,7 +618,13 @@ export function useWorkbenchSession(
   const sendMessage = useCallback(
     async (content: string) => {
       if (!content.trim()) return
-      if (stateLabel === "completed") {
+      // 挂起态直接输入：跳过意图分类，强制按复诊流程继续（创建复诊 session 并跳转）。
+      if (stateLabel === "suspended" || sessionQuery.data?.status === "suspended") {
+        useComposerStore.getState().clearDraft(sessionId)
+        await startFollowUp(content.trim())
+        return
+      }
+      if (stateLabel === "completed" || sessionQuery.data?.status === "completed") {
         await handleCompletedMessage(content.trim())
         return
       }
@@ -658,11 +695,36 @@ export function useWorkbenchSession(
     [
       sessionId,
       stateLabel,
+      sessionQuery.data?.status,
       handleCompletedMessage,
+      startFollowUp,
       actorRef,
       queryClient,
       startStream,
     ],
+  )
+
+  /** 在阻塞卡片下提交疑问：只走锁定问题流，不推进主问诊流程。 */
+  const askLockedQuestion = useCallback(
+    async (content: string, cardId: string) => {
+      const trimmed = content.trim()
+      if (!trimmed) return
+
+      const clientMessageId = generateClientMessageId()
+      appendTimelineItem(
+        createOptimisticPatientMessage(trimmed, clientMessageId, sessionId),
+      )
+
+      const streamMsg = createStreamingAssistantMessage(sessionId)
+      appendTimelineItem(streamMsg)
+      startStream({
+        streamMessageId: streamMsg.id,
+        mode: "lock-question",
+        content: trimmed,
+        cardId,
+      })
+    },
+    [appendTimelineItem, sessionId, startStream],
   )
 
   /** 提交流程卡片操作（P4.3：通过 useFlowCardAction 分发到真实 API + cache 更新 + 状态机事件） */
@@ -687,9 +749,14 @@ export function useWorkbenchSession(
   const confirmExit = useCallback(async () => {
     abortStream("exit")
     actorRef.send({ type: "EXIT_REQUESTED" })
-    await workbenchApi.exitVisit({ sessionId, reason: "patient_request" })
+    const result = await workbenchApi.exitVisit({ sessionId, reason: "patient_request" })
+    appendTimelineItem(result.timelineItem)
+    await queryClient.invalidateQueries({
+      queryKey: visitsQueryKeys.session(sessionId),
+    })
+    await queryClient.invalidateQueries({ queryKey: visitsQueryKeys.list() })
     actorRef.send({ type: "EXIT_CONFIRMED" })
-  }, [abortStream, sessionId, actorRef])
+  }, [abortStream, sessionId, actorRef, appendTimelineItem, queryClient])
 
   /** 暂停计时 */
   const pauseVisit = useCallback(async () => {
@@ -713,9 +780,18 @@ export function useWorkbenchSession(
           type: "EMERGENCY_DETECTED",
           source: input.source,
         })
+        return
       }
+      appendTimelineItem(
+        createSystemEventItem(
+          sessionId,
+          "agent_thinking",
+          "已收到急症求助",
+          result.message,
+        ),
+      )
     },
-    [abortStream, actorRef],
+    [abortStream, actorRef, appendTimelineItem, sessionId],
   )
 
   /** 急症误报恢复：还原会话 cache + 追加系统事件 + EMERGENCY_DISMISSED。 */
@@ -740,6 +816,40 @@ export function useWorkbenchSession(
     actorRef.send({ type: "VISIT_TIMEOUT" })
   }, [abortStream, actorRef])
 
+  /**
+   * 空闲到期自动挂起：abort 流 + 持久化 suspended + VISIT_SUSPENDED → suspended。
+   *
+   * 非终态——患者随后直接输入或点「继续问诊」会走 startFollowUp 创建复诊 session。
+   * 持久化失败不阻断本地挂起：本地状态机仍进入 suspended，刷新后由 hydration 兜底。
+   */
+  const suspendVisit = useCallback(async () => {
+    abortStream("idle")
+    actorRef.send({ type: "VISIT_SUSPENDED" })
+    try {
+      const result = await workbenchApi.suspendVisit({ sessionId })
+      queryClient.setQueryData(visitsQueryKeys.session(sessionId), result.session)
+      appendTimelineItem(result.timelineItem)
+      await queryClient.invalidateQueries({ queryKey: visitsQueryKeys.list() })
+    } catch {
+      // 忽略：本地已进入挂起态，下次拉取会话会与服务端对齐。
+    }
+  }, [abortStream, actorRef, sessionId, queryClient, appendTimelineItem])
+
+  /**
+   * 从挂起态继续：按复诊流程创建新 session 并跳转。
+   *
+   * 「继续问诊」按钮（无主诉）与挂起态直接输入（带主诉）共用此入口，统一复用
+   * startFollowUp 以本挂起会话为 parentSessionId 创建 follow_up。
+   */
+  const resumeFromSuspended = useCallback(
+    async (content?: string) => {
+      const trimmed = content?.trim()
+      useComposerStore.getState().clearDraft(sessionId)
+      await startFollowUp(trimmed && trimmed.length > 0 ? trimmed : undefined)
+    },
+    [sessionId, startFollowUp],
+  )
+
   // ---- Compose result ----
 
   const loading = sessionQuery.isLoading || timelineLoading
@@ -747,6 +857,7 @@ export function useWorkbenchSession(
 
   const actions: UseWorkbenchSessionActions = {
     sendMessage,
+    askLockedQuestion,
     submitFlowAction,
     requestExit,
     confirmExit,
@@ -756,6 +867,8 @@ export function useWorkbenchSession(
     dismissEmergency,
     confirmEmergency,
     triggerTimeout,
+    suspendVisit,
+    resumeFromSuspended,
   }
 
   return {

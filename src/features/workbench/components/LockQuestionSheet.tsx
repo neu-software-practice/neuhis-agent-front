@@ -43,7 +43,9 @@ export function LockQuestionSheet({
     <Drawer>
       <Drawer.Backdrop isOpen={open} onOpenChange={onOpenChange}>
         <Drawer.Content placement="bottom">
-          <Drawer.Dialog>
+          <Drawer.Dialog className="bg-background text-foreground shadow-xl">
+            <Drawer.Handle />
+            <Drawer.CloseTrigger />
             <Drawer.Header className="flex flex-col gap-1">
               关于 {cardTitle ?? "当前操作"} 的疑问
             </Drawer.Header>

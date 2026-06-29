@@ -37,8 +37,9 @@ export interface UseAssistantStreamResult {
   /** 启动 SSE 流式回复 */
   startStream: (input: {
     streamMessageId: string
-    mode?: "assistant" | "consultation"
+    mode?: "assistant" | "consultation" | "lock-question"
     content?: string
+    cardId?: string
   }) => void
   /** 中止当前 SSE 流 */
   abortStream: (reason?: StreamAbortReason) => void
@@ -46,7 +47,7 @@ export interface UseAssistantStreamResult {
   isStreaming: boolean
 }
 
-export type StreamAbortReason = "exit" | "emergency" | "timeout" | "error"
+export type StreamAbortReason = "exit" | "emergency" | "timeout" | "idle" | "error"
 
 // ==============================
 // 内部辅助函数
@@ -178,10 +179,11 @@ export function useAssistantStream(
   const startStream = useCallback(
     (input: {
       streamMessageId: string
-      mode?: "assistant" | "consultation"
+      mode?: "assistant" | "consultation" | "lock-question"
       content?: string
+      cardId?: string
     }) => {
-      const { streamMessageId, mode = "assistant", content = "" } = input
+      const { streamMessageId, mode = "assistant", content = "", cardId } = input
 
       // 中止前一个未完成的流
       abortRef.current?.abort()
@@ -257,13 +259,6 @@ export function useAssistantStream(
 
             // ---- state：状态机状态同步 ----
             case "state": {
-              appendTimelineItem(
-                createSystemEventItem(
-                  sessionId,
-                  "agent_thinking",
-                  `Agent 状态: ${event.state}`,
-                ),
-              )
               const machineEvent = mapStateToEvent(event.state, requestId)
               if (machineEvent) {
                 sendMachineEvent(machineEvent)
@@ -328,7 +323,12 @@ export function useAssistantStream(
               { sessionId, requestId, content },
               handlers,
             )
-          : workbenchApi.streamAssistantMessage({ sessionId, requestId }, handlers)
+          : mode === "lock-question" && cardId
+            ? workbenchApi.askLockedQuestion(
+                { sessionId, requestId, content, cardId },
+                handlers,
+              )
+            : workbenchApi.streamAssistantMessage({ sessionId, requestId }, handlers)
 
       stream.catch(() => {
         setIsStreaming(false)

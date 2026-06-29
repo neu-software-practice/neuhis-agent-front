@@ -45,12 +45,17 @@ export function ExitVisitSheet({
     <Drawer>
       <Drawer.Backdrop isOpen={open} onOpenChange={onOpenChange}>
         <Drawer.Content placement="bottom">
-          <Drawer.Dialog aria-label="退出问诊确认">
+          <Drawer.Dialog
+            aria-label="退出问诊确认"
+            className="bg-background text-foreground shadow-xl"
+          >
+            <Drawer.Handle />
+            <Drawer.CloseTrigger />
             <Drawer.Header className="flex flex-col gap-1">
               确认退出本次问诊？
             </Drawer.Header>
             <Drawer.Body className="flex flex-col gap-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
-              <p className="text-sm text-foreground-secondary" aria-live="polite">
+              <p className="text-sm text-muted-foreground" aria-live="polite">
                 {consequence.text}
               </p>
               <div className="flex flex-col gap-2">

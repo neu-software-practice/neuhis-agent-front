@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { useVisitCountdown } from "@/features/workbench/hooks/useVisitCountdown"
 
-// 固定系统时间基准，所有 deadline 相对此值偏移，保证确定性。
+// 固定系统时间基准，所有时间相对此值偏移，保证确定性。
 const NOW = Date.parse("2026-06-28T01:00:00.000Z")
 const MINUTE = 60 * 1000
 
@@ -11,7 +11,7 @@ function isoAt(offsetMs: number): string {
   return new Date(NOW + offsetMs).toISOString()
 }
 
-describe("useVisitCountdown", () => {
+describe("useVisitCountdown (idle timer)", () => {
   beforeEach(() => {
     vi.useFakeTimers()
     vi.setSystemTime(NOW)
@@ -22,9 +22,14 @@ describe("useVisitCountdown", () => {
     vi.useRealTimers()
   })
 
-  it("reports normal phase with no warning text above 5 minutes", () => {
+  it("reports normal phase with no warning text above 5 minutes of idle remaining", () => {
+    // 最后操作在当下，空闲阈值 6min → 剩余 6min。
     const { result } = renderHook(() =>
-      useVisitCountdown({ timeoutAt: isoAt(6 * MINUTE), active: true }),
+      useVisitCountdown({
+        lastActivityAt: isoAt(0),
+        idleMs: 6 * MINUTE,
+        active: true,
+      }),
     )
 
     expect(result.current.phase).toBe("normal")
@@ -32,27 +37,40 @@ describe("useVisitCountdown", () => {
     expect(result.current.remainingMs).toBe(6 * MINUTE)
   })
 
-  it("enters warn5 at or below 5 minutes", () => {
+  it("enters warn5 at or below 5 minutes of idle remaining", () => {
     const { result } = renderHook(() =>
-      useVisitCountdown({ timeoutAt: isoAt(4 * MINUTE), active: true }),
+      useVisitCountdown({
+        lastActivityAt: isoAt(0),
+        idleMs: 4 * MINUTE,
+        active: true,
+      }),
     )
 
     expect(result.current.phase).toBe("warn5")
-    expect(result.current.warningText).toBe("问诊时间即将结束")
+    expect(result.current.warningText).toBe("长时间未操作，问诊即将暂停")
   })
 
-  it("enters warn2 at or below 2 minutes", () => {
+  it("enters warn2 at or below 2 minutes of idle remaining", () => {
     const { result } = renderHook(() =>
-      useVisitCountdown({ timeoutAt: isoAt(90 * 1000), active: true }),
+      useVisitCountdown({
+        lastActivityAt: isoAt(0),
+        idleMs: 90 * 1000,
+        active: true,
+      }),
     )
 
     expect(result.current.phase).toBe("warn2")
-    expect(result.current.warningText).toBe("即将超时，请尽快完成")
+    expect(result.current.warningText).toBe("即将自动暂停，可继续输入保持问诊")
   })
 
-  it("reports expired phase with empty warning text once the deadline passes", () => {
+  it("reports expired phase with empty warning text once the idle deadline passes", () => {
+    // 最后操作在 1s 前，空闲阈值 0 → 已过期。
     const { result } = renderHook(() =>
-      useVisitCountdown({ timeoutAt: isoAt(-1000), active: true }),
+      useVisitCountdown({
+        lastActivityAt: isoAt(-1000),
+        idleMs: 0,
+        active: true,
+      }),
     )
 
     expect(result.current.phase).toBe("expired")
@@ -60,17 +78,42 @@ describe("useVisitCountdown", () => {
     expect(result.current.remainingMs).toBeLessThanOrEqual(0)
   })
 
+  it("resets the remaining time when lastActivityAt advances (new activity)", () => {
+    const { result, rerender } = renderHook(
+      ({ lastActivityAt }: { lastActivityAt: string }) =>
+        useVisitCountdown({
+          lastActivityAt,
+          idleMs: 10 * MINUTE,
+          active: true,
+        }),
+      { initialProps: { lastActivityAt: isoAt(0) } },
+    )
+
+    expect(result.current.remainingMs).toBe(10 * MINUTE)
+
+    // 时间推进 3min，剩余降到 7min。
+    act(() => {
+      vi.advanceTimersByTime(3 * MINUTE)
+    })
+    expect(result.current.remainingMs).toBe(7 * MINUTE)
+
+    // 发生一次新操作（lastActivityAt 刷新到当前时间）→ 剩余重置回 10min。
+    rerender({ lastActivityAt: new Date(NOW + 3 * MINUTE).toISOString() })
+    expect(result.current.remainingMs).toBe(10 * MINUTE)
+  })
+
   it("does not locally decrement while paused", () => {
     const { result } = renderHook(() =>
       useVisitCountdown({
-        timeoutAt: isoAt(10 * MINUTE),
+        lastActivityAt: isoAt(0),
+        idleMs: 10 * MINUTE,
         pausedAt: isoAt(3 * MINUTE),
         timerPaused: true,
         active: true,
       }),
     )
 
-    // 暂停以 pausedAt 为基准：10min - 3min = 7min 冻结。
+    // 暂停以 pausedAt 为基准冻结：deadline(10min) - pausedAt(3min) = 7min。
     expect(result.current.remainingMs).toBe(7 * MINUTE)
 
     act(() => {
@@ -80,40 +123,42 @@ describe("useVisitCountdown", () => {
     expect(result.current.remainingMs).toBe(7 * MINUTE)
   })
 
-  it("fires onExpire exactly once at expiry when active and not paused", () => {
-    const onExpire = vi.fn()
+  it("fires onIdleExpire exactly once at expiry when active and not paused", () => {
+    const onIdleExpire = vi.fn()
     renderHook(() =>
       useVisitCountdown({
-        timeoutAt: isoAt(3 * 1000),
+        lastActivityAt: isoAt(0),
+        idleMs: 3 * 1000,
         active: true,
-        onExpire,
+        onIdleExpire,
       }),
     )
 
-    expect(onExpire).not.toHaveBeenCalled()
+    expect(onIdleExpire).not.toHaveBeenCalled()
 
     act(() => {
       vi.advanceTimersByTime(5 * 1000)
     })
 
-    expect(onExpire).toHaveBeenCalledTimes(1)
+    expect(onIdleExpire).toHaveBeenCalledTimes(1)
 
     act(() => {
       vi.advanceTimersByTime(5 * 1000)
     })
 
-    expect(onExpire).toHaveBeenCalledTimes(1)
+    expect(onIdleExpire).toHaveBeenCalledTimes(1)
   })
 
-  it("does not fire onExpire while paused even past the deadline", () => {
-    const onExpire = vi.fn()
+  it("does not fire onIdleExpire while paused even past the idle deadline", () => {
+    const onIdleExpire = vi.fn()
     renderHook(() =>
       useVisitCountdown({
-        timeoutAt: isoAt(2 * 1000),
+        lastActivityAt: isoAt(0),
+        idleMs: 2 * 1000,
         pausedAt: isoAt(1000),
         timerPaused: true,
         active: true,
-        onExpire,
+        onIdleExpire,
       }),
     )
 
@@ -121,13 +166,13 @@ describe("useVisitCountdown", () => {
       vi.advanceTimersByTime(10 * 1000)
     })
 
-    expect(onExpire).not.toHaveBeenCalled()
+    expect(onIdleExpire).not.toHaveBeenCalled()
   })
 
-  it("returns Infinity and normal phase when no timeoutAt is provided", () => {
-    const onExpire = vi.fn()
+  it("returns Infinity and normal phase when no lastActivityAt is provided", () => {
+    const onIdleExpire = vi.fn()
     const { result } = renderHook(() =>
-      useVisitCountdown({ active: true, onExpire }),
+      useVisitCountdown({ active: true, onIdleExpire }),
     )
 
     expect(result.current.remainingMs).toBe(Number.POSITIVE_INFINITY)
@@ -138,17 +183,18 @@ describe("useVisitCountdown", () => {
       vi.advanceTimersByTime(10 * 1000)
     })
 
-    expect(onExpire).not.toHaveBeenCalled()
+    expect(onIdleExpire).not.toHaveBeenCalled()
   })
 
-  it("never starts an interval or fires onExpire when inactive", () => {
-    const onExpire = vi.fn()
-    // active=false 时即便 deadline 已过，也不触发 onExpire（effect 提前 return）。
+  it("never starts an interval or fires onIdleExpire when inactive", () => {
+    const onIdleExpire = vi.fn()
+    // active=false 时即便空闲 deadline 已过，也不触发 onIdleExpire（effect 提前 return）。
     const { result } = renderHook(() =>
       useVisitCountdown({
-        timeoutAt: isoAt(-1000),
+        lastActivityAt: isoAt(-1000),
+        idleMs: 0,
         active: false,
-        onExpire,
+        onIdleExpire,
       }),
     )
 
@@ -156,8 +202,8 @@ describe("useVisitCountdown", () => {
       vi.advanceTimersByTime(10 * 1000)
     })
 
-    expect(onExpire).not.toHaveBeenCalled()
-    // 有 timeoutAt 时 remainingMs 为有限值（非 Infinity），由 deadline 决定。
+    expect(onIdleExpire).not.toHaveBeenCalled()
+    // 有 lastActivityAt 时 remainingMs 为有限值（非 Infinity），由 idle deadline 决定。
     expect(result.current.remainingMs).toBeLessThanOrEqual(0)
   })
 })

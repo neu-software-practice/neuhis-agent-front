@@ -27,6 +27,7 @@ const visitMachineStates: VisitMachineState[] = [
   "treatmentExecution",
   "adviceOnly",
   "completed",
+  "suspended",
   "emergencyPending",
   "terminated",
   "exitSettlement",
@@ -34,12 +35,13 @@ const visitMachineStates: VisitMachineState[] = [
 ]
 
 // 终止态（terminated/exited）的全局打断屏蔽：进入终止态后，所有外部打断事件
-// （急症 / 超时 / 转诊 / 退出）都被空过渡 shadow 掉，不再触发根 `on` 处理器，
-// 防止已结束的会话被再次驱动。优先级 `急症 > 退出 > 超时 > 阻塞卡 > 普通消息`
-// 在此已无意义（会话已终止），统一吞掉即可。
+// （急症 / 超时 / 转诊 / 退出 / 空闲挂起）都被空过渡 shadow 掉，不再触发根 `on`
+// 处理器，防止已结束的会话被再次驱动。优先级 `急症 > 退出 > 超时 > 阻塞卡 >
+// 普通消息`，空闲挂起优先级最低；在终止态均已无意义（会话已终止），统一吞掉即可。
 const terminalNoop = {
   EMERGENCY_DETECTED: {},
   VISIT_TIMEOUT: {},
+  VISIT_SUSPENDED: {},
   TRANSFER_REQUIRED: {},
   EXIT_REQUESTED: {},
 } satisfies Partial<Record<VisitMachineEvent["type"], object>>
@@ -64,6 +66,7 @@ const visitMachineSetup = setup({
     hydrateToTreatmentExecution: isHydratingTo("treatmentExecution"),
     hydrateToAdviceOnly: isHydratingTo("adviceOnly"),
     hydrateToCompleted: isHydratingTo("completed"),
+    hydrateToSuspended: isHydratingTo("suspended"),
     hydrateToEmergencyPending: isHydratingTo("emergencyPending"),
     hydrateToTerminated: isHydratingTo("terminated"),
     hydrateToExitSettlement: isHydratingTo("exitSettlement"),
@@ -144,6 +147,7 @@ export const visitMachine = visitMachineSetup.createMachine({
       },
       { guard: "hydrateToAdviceOnly", target: ".adviceOnly", actions: "assignHydratedSession" },
       { guard: "hydrateToCompleted", target: ".completed", actions: "assignHydratedSession" },
+      { guard: "hydrateToSuspended", target: ".suspended", actions: "assignHydratedSession" },
       {
         guard: "hydrateToEmergencyPending",
         target: ".emergencyPending",
@@ -165,6 +169,12 @@ export const visitMachine = visitMachineSetup.createMachine({
     VISIT_TIMEOUT: {
       target: ".terminated",
       actions: "markTerminalReason",
+    },
+    // 空闲挂起：最后一次操作后达到空闲阈值，自动挂起会话（非终态，可复诊继续）。
+    // 优先级最低——被急症 / 退出结算 / 完成 / 终止等高优先级态用空过渡 shadow 掉。
+    VISIT_SUSPENDED: {
+      target: ".suspended",
+      actions: "markSuspended",
     },
     TRANSFER_REQUIRED: {
       target: ".terminated",
@@ -407,13 +417,35 @@ export const visitMachine = visitMachineSetup.createMachine({
         // 完成，不应再被超时终止或进入退出结算。
         // 注意：故意不在此 shadow EMERGENCY_DETECTED，让它继续冒泡到根处理器，
         // 这样患者完成问诊后突发不适仍可上报急症（急症永远最高优先级）。
+        // VISIT_SUSPENDED 同样 shadow 掉：已完成的会话不应再被空闲挂起。
         VISIT_TIMEOUT: {},
+        VISIT_SUSPENDED: {},
         EXIT_REQUESTED: {},
         FOLLOW_UP_MESSAGE_SENT: {
           target: "completed",
         },
         MESSAGE_SENT: {
           target: "completed",
+        },
+      },
+    },
+    suspended: {
+      on: {
+        // 空闲挂起态：长时间未操作后自动中断。非终态——患者可按复诊流程继续。
+        // 与 completed 类似停止计时：用空过渡 shadow 掉 VISIT_TIMEOUT / VISIT_SUSPENDED
+        // （重复挂起）/ EXIT_REQUESTED（已挂起，无需再进退出结算）。
+        // 注意：故意【不】shadow EMERGENCY_DETECTED——挂起期间患者突发不适仍可上报急症
+        // （急症永远最高优先级，冒泡到根处理器进入 emergencyPending）。
+        // MESSAGE_SENT / FOLLOW_UP_MESSAGE_SENT 停留在 suspended：实际「继续」由调用方
+        // 走 createFollowUp 创建复诊 session 并跳转，旧挂起会话不再被本机推进。
+        VISIT_TIMEOUT: {},
+        VISIT_SUSPENDED: {},
+        EXIT_REQUESTED: {},
+        FOLLOW_UP_MESSAGE_SENT: {
+          target: "suspended",
+        },
+        MESSAGE_SENT: {
+          target: "suspended",
         },
       },
     },
@@ -425,6 +457,7 @@ export const visitMachine = visitMachineSetup.createMachine({
         // CONFIRMED（确认急症→terminated）收口。
         EMERGENCY_DETECTED: {},
         VISIT_TIMEOUT: {},
+        VISIT_SUSPENDED: {},
         TRANSFER_REQUIRED: {},
         EXIT_REQUESTED: {},
         // EMERGENCY_RECHECK_REQUESTED：保留事件（决策 a）。语义为「请求对急症做
@@ -529,6 +562,7 @@ export const visitMachine = visitMachineSetup.createMachine({
         // 分支回退到 exitSettlement，结算上下文不丢失。
         // 这是安全保证，不得为「结算确定性收口」而牺牲。
         VISIT_TIMEOUT: {},
+        VISIT_SUSPENDED: {},
         TRANSFER_REQUIRED: {},
         EXIT_REQUESTED: {},
         EXIT_CONFIRMED: {

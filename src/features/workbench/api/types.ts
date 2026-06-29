@@ -24,6 +24,8 @@ import type {
   submitLabDecisionInputSchema,
   submitPaymentInputSchema,
   submitTreatmentExecutionInputSchema,
+  suspendVisitInputSchema,
+  suspendVisitResultSchema,
 } from "@/features/workbench/api/schemas"
 
 export type {
@@ -59,6 +61,8 @@ export type PauseVisitTimerInput = z.infer<typeof pauseVisitTimerInputSchema>
 export type ResumeVisitTimerInput = z.infer<typeof resumeVisitTimerInputSchema>
 export type DismissEmergencyInput = z.infer<typeof dismissEmergencyInputSchema>
 export type DismissEmergencyResult = z.infer<typeof dismissEmergencyResultSchema>
+export type SuspendVisitInput = z.infer<typeof suspendVisitInputSchema>
+export type SuspendVisitResult = z.infer<typeof suspendVisitResultSchema>
 
 /**
  * FlowCard 用户操作。

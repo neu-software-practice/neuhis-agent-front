@@ -34,6 +34,8 @@ const FILTER_STATUSES: Record<Exclude<FilterTab, "all">, ReadonlySet<string>> = 
     "blocked",
     "diagnosis",
     "treatment",
+    // 挂起态归入「进行中」：非终态，可按复诊流程继续。
+    "suspended",
   ]),
   completed: new Set(["completed"]),
   terminated: new Set(["transferred", "emergency_terminated", "exited"]),
@@ -123,7 +125,8 @@ export default function HistoryPage() {
                   session.status === "blocked" ||
                   session.status === "diagnosis" ||
                   session.status === "treatment" ||
-                  session.status === "loading_context"
+                  session.status === "loading_context" ||
+                  session.status === "suspended"
                     ? () => handleContinue(session)
                     : undefined
                 }

@@ -24,6 +24,9 @@ const TERMINAL_STATUSES = new Set([
   "exited",
 ])
 
+/** 挂起态：长时间未操作自动暂停，可按复诊流程继续。非终态。 */
+const SUSPENDED_STATUS = "suspended"
+
 interface SessionCardProps {
   /** 会话摘要。 */
   session: VisitSessionSummary
@@ -53,6 +56,7 @@ export function SessionCard({
   const isActive = ACTIVE_STATUSES.has(session.status)
   const isCompleted = session.status === "completed"
   const isTerminal = TERMINAL_STATUSES.has(session.status)
+  const isSuspended = session.status === SUSPENDED_STATUS
 
   return (
     <Card className={cn("w-full", className)}>
@@ -105,6 +109,16 @@ export function SessionCard({
               回看记录
             </Button>
           </>
+        ) : null}
+
+        {isSuspended ? (
+          <Button
+            size="sm"
+            onClick={onContinue}
+          >
+            继续问诊
+            <ChevronRight className="size-4" />
+          </Button>
         ) : null}
 
         {isTerminal ? (

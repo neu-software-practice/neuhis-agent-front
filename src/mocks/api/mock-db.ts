@@ -96,15 +96,15 @@ function nowIso() {
   return new Date().toISOString()
 }
 
-// 种子活跃会话的时间戳在 fixture 里是写死的绝对时间，随真实日期推移会立即过期，
-// 一进工作台就触发超时 Overlay。这里在每次初始化 mock 状态时把它重置成相对当前
-// 时间（刚开始问诊、距超时还有 30 分钟），保证 mock 走查长期有效。
+// 种子活跃会话的时间戳在 fixture 里是写死的绝对时间，随真实日期推移会立即「空闲超时」，
+// 一进工作台就触发挂起 Overlay。这里在每次初始化 mock 状态时把它重置成相对当前
+// 时间（刚开始问诊，最后操作就在 1 分钟前），保证 mock 走查长期有效。
 function seedActiveSession(): VisitSession {
   const session = clone(mockActiveSession)
   const now = Date.now()
   session.startedAt = new Date(now - 5 * 60_000).toISOString()
   session.updatedAt = new Date(now - 1 * 60_000).toISOString()
-  session.timeoutAt = new Date(now + 30 * 60_000).toISOString()
+  session.lastActivityAt = new Date(now - 1 * 60_000).toISOString()
   return session
 }
 
@@ -237,15 +237,15 @@ class MockDb {
       status: "chatting",
       startedAt: createdAt,
       updatedAt: createdAt,
-      timeoutAt: new Date(Date.now() + 30 * 60_000).toISOString(),
-      askRound: 0,
+      lastActivityAt: createdAt,
+      askRound: input.chiefComplaint ? 1 : 0,
       askRoundLimit: 6,
       labRound: 0,
       labRoundLimit: 2,
       timerPaused: false,
       summary: {
         chiefComplaint: input.chiefComplaint,
-        lastMessage: "已创建新问诊。",
+        lastMessage: input.chiefComplaint ?? "已创建新问诊。",
       },
     }
 
@@ -290,8 +290,8 @@ class MockDb {
       status: "chatting",
       startedAt: createdAt,
       updatedAt: createdAt,
-      timeoutAt: new Date(Date.now() + 30 * 60_000).toISOString(),
-      askRound: 0,
+      lastActivityAt: createdAt,
+      askRound: input.chiefComplaint ? 1 : 0,
       askRoundLimit: 6,
       labRound: 0,
       labRoundLimit: 2,
@@ -299,7 +299,7 @@ class MockDb {
       timerPaused: false,
       summary: {
         chiefComplaint: input.chiefComplaint,
-        lastMessage: "已基于上次记录创建复诊。",
+        lastMessage: input.chiefComplaint ?? "已基于上次记录创建复诊。",
       },
     }
 
@@ -315,6 +315,19 @@ class MockDb {
         description: `已引用上次会话 ${input.parentSessionId} 的诊疗摘要。`,
       },
     ]
+
+    if (input.chiefComplaint) {
+      initialTimeline.push({
+        id: this.id("tl"),
+        sessionId,
+        kind: "message",
+        status: "done",
+        role: "patient",
+        content: input.chiefComplaint,
+        createdAt,
+      })
+    }
+
     this.state.sessions[sessionId] = session
     this.state.timelines[sessionId] = initialTimeline
 
@@ -369,6 +382,8 @@ class MockDb {
     this.updateSession(session.id, {
       status: "analyzing",
       updatedAt: createdAt,
+      // 发消息是一次操作：刷新空闲计时基准。
+      lastActivityAt: createdAt,
       askRound: session.askRound + 1,
       summary: {
         ...session.summary,
@@ -831,18 +846,12 @@ class MockDb {
   }
 
   resumeVisitTimer(sessionId: SessionId) {
-    const session = this.requireSession(sessionId)
-    const now = Date.now()
-    // 把本次暂停时长加回 timeoutAt，让暂停真正延后截止；随后清空 pausedAt。
-    let timeoutAt = session.timeoutAt
-    if (session.pausedAt && timeoutAt) {
-      const pausedMs = Math.max(0, now - new Date(session.pausedAt).getTime())
-      timeoutAt = new Date(new Date(timeoutAt).getTime() + pausedMs).toISOString()
-    }
+    this.requireSession(sessionId)
+    // 空闲计时模型下，暂停期间靠 pausedAt 冻结剩余时间。恢复本身视为一次操作：
+    // 清空 pausedAt 并由 updateSession 自动刷新 lastActivityAt，空闲计时从此刻重新开始。
     return this.updateSession(sessionId, {
       timerPaused: false,
       pausedAt: undefined,
-      timeoutAt,
       updatedAt: nowIso(),
     })
   }
@@ -888,6 +897,42 @@ class MockDb {
     delete this.state.emergencyRestore[input.sessionId]
 
     return { session: updated, timelineItem: dismissedItem }
+  }
+
+  /**
+   * 空闲挂起：长时间未操作后自动中断会话。
+   *
+   * 非终态——不写 terminalReason / endedAt，status 置为 suspended。患者之后可按
+   * 复诊流程继续（以本会话为 parentSessionId 创建 follow_up）。写入一条
+   * session_suspended 系统事件，返回 { session, timelineItem }。
+   */
+  suspendVisit(input: { sessionId: SessionId }): {
+    session: VisitSession
+    timelineItem: TimelineItem
+  } {
+    this.requireSession(input.sessionId)
+
+    const suspendedItem: TimelineItem = {
+      id: this.id("tl"),
+      sessionId: input.sessionId,
+      kind: "system_event",
+      status: "done",
+      createdAt: nowIso(),
+      eventType: "session_suspended",
+      title: "会话已暂停",
+      description: "长时间未操作，本次问诊已自动暂停。可直接输入或点「继续问诊」按复诊流程继续。",
+    }
+    this.pushTimeline(input.sessionId, suspendedItem)
+
+    const updated = this.updateSession(input.sessionId, {
+      status: "suspended",
+      activeCardId: undefined,
+      // 保持原 lastActivityAt（不视为操作）：挂起是空闲的结果，不应刷新计时基准。
+      lastActivityAt: this.requireSession(input.sessionId).lastActivityAt,
+      updatedAt: nowIso(),
+    })
+
+    return { session: updated, timelineItem: suspendedItem }
   }
 
   appendAssistantMessage(sessionId: SessionId, content: string) {
@@ -1011,13 +1056,21 @@ class MockDb {
   }
 
   private cardItem(sessionId: SessionId, card: FlowCard): TimelineItem {
+    const createdAt = nowIso()
+    const timelineCard: FlowCard = {
+      ...card,
+      createdAt,
+      ...(card.kind === "lab_execution" ? { resultReturnedAt: createdAt } : {}),
+      ...(card.kind === "completed_visit" ? { completedAt: createdAt } : {}),
+    } as FlowCard
+
     return {
       id: this.id("tl"),
       sessionId,
       kind: "flow_card",
       status: card.status === "failed" ? "failed" : "done",
-      createdAt: nowIso(),
-      card,
+      createdAt,
+      card: timelineCard,
     }
   }
 
@@ -1095,7 +1148,13 @@ class MockDb {
 
   private updateSession(sessionId: SessionId, patch: Partial<VisitSession>) {
     const current = this.requireSession(sessionId)
-    const updated = parseVisitSession({ ...current, ...patch })
+    // 空闲计时基准：任何带 updatedAt 的会话变更都视为一次「操作」，自动刷新
+    // lastActivityAt，从而重置空闲倒计时。调用方显式传 lastActivityAt 时以其为准。
+    const activityPatch: Partial<VisitSession> =
+      patch.updatedAt && patch.lastActivityAt === undefined
+        ? { lastActivityAt: patch.updatedAt }
+        : {}
+    const updated = parseVisitSession({ ...current, ...patch, ...activityPatch })
     this.state.sessions[sessionId] = updated
     return clone(updated)
   }

@@ -25,8 +25,10 @@ const visitSessionBaseSchema = z.object({
   startedAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
   endedAt: z.string().datetime().optional(),
-  timeoutAt: z.string().datetime().optional(),
-  // 暂停账：记录当前一次暂停的起点。resume 时把暂停时长加回 timeoutAt 并清空。
+  // 最后一次操作时间：发消息 / 提交流程卡 / 恢复计时都会刷新。
+  // 空闲计时以此为基准（lastActivityAt + 空闲阈值），有新操作即自动重置。
+  lastActivityAt: z.string().datetime().optional(),
+  // 暂停账：记录当前一次暂停的起点。暂停期间冻结空闲计时，resume 时清空。
   // 与 timerPaused 并存：timerPaused 表达"是否暂停"，pausedAt 表达"从何时暂停"。
   pausedAt: z.string().datetime().optional(),
   askRound: z.number().int().min(0),

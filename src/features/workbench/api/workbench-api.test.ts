@@ -447,13 +447,13 @@ describe("workbench API facade with mock transport", () => {
     expect(settlement.consequence?.kind).toBe("executed_no_refund")
   })
 
-  it("extends timeoutAt when a paused timer is resumed", async () => {
+  it("freezes via pausedAt and refreshes lastActivityAt on resume", async () => {
     const created = await api.visits.createSession({
       patientId: "patient-mock-001",
       entryType: "new",
       chiefComplaint: "发热两天。",
     })
-    const beforeTimeout = created.session.timeoutAt
+    const beforeActivity = created.session.lastActivityAt
 
     const paused = await api.workbench.pauseVisitTimer({
       sessionId: created.session.id,
@@ -468,11 +468,39 @@ describe("workbench API facade with mock transport", () => {
     })
     expect(resumed.timerPaused).toBe(false)
     expect(resumed.pausedAt).toBeUndefined()
-    if (beforeTimeout && resumed.timeoutAt) {
-      expect(new Date(resumed.timeoutAt).getTime()).toBeGreaterThanOrEqual(
-        new Date(beforeTimeout).getTime(),
+    // 恢复被视为一次操作：lastActivityAt 被刷新，不早于创建时。
+    if (beforeActivity && resumed.lastActivityAt) {
+      expect(new Date(resumed.lastActivityAt).getTime()).toBeGreaterThanOrEqual(
+        new Date(beforeActivity).getTime(),
       )
     }
+  })
+
+  it("suspends an idle session as a non-terminal state and resumes via follow-up", async () => {
+    const created = await api.visits.createSession({
+      patientId: "patient-mock-001",
+      entryType: "new",
+      chiefComplaint: "头痛一天。",
+    })
+
+    const suspended = await api.workbench.suspendVisit({
+      sessionId: created.session.id,
+    })
+    // 挂起是非终态：status=suspended，不写 terminalReason / endedAt。
+    expect(suspended.session.status).toBe("suspended")
+    expect(suspended.session.terminalReason).toBeUndefined()
+    expect(suspended.session.endedAt).toBeUndefined()
+    expect(suspended.timelineItem.kind).toBe("system_event")
+
+    // 按复诊流程继续：以挂起会话为 parentSessionId 创建 follow_up。
+    const followUp = await api.visits.createFollowUp({
+      patientId: created.session.patientId,
+      parentSessionId: created.session.id,
+      chiefComplaint: "还是头痛。",
+    })
+    expect(followUp.session.entryType).toBe("follow_up")
+    expect(followUp.session.parentSessionId).toBe(created.session.id)
+    expect(followUp.session.status).toBe("chatting")
   })
 
   it("exposes a readonly snapshot via the object-signature facade", async () => {

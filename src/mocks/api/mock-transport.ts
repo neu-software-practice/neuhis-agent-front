@@ -33,6 +33,7 @@ import {
   handleReportVitals,
   handleResumeTimer,
   handleSendMessage,
+  handleSuspendVisit,
   handleSubmitFulfillment,
   handleSubmitLabDecision,
   handleSubmitPayment,
@@ -175,6 +176,14 @@ function route(method: MockMethod, path: string, body?: unknown, options?: Reque
     return handleDismissEmergency({
       ...(body as Record<string, unknown>),
       sessionId: dismissEmergencyMatch[1],
+    })
+  }
+
+  const suspendMatch = match(path, /^\/visits\/([^/]+)\/suspend$/)
+  if (method === "POST" && suspendMatch) {
+    return handleSuspendVisit({
+      ...(body as Record<string, unknown>),
+      sessionId: suspendMatch[1],
     })
   }
 

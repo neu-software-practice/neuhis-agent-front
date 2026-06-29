@@ -12,7 +12,7 @@ function createSession(patch: Partial<VisitSession> = {}): VisitSession {
     status: "chatting",
     startedAt: "2026-06-28T01:00:00.000Z",
     updatedAt: "2026-06-28T01:05:00.000Z",
-    timeoutAt: "2026-06-28T01:30:00.000Z",
+    lastActivityAt: "2026-06-28T01:05:00.000Z",
     askRound: 1,
     askRoundLimit: 6,
     labRound: 0,
@@ -361,5 +361,67 @@ describe("visitMachine", () => {
     })
     expect(referralActor.getSnapshot().value).toBe("terminated")
     expect(referralActor.getSnapshot().context.terminalReason).toBe("referral")
+  })
+
+  it("suspends on VISIT_SUSPENDED without writing a terminalReason (non-terminal)", () => {
+    const actor = startVisitActor()
+    actor.send({ type: "HYDRATE", state: "chatting", session: createSession() })
+
+    actor.send({ type: "VISIT_SUSPENDED" })
+    expect(actor.getSnapshot().value).toBe("suspended")
+    // 挂起是非终态：不写 terminalReason，仅记录 interruptedBy。
+    expect(actor.getSnapshot().context.terminalReason).toBeUndefined()
+    expect(actor.getSnapshot().context.interruptedBy).toBe("idle")
+    expect(actor.getSnapshot().context.blocking).toBe(false)
+  })
+
+  it("hydrates directly into suspended and stays non-blocking", () => {
+    const actor = startVisitActor()
+    actor.send({
+      type: "HYDRATE",
+      state: "suspended",
+      session: createSession({ status: "suspended" }),
+    })
+    expect(actor.getSnapshot().value).toBe("suspended")
+    expect(actor.getSnapshot().context.blocking).toBe(false)
+  })
+
+  it("keeps suspended on normal/follow-up messages (continue handled by caller via follow-up)", () => {
+    const actor = startVisitActor()
+    actor.send({ type: "HYDRATE", state: "suspended", session: createSession({ status: "suspended" }) })
+
+    actor.send({ type: "MESSAGE_SENT", content: "我又不舒服了", clientMessageId: "c-1" })
+    expect(actor.getSnapshot().value).toBe("suspended")
+
+    actor.send({ type: "FOLLOW_UP_MESSAGE_SENT", content: "继续问诊" })
+    expect(actor.getSnapshot().value).toBe("suspended")
+  })
+
+  it("lets emergency interrupt a suspended session (emergency > idle)", () => {
+    const actor = startVisitActor()
+    actor.send({ type: "HYDRATE", state: "suspended", session: createSession({ status: "suspended" }) })
+
+    actor.send({ type: "EMERGENCY_DETECTED", source: "patient_report" })
+    expect(actor.getSnapshot().value).toBe("emergencyPending")
+    expect(actor.getSnapshot().context.previousStateBeforeOverlay).toBe("suspended")
+  })
+
+  it("shadows VISIT_SUSPENDED in completed / emergencyPending / exitSettlement (idle lowest priority)", () => {
+    const completedActor = startVisitActor()
+    completedActor.send({ type: "HYDRATE", state: "completed", session: createSession({ status: "completed" }) })
+    completedActor.send({ type: "VISIT_SUSPENDED" })
+    expect(completedActor.getSnapshot().value).toBe("completed")
+
+    const emergencyActor = startVisitActor()
+    emergencyActor.send({ type: "HYDRATE", state: "chatting", session: createSession() })
+    emergencyActor.send({ type: "EMERGENCY_DETECTED", source: "vitals" })
+    emergencyActor.send({ type: "VISIT_SUSPENDED" })
+    expect(emergencyActor.getSnapshot().value).toBe("emergencyPending")
+
+    const exitActor = startVisitActor()
+    exitActor.send({ type: "HYDRATE", state: "chatting", session: createSession() })
+    exitActor.send({ type: "EXIT_REQUESTED" })
+    exitActor.send({ type: "VISIT_SUSPENDED" })
+    expect(exitActor.getSnapshot().value).toBe("exitSettlement")
   })
 })

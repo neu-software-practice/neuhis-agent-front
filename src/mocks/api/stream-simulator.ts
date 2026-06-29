@@ -75,11 +75,16 @@ export async function simulateAssistantStream(
 
     const result = mockDb.raiseLabDecision(input.sessionId)
     if (result.card) {
+      const timelineItem = result.timelineItems.find(
+        (item): item is Extract<typeof item, { kind: "flow_card" }> =>
+          item.kind === "flow_card" && item.card.id === result.card?.id,
+      )
       await emit(handlers, {
         type: "card",
         sessionId: input.sessionId,
         requestId: input.requestId,
         card: result.card,
+        timelineItem,
       })
     }
     await emit(handlers, {

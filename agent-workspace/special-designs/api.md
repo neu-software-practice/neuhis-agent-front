@@ -224,7 +224,8 @@ facade 与 detailed-design §6.4 保持一致，按 `patient` / `visits` / `work
 | consult | `POST` | `/visits/:sessionId/consult` | 完成态咨询类 SSE 回复，AI 基于本次记录作答，不触发复诊 | `workbenchApi.streamConsultationReply` | `GET /record` 上下文 + 一次 LLM 问答 |
 | consult | `POST` | `/visits/:sessionId/lock-question` | 锁定态疑问通道，AI 就当前卡片作答，不推进主流程 | `workbenchApi.askLockedQuestion` | 旁路 LLM 问答（不进主决策） |
 | intent | `POST` | `/visits/:sessionId/classify-intent` | 完成态输入意图分类：咨询 / 复诊 / 不确定 | `workbenchApi.classifyFollowUpIntent` | AI 意图分类（走 LLM） |
-| visit | `POST` | `/visits/:sessionId/timer` | 暂停 / 恢复整次导诊总计时 | `workbenchApi.pauseVisitTimer` / `resumeVisitTimer` | 纯前端机制（medAgent 无总计时） |
+| visit | `POST` | `/visits/:sessionId/timer` | 暂停 / 恢复空闲计时（暂停期间冻结，不计入空闲） | `workbenchApi.pauseVisitTimer` / `resumeVisitTimer` | 纯前端机制（medAgent 无总计时） |
+| visit | `POST` | `/visits/:sessionId/suspend` | 空闲到期自动挂起会话（非终态，可按复诊流程继续） | `workbenchApi.suspendVisit` | 纯前端 / mock 机制（medAgent 无挂起态） |
 | visit | `POST` | `/visits/:sessionId/vitals` | 上报体征给急症守护，触发急症复检 | `workbenchApi.reportVitals` | `POST /sessions/{id}/vitals` |
 | visit | `POST` | `/visits/:sessionId/exit` | 主动退出并生成结算结果 | `workbenchApi.exitVisit` | `DELETE /sessions/{id}`（结算为后端职责） |
 
@@ -475,8 +476,8 @@ MSW 后续用于更接近真实网络的测试，并验证 REST/SSE contract：
 
 | 对象 | 实现位置 | 首版取值 / 范围 |
 | --- | --- | --- |
-| `VisitStatus` | `src/lib/api/types.ts` | `loading_context`、`chatting`、`analyzing`、`blocked`、`diagnosis`、`treatment`、`completed`、`transferred`、`emergency_terminated`、`exited` |
-| `VisitMachineState` | `src/lib/api/types.ts` | `loadingContext`、`chatting`、`analyzing`、`labDecision`、`labPayment`、`labExecution`、`diagnosis`、`treatmentDecision`、`medicationPayment`、`medicationFulfillment`、`treatmentExecution`、`adviceOnly`、`completed`、`emergencyPending`、`terminated`、`exitSettlement`、`exited` |
+| `VisitStatus` | `src/lib/api/types.ts` | `loading_context`、`chatting`、`analyzing`、`blocked`、`diagnosis`、`treatment`、`completed`、`suspended`、`transferred`、`emergency_terminated`、`exited` |
+| `VisitMachineState` | `src/lib/api/types.ts` | `loadingContext`、`chatting`、`analyzing`、`labDecision`、`labPayment`、`labExecution`、`diagnosis`、`treatmentDecision`、`medicationPayment`、`medicationFulfillment`、`treatmentExecution`、`adviceOnly`、`completed`、`suspended`、`emergencyPending`、`terminated`、`exitSettlement`、`exited` |
 | `TerminalReason` | `src/lib/api/types.ts` | `emergency`、`timeout`、`ask_limit_reached`、`lab_limit_reached`、`referral`、`capability_insufficient`、`exited` |
 | `PaymentStatus` | `src/lib/api/types.ts` | `unpaid`、`pending`、`paid`、`failed`、`refunded` |
 | `FlowCard.kind` | `src/features/workbench/api/timeline-schemas.ts` | `lab_decision`、`payment`、`lab_execution`、`diagnosis`、`treatment_plan`、`medication_fulfillment`、`treatment_execution`、`advice_only`、`completed_visit` |
@@ -496,7 +497,7 @@ MSW 后续用于更接近真实网络的测试，并验证 REST/SSE contract：
 | 用药完成 | 药品支付后产出取药卡，`submitFulfillment` 进入完成 |
 | 仅医嘱完成 | `ackAdvice` 进入完成 |
 | 急症 | stream 关键词或 `reportVitals` 命中返回急症事件 / 结果 |
-| 超时 | 已有 `exitVisit(reason: timeout)` 收口；倒计时 hook 留给 `P5.2` |
+| 空闲挂起 | `suspendVisit` 把会话置为 `suspended`（非终态，写 `session_suspended` 系统事件），由空闲计时 `useVisitCountdown`（`lastActivityAt + 10min`）到期触发；患者按复诊流程 `createFollowUp` 继续 |
 | 主动退出 | `exitVisit(reason: patient_request)` 生成终止时间线项和结算结果 |
 | 完成后咨询 | `streamConsultationReply` mock 流式回复，不创建 session |
 | 完成后复诊 | `createFollowUp` 基于 `parentSessionId` 创建复诊 session |

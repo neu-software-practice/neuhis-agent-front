@@ -1,4 +1,4 @@
-import { Pause, Play, Shield, X } from "lucide-react"
+import { Pause, Play, ShieldAlert, X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
@@ -70,6 +70,7 @@ export function WorkbenchHeader({
           <button
             type="button"
             aria-label="恢复计时"
+            title="恢复计时"
             className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             onClick={onResume}
           >
@@ -79,6 +80,7 @@ export function WorkbenchHeader({
           <button
             type="button"
             aria-label="暂停计时"
+            title="暂停计时"
             className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             onClick={onPause}
           >
@@ -86,20 +88,23 @@ export function WorkbenchHeader({
           </button>
         )}
 
-        {/* 紧急盾牌：始终可见，点击患者主动上报不适 */}
+        {/* 急症求助：始终可见，点击患者主动上报不适 */}
         <button
           type="button"
-          aria-label="紧急求助"
-          className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          aria-label="急症求助"
+          title="急症求助"
+          className="flex h-9 items-center justify-center gap-1 rounded-full px-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           onClick={onReportEmergency}
         >
-          <Shield className="h-4 w-4" />
+          <ShieldAlert className="h-4 w-4" />
+          <span className="text-xs font-medium">急症</span>
         </button>
 
         {/* 退出按钮 */}
         <button
           type="button"
           aria-label="退出问诊"
+          title="退出问诊"
           className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           onClick={onExit}
         >

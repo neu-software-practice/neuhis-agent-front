@@ -11,8 +11,8 @@ interface ContextSummaryDrawerProps {
   visitRound?: number
   /** 最大问诊轮次限制。 */
   askRoundLimit?: number
-  /** 超时时间（ISO 字符串）。 */
-  timeoutAt?: string
+  /** 最后一次操作时间（ISO 字符串）。 */
+  lastActivityAt?: string
 }
 
 /**
@@ -28,19 +28,19 @@ export function ContextSummaryDrawer({
   chiefComplaint,
   visitRound,
   askRoundLimit,
-  timeoutAt,
+  lastActivityAt,
 }: ContextSummaryDrawerProps) {
   return (
     <Drawer>
       <Drawer.Backdrop isOpen={open} onOpenChange={onOpenChange}>
         <Drawer.Content placement="bottom">
-          <Drawer.Dialog>
+          <Drawer.Dialog className="bg-background text-foreground shadow-xl">
             <Drawer.Handle />
             <Drawer.CloseTrigger />
             <Drawer.Header>
               <Drawer.Heading>问诊上下文</Drawer.Heading>
             </Drawer.Header>
-            <Drawer.Body>
+            <Drawer.Body className="pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
               <div className="flex flex-col gap-4">
                 {/* 患者姓名 */}
                 {patientName ? (
@@ -60,9 +60,9 @@ export function ContextSummaryDrawer({
                   </span>
                 </div>
 
-                {/* 超时时间 */}
-                {timeoutAt ? (
-                  <InfoRow label="超时时间" value={formatTimeout(timeoutAt)} />
+                {/* 最后操作时间 */}
+                {lastActivityAt ? (
+                  <InfoRow label="最后操作时间" value={formatActivityTime(lastActivityAt)} />
                 ) : null}
               </div>
             </Drawer.Body>
@@ -78,15 +78,15 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between text-sm">
       <span className="text-muted-foreground">{label}</span>
-      <span className="max-w-[200px] truncate text-right font-medium">
+      <span className="max-w-[240px] truncate text-right font-medium text-foreground">
         {value}
       </span>
     </div>
   )
 }
 
-/** 格式化超时时间。 */
-function formatTimeout(iso: string): string {
+/** 格式化最后操作时间。 */
+function formatActivityTime(iso: string): string {
   try {
     const date = new Date(iso)
     if (isNaN(date.getTime())) return iso

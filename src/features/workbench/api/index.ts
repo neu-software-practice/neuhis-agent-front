@@ -26,6 +26,8 @@ import {
   submitLabDecisionInputSchema,
   submitPaymentInputSchema,
   submitTreatmentExecutionInputSchema,
+  suspendVisitInputSchema,
+  suspendVisitResultSchema,
 } from "@/features/workbench/api/schemas"
 import { assistantStreamEventSchema } from "@/features/workbench/api/timeline-schemas"
 import type {
@@ -36,6 +38,7 @@ import type {
   ConsultationInput,
   DismissEmergencyInput,
   ExitVisitInput,
+  SuspendVisitInput,
   ListTimelineInput,
   ReportVitalsInput,
   SendMessageInput,
@@ -207,6 +210,15 @@ export const workbenchApi = {
       body,
     )
     return dismissEmergencyResultSchema.parse(result)
+  },
+
+  async suspendVisit(input: SuspendVisitInput) {
+    const body = suspendVisitInputSchema.parse(input)
+    const result = await getTransport().post(
+      `/visits/${body.sessionId}/suspend`,
+      body,
+    )
+    return suspendVisitResultSchema.parse(result)
   },
 }
 

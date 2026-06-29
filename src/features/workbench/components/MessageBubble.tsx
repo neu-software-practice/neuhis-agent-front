@@ -10,6 +10,7 @@ const interruptedLabels: Record<InterruptedBy, string> = {
   emergency: "急症打断",
   timeout: "超时终止",
   exit: "主动退出",
+  idle: "空闲暂停",
 }
 
 interface MessageBubbleProps {

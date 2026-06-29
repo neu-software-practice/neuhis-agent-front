@@ -44,7 +44,10 @@ export const visitMachineActions = {
       terminalReason: event.terminalReason ?? event.session.terminalReason,
       askRound: event.session.askRound,
       labRound: event.session.labRound,
-      blocking: event.state !== "chatting" && event.state !== "completed",
+      blocking:
+        event.state !== "chatting" &&
+        event.state !== "completed" &&
+        event.state !== "suspended",
       timerPaused: event.session.timerPaused,
       streamRequestId: undefined,
       previousStateBeforeOverlay: undefined,
@@ -234,6 +237,17 @@ export const visitMachineActions = {
   markTimerResumed: visitAssign(() => {
     return {
       timerPaused: false,
+    }
+  }),
+
+  // 空闲挂起：标记会话因长时间无操作被自动中断。非终态，清空阻塞卡/流请求，
+  // 记录 interruptedBy="idle"，不写 terminalReason（区别于 timeout 终态）。
+  markSuspended: visitAssign(() => {
+    return {
+      currentCardId: undefined,
+      blocking: false,
+      streamRequestId: undefined,
+      interruptedBy: "idle",
     }
   }),
 }

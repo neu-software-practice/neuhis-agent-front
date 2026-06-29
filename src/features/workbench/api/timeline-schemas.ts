@@ -195,7 +195,7 @@ export const messageTimelineItemSchema = timelineItemBaseSchema.extend({
   role: z.enum(["patient", "assistant"]),
   content: z.string(),
   localKey: z.string().optional(),
-  interruptedBy: z.enum(["emergency", "timeout", "exit"]).optional(),
+  interruptedBy: z.enum(["emergency", "timeout", "exit", "idle"]).optional(),
 })
 
 export const flowCardTimelineItemSchema = timelineItemBaseSchema.extend({
@@ -214,6 +214,8 @@ export const systemEventTimelineItemSchema = timelineItemBaseSchema.extend({
     "follow_up_started",
     "emergency_dismissed",
     "exit_settled",
+    // 空闲挂起：长时间未操作后自动中断会话（非终态，可按复诊流程继续）。
+    "session_suspended",
   ]),
   title: z.string().trim().min(1),
   description: z.string().optional(),

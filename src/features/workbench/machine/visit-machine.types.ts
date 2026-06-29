@@ -9,7 +9,7 @@ import type {
 
 export type TreatmentPlan = "medication" | "treatment" | "advice_only" | "referral"
 export type PaymentPurpose = "lab" | "medication"
-export type InterruptedBy = "emergency" | "timeout" | "exit"
+export type InterruptedBy = "emergency" | "timeout" | "exit" | "idle"
 
 export interface VisitMachineContext {
   sessionId: SessionId
@@ -68,6 +68,8 @@ export type VisitMachineEvent =
   | { type: "EMERGENCY_CONFIRMED" }
   | { type: "EMERGENCY_DISMISSED" }
   | { type: "VISIT_TIMEOUT" }
+  // 空闲挂起：最后一次操作后达到空闲阈值，自动中断会话（非终态，可复诊继续）。
+  | { type: "VISIT_SUSPENDED" }
   | { type: "TRANSFER_REQUIRED"; reason: TerminalReason }
   | { type: "EXIT_REQUESTED" }
   | { type: "EXIT_CONFIRMED" }

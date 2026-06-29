@@ -171,6 +171,24 @@ export const dismissEmergencyResultSchema = z.object({
   timelineItem: timelineItemSchema,
 })
 
+export const suspendVisitInputSchema = z.object({
+  sessionId: sessionIdSchema,
+})
+
+// 空闲挂起结果：返回挂起后的会话（status=suspended，非终态）与一条系统事件时间线项。
+export const suspendVisitResultSchema = z.object({
+  session: visitSessionSchema,
+  timelineItem: timelineItemSchema,
+})
+
+export function parseSuspendVisitResult(value: unknown) {
+  return suspendVisitResultSchema.parse(value)
+}
+
+export function safeParseSuspendVisitResult(value: unknown) {
+  return suspendVisitResultSchema.safeParse(value)
+}
+
 export function parseDismissEmergencyResult(value: unknown) {
   return dismissEmergencyResultSchema.parse(value)
 }

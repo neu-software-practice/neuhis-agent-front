@@ -96,14 +96,16 @@ export function ChatTimeline({
             return null
           },
           Footer: () => {
-            if (loading) {
-              return (
-                <div className="flex justify-center py-4">
-                  <Loader2 className="size-5 animate-spin text-muted-foreground" />
-                </div>
-              )
-            }
-            return null
+            return (
+              <>
+                {loading ? (
+                  <div className="flex justify-center py-4">
+                    <Loader2 className="size-5 animate-spin text-muted-foreground" />
+                  </div>
+                ) : null}
+                <div className="h-6" aria-hidden="true" />
+              </>
+            )
           },
         }}
       />

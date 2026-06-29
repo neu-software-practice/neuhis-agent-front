@@ -13,6 +13,7 @@ import {
   submitLabDecisionInputSchema,
   submitPaymentInputSchema,
   submitTreatmentExecutionInputSchema,
+  suspendVisitInputSchema,
 } from "@/features/workbench/api/schemas"
 import { mockDb } from "@/mocks/api/mock-db"
 
@@ -79,4 +80,8 @@ export function handleResumeTimer(body: unknown) {
 
 export function handleDismissEmergency(body: unknown) {
   return mockDb.dismissEmergency(dismissEmergencyInputSchema.parse(body))
+}
+
+export function handleSuspendVisit(body: unknown) {
+  return mockDb.suspendVisit(suspendVisitInputSchema.parse(body))
 }
