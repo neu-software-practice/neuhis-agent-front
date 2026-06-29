@@ -301,6 +301,16 @@ P6 按「文件所有权分波次」并行实现：5 个 quality / docs lane 各
 - 新增 `agent-workspace/special-designs/rest-api.md`（约 640 行）：endpoint 清单（21 端点 + 写入时间线标记）、鉴权 / 患者身份上下文、环境与运行模式、`ApiError` 错误模型 + 错误码、cursor 分页、ISO8601 / ID 约定、11 组状态枚举附录、按 patient / visits / workbench 分组的逐端点请求 / 响应详解、`TimelineItem` 四类与 `AssistantStreamEvent` 七型目录、`FlowCard` 九类字段、medAgent `Step.kind` → SSE 映射、典型时序（主流程 / 急症 / 超时 / 四档退出 / 咨询复诊）和边界与未实现。
 - 全部字段、枚举取值与 SSE 事件均逐字取自已实现的 Zod schema 与 facade，附「来源核对」清单。
 
+### 个人中心编辑功能（2026-06-29）
+
+- 新增 `src/features/patient/components/EditableChipList.tsx`：可编辑 Chip 列表组件，展示态 chip + 编辑图标；编辑态可删除/添加/保存/取消。
+- 修改 `src/features/patient/components/PatientSummaryCard.tsx`：新增 `hideMedicalSections` prop，由外部 EditableChipList 接管可编辑医疗信息展示。
+- 修改 `src/pages/home/ProfilePage.tsx`：引入 `useMutation(patientMutations.updateProfile())`，管理四个 section 的编辑状态（allergies / chronicDiseases / longTermMedications / medicalHistory），用 EditableChipList 替换静态展示。
+- 修改 `src/features/patient/api/schemas.ts`：`updatePatientProfileInputSchema` 新增可选字段 `medicalHistory`（非破坏性扩展）。
+- 修改 `src/mocks/api/mock-db.ts`：`updatePatientProfile` 支持写入 `medicalHistory` 到 context。
+- 新增 `agent-workspace/special-designs/rest-api-patch-v2.md`：API 变更文档。
+- 验证：`pnpm build`（tsc -b + vite）通过。
+
 ### PC 端独立布局（2026-06-29）
 
 - 新增 `src/features/shared/components/AppSidebar.tsx`：PC 端左侧固定侧边导航（w-[220px]），NavLink 保持激活态，Mobile 隐藏（`hidden md:flex`）。
@@ -317,6 +327,13 @@ P6 按「文件所有权分波次」并行实现：5 个 quality / docs lane 各
 - 修改 `src/features/workbench/components/WorkbenchHeader.tsx`：PC 端（md:）按钮旁显示文字标签（暂停/恢复/急症/退出），无互斥。
 - 修改 `src/pages/workbench/WorkbenchPage.tsx`：传入 WorkbenchSidebar 到 WorkbenchShell sidebar prop。
 - 响应式切换全部通过 Tailwind CSS `md:` 前缀实现，无新依赖，纯 CSS 驱动。
+- 验证：`pnpm build`（tsc -b + vite）通过。
+
+### 个人中心编辑功能（2026-06-29）
+
+- 新增 `src/features/patient/components/EditableChipList.tsx`：可编辑 Chip 列表组件，展示模式显示 chip + 编辑图标按钮，编辑模式下 chip 带删除按钮 + 输入框添加 + 保存/取消操作。
+- 修改 `src/features/patient/components/PatientSummaryCard.tsx`：新增 `hideMedicalSections` prop，为 true 时隐藏过敏史/慢性病/长期用药 section（由外部 EditableChipList 接管）。
+- 修改 `src/pages/home/ProfilePage.tsx`：引入 `useMutation(patientMutations.updateProfile())`，管理三段编辑状态（allergies/chronicDiseases/longTermMedications），用 EditableChipList 替换静态 chip 展示，保存成功后 invalidate query cache 刷新。
 - 验证：`pnpm build`（tsc -b + vite）通过。
 
 ## 当前未完成
