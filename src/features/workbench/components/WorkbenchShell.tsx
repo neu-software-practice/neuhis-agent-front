@@ -39,7 +39,7 @@ export function WorkbenchShell({
       {/* 主列：header + timeline + input */}
       <div className="flex min-h-0 flex-1 flex-col md:mx-auto md:max-w-[640px]">
         {/* header：顶部固定 */}
-        <header className="sticky top-0 z-20 border-b border-border bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <header className="sticky top-0 z-20 border-b border-border/50 bg-background/70 backdrop-blur-lg backdrop-saturate-150 supports-[backdrop-filter]:bg-background/50">
           {header}
         </header>
 
