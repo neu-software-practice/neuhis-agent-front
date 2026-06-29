@@ -261,13 +261,18 @@ export default function WorkbenchPage() {
             open={exitSheetOpen && !isTerminated}
             onOpenChange={setExitSheetOpen}
             consequence={consequence}
+            onSuspend={() => {
+              void actions.suspendVisit().then(() => {
+                setExitSheetOpen(false)
+                navigate("/")
+              })
+            }}
             onConfirm={() => {
               void actions.confirmExit().then(() => {
                 setExitSheetOpen(false)
                 navigate("/")
               })
             }}
-            onCancel={() => setExitSheetOpen(false)}
           />
         </>
       }
