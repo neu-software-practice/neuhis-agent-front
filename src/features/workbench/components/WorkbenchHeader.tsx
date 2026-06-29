@@ -51,9 +51,9 @@ export function WorkbenchHeader({
         className,
       )}
     >
-      {/* 左侧：头像 + 名称 */}
-      <div className="flex shrink-0 items-center gap-2">
-        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
+      {/* 左侧：头像 + 名称（有警告时允许名称收缩以让出空间） */}
+      <div className="flex min-w-0 items-center gap-2">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
           {aiAvatar ?? aiName.charAt(0)}
         </div>
         <span className="truncate text-sm font-medium">{aiName}</span>
@@ -62,9 +62,9 @@ export function WorkbenchHeader({
       {/* 右侧：操作区（终止态隐藏所有操作按钮） */}
       {!isTerminated && (
         <div className="flex items-center gap-1">
-          {/* 超时警告：移动端在有警告文字时优先显示 */}
+          {/* 超时警告：移动端在有警告文字时优先显示，允许收缩但保留可读最小宽度 */}
           {timeoutWarning ? (
-            <span className="truncate text-xs font-medium text-danger whitespace-nowrap max-w-[140px]">
+            <span className="min-w-[4em] shrink truncate text-xs font-medium text-danger">
               {timeoutWarning}
             </span>
           ) : null}
