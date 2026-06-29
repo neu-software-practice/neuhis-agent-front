@@ -1,6 +1,7 @@
 import { useCallback } from "react"
 import { Button, Drawer } from "@heroui/react"
 
+import { useIsDesktop } from "@/lib/use-is-desktop"
 import type { ExitConsequence } from "@/features/workbench/hooks/useExitSettlement"
 
 interface ExitVisitSheetProps {
@@ -31,6 +32,8 @@ export function ExitVisitSheet({
   onConfirm,
   onCancel,
 }: ExitVisitSheetProps) {
+  const isDesktop = useIsDesktop()
+
   const handleConfirm = useCallback(() => {
     onConfirm()
     onOpenChange(false)
@@ -44,12 +47,12 @@ export function ExitVisitSheet({
   return (
     <Drawer>
       <Drawer.Backdrop isOpen={open} onOpenChange={onOpenChange}>
-        <Drawer.Content placement="bottom">
+        <Drawer.Content placement={isDesktop ? "right" : "bottom"}>
           <Drawer.Dialog
             aria-label="退出问诊确认"
             className="bg-background text-foreground shadow-xl"
           >
-            <Drawer.Handle />
+            {!isDesktop ? <Drawer.Handle /> : null}
             <Drawer.CloseTrigger />
             <Drawer.Header className="flex flex-col gap-1">
               确认退出本次问诊？

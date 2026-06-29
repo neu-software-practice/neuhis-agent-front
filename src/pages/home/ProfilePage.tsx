@@ -27,13 +27,13 @@ export default function ProfilePage() {
   return (
     <PageShell
       header={
-        <div className="mx-auto w-full max-w-md px-4 py-3">
+        <div className="mx-auto w-full max-w-md px-4 py-3 md:max-w-2xl">
           <h1 className="text-lg font-semibold">个人中心</h1>
         </div>
       }
       footer={<AppBottomTabs />}
     >
-      <div className="mx-auto w-full max-w-md px-4 py-6">
+      <div className="mx-auto w-full max-w-md px-4 py-6 md:max-w-2xl">
         {/* ── 加载态 ── */}
         {isLoading ? (
           <div className="flex flex-col gap-4" aria-label="加载中">

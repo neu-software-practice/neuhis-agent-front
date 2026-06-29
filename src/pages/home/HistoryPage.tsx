@@ -83,13 +83,13 @@ export default function HistoryPage() {
   return (
     <PageShell
       header={
-        <div className="mx-auto w-full max-w-md px-4 py-3">
+        <div className="mx-auto w-full max-w-md px-4 py-3 md:max-w-2xl">
           <h1 className="text-lg font-semibold">历史记录</h1>
         </div>
       }
       footer={<AppBottomTabs />}
     >
-      <div className="mx-auto w-full max-w-md px-4 py-6">
+      <div className="mx-auto w-full max-w-md px-4 py-6 md:max-w-2xl">
         {/* ── 筛选 tabs ── */}
         <div className="mb-4 flex gap-1 rounded-lg bg-muted p-1">
           {FILTER_TABS.map(({ key, label }) => (
@@ -114,7 +114,7 @@ export default function HistoryPage() {
 
         {/* ── 会话列表 ── */}
         {!isLoading && filteredSessions.length > 0 ? (
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3 md:grid md:grid-cols-2">
             {filteredSessions.map((session) => (
               <SessionCard
                 key={session.id}

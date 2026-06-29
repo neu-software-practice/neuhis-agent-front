@@ -28,7 +28,7 @@ export function PageShell({ children, header, footer, className }: PageShellProp
       ) : null}
       <main className={cn("flex-1 overflow-y-auto", className)}>{children}</main>
       {footer ? (
-        <footer className="sticky bottom-0 z-20 border-t border-border bg-background pb-[env(safe-area-inset-bottom)]">
+        <footer className="sticky bottom-0 z-20 border-t border-border bg-background pb-[env(safe-area-inset-bottom)] md:hidden">
           {footer}
         </footer>
       ) : null}

@@ -65,30 +65,32 @@ export function WorkbenchHeader({
           </span>
         ) : null}
 
-        {/* 暂停/恢复按钮 */}
+        {/* 暂停/恢复按钮：移动端仅图标，PC 端显示文字 */}
         {timerPaused ? (
           <button
             type="button"
             aria-label="恢复计时"
             title="恢复计时"
-            className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            className="flex h-9 items-center justify-center gap-1 rounded-full px-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             onClick={onResume}
           >
             <Play className="h-4 w-4" />
+            <span className="hidden text-xs font-medium md:inline">继续</span>
           </button>
         ) : (
           <button
             type="button"
             aria-label="暂停计时"
             title="暂停计时"
-            className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            className="flex h-9 items-center justify-center gap-1 rounded-full px-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             onClick={onPause}
           >
             <Pause className="h-4 w-4" />
+            <span className="hidden text-xs font-medium md:inline">暂离</span>
           </button>
         )}
 
-        {/* 急症求助：始终可见，点击患者主动上报不适 */}
+        {/* 急症求助：移动端仅图标，PC 端显示文字 */}
         <button
           type="button"
           aria-label="急症求助"
@@ -97,18 +99,19 @@ export function WorkbenchHeader({
           onClick={onReportEmergency}
         >
           <ShieldAlert className="h-4 w-4" />
-          <span className="text-xs font-medium">急症</span>
+          <span className="hidden text-xs font-medium md:inline">急症求助</span>
         </button>
 
-        {/* 退出按钮 */}
+        {/* 退出按钮：移动端仅图标，PC 端显示文字 */}
         <button
           type="button"
           aria-label="退出问诊"
           title="退出问诊"
-          className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="flex h-9 items-center justify-center gap-1 rounded-full px-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           onClick={onExit}
         >
           <X className="h-4 w-4" />
+          <span className="hidden text-xs font-medium md:inline">退出</span>
         </button>
       </div>
     </div>

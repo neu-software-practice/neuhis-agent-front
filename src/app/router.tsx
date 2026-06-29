@@ -2,6 +2,7 @@ import { createBrowserRouter } from "react-router"
 
 import App from "@/app/App"
 import { AppErrorBoundary } from "@/app/error-boundary"
+import HomeLayout from "@/layouts/HomeLayout"
 import HistoryPage from "@/pages/home/HistoryPage"
 import HomePage from "@/pages/home/HomePage"
 import ProfilePage from "@/pages/home/ProfilePage"
@@ -20,6 +21,9 @@ import {
  * 采用 React Router Data Router：createBrowserRouter 自 react-router 导入，
  * DOM 环境的 RouterProvider 在 main.tsx 中自 react-router/dom 导入。
  * loader 仅做参数解析与轻量校验，不推进业务状态。
+ *
+ * 首页系列（/、/history、/profile）包裹 HomeLayout（PC 端侧边导航 + 内容区）。
+ * 工作台系列保持独立全屏布局。
  */
 export const router = createBrowserRouter([
   {
@@ -27,9 +31,15 @@ export const router = createBrowserRouter([
     Component: App,
     ErrorBoundary: AppErrorBoundary,
     children: [
-      { index: true, Component: HomePage },
-      { path: "history", Component: HistoryPage },
-      { path: "profile", Component: ProfilePage },
+      {
+        // 首页系列 — PC 端使用 DesktopShell（左侧导航 + 内容区）
+        Component: HomeLayout,
+        children: [
+          { index: true, Component: HomePage },
+          { path: "history", Component: HistoryPage },
+          { path: "profile", Component: ProfilePage },
+        ],
+      },
       {
         path: "workbench/new",
         loader: newWorkbenchLoader,
