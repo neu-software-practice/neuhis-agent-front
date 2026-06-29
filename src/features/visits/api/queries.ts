@@ -4,6 +4,7 @@ import { visitsApi } from "@/features/visits/api"
 import type {
   CreateFollowUpInput,
   CreateSessionInput,
+  GenerateTitleInput,
   ListSessionsInput,
 } from "@/features/visits/api/types"
 import type { SessionId } from "@/lib/api/types"
@@ -44,5 +45,9 @@ export const visitsMutations = {
   createFollowUp: () =>
     mutationOptions({
       mutationFn: (input: CreateFollowUpInput) => visitsApi.createFollowUp(input),
+    }),
+  generateTitle: () =>
+    mutationOptions({
+      mutationFn: (input: GenerateTitleInput) => visitsApi.generateTitle(input),
     }),
 }

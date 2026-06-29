@@ -11,6 +11,8 @@ import {
 } from "@/lib/api/types"
 
 export const visitSummarySchema = z.object({
+  /** AI 生成的问诊记录标题（由后端调用大模型总结）。优先展示此字段。 */
+  title: z.string().optional(),
   chiefComplaint: z.string().optional(),
   diagnosis: z.string().optional(),
   treatmentSummary: z.string().optional(),
@@ -108,6 +110,23 @@ export const visitSnapshotSchema = z.object({
   readonly: z.literal(true),
   terminalReason: terminalReasonSchema.optional(),
 })
+
+export const generateTitleInputSchema = z.object({
+  sessionId: sessionIdSchema,
+})
+
+export const generateTitleResultSchema = z.object({
+  sessionId: sessionIdSchema,
+  title: z.string().trim().min(1).max(50),
+})
+
+export function parseGenerateTitleResult(value: unknown) {
+  return generateTitleResultSchema.parse(value)
+}
+
+export function safeParseGenerateTitleResult(value: unknown) {
+  return generateTitleResultSchema.safeParse(value)
+}
 
 export function parseVisitSession(value: unknown) {
   return visitSessionSchema.parse(value)

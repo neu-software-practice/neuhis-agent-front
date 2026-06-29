@@ -4,6 +4,8 @@ import type {
   createFollowUpInputSchema,
   createSessionInputSchema,
   createSessionResultSchema,
+  generateTitleInputSchema,
+  generateTitleResultSchema,
   listSessionsInputSchema,
   listSessionsResultSchema,
   visitSessionSchema,
@@ -21,3 +23,5 @@ export type CreateSessionInput = z.infer<typeof createSessionInputSchema>
 export type CreateFollowUpInput = z.infer<typeof createFollowUpInputSchema>
 export type CreateSessionResult = z.infer<typeof createSessionResultSchema>
 export type VisitSnapshot = z.infer<typeof visitSnapshotSchema>
+export type GenerateTitleInput = z.infer<typeof generateTitleInputSchema>
+export type GenerateTitleResult = z.infer<typeof generateTitleResultSchema>

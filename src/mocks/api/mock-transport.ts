@@ -19,6 +19,7 @@ import {
 import {
   handleCreateFollowUp,
   handleCreateSession,
+  handleGenerateTitle,
   handleGetReadonlySnapshot,
   handleGetSession,
   handleListSessions,
@@ -106,6 +107,14 @@ function route(method: MockMethod, path: string, body?: unknown, options?: Reque
     return handleCreateFollowUp({
       ...(body as Record<string, unknown>),
       parentSessionId: followUpMatch[1],
+    })
+  }
+
+  const generateTitleMatch = match(path, /^\/visits\/([^/]+)\/generate-title$/)
+  if (method === "POST" && generateTitleMatch) {
+    return handleGenerateTitle({
+      ...(body as Record<string, unknown>),
+      sessionId: generateTitleMatch[1],
     })
   }
 

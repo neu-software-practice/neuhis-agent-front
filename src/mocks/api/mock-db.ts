@@ -1192,6 +1192,103 @@ class MockDb {
     return item.card
   }
 
+  // ─── Title Generation ────────────────────────────────────────────────────────
+
+  /**
+   * 模拟后端调用 LLM 生成问诊记录标题。
+   * Mock 策略：从时间线中提取患者消息和助手消息，基于关键词启发式生成摘要标题。
+   * HTTP 模式下由后端 LLM 生成。
+   */
+  generateTitle(input: { sessionId: SessionId }): { sessionId: SessionId; title: string } {
+    const session = this.requireSession(input.sessionId)
+    const timeline = this.state.timelines[input.sessionId] ?? []
+
+    // 收集患者消息内容
+    const patientMessages: string[] = []
+    const assistantMessages: string[] = []
+    for (const item of timeline) {
+      if (item.kind === "message" && item.role === "patient") {
+        patientMessages.push(item.content)
+      } else if (item.kind === "message" && item.role === "assistant" && assistantMessages.length < 2) {
+        assistantMessages.push(item.content)
+      }
+    }
+
+    const title = this.inferTitle(patientMessages, assistantMessages, session)
+
+    // 写入 session summary
+    this.updateSession(input.sessionId, {
+      updatedAt: nowIso(),
+      summary: {
+        ...session.summary,
+        title,
+      },
+    })
+
+    return { sessionId: input.sessionId, title }
+  }
+
+  private inferTitle(
+    patientMessages: string[],
+    _assistantMessages: string[],
+    session: VisitSession,
+  ): string {
+    const allText = patientMessages.join(" ")
+
+    // 症状关键词映射
+    const symptomMap: Record<string, string> = {
+      "发烧|发热|体温高": "发热",
+      "咳嗽|干咳|咳痰": "咳嗽",
+      "头痛|头疼|偏头痛": "头痛",
+      "腹痛|肚子痛|胃痛": "腹痛",
+      "腹泻|拉肚子": "腹泻",
+      "恶心|呕吐|想吐": "恶心呕吐",
+      "胸闷|胸痛": "胸部不适",
+      "失眠|睡不着": "睡眠障碍",
+      "皮疹|过敏|痒": "皮肤问题",
+      "喉咙痛|咽痛|嗓子": "咽喉不适",
+      "鼻塞|流涕|打喷嚏": "鼻部症状",
+      "关节痛|腰痛|腿痛": "关节/肌肉疼痛",
+      "眩晕|头晕": "眩晕",
+      "乏力|疲劳|没力气": "乏力",
+    }
+
+    const detectedSymptoms: string[] = []
+    for (const [pattern, label] of Object.entries(symptomMap)) {
+      if (new RegExp(pattern).test(allText)) {
+        detectedSymptoms.push(label)
+      }
+    }
+
+    // 时间线索
+    const durationPattern = /(\d+)\s*(天|周|月|小时)/
+    const durationMatch = allText.match(durationPattern)
+    const durationHint = durationMatch ? `${durationMatch[1]}${durationMatch[2]}` : ""
+
+    // 如果诊断已出，用诊断作为标题主体
+    if (session.summary.diagnosis) {
+      return session.summary.diagnosis.length <= 20
+        ? session.summary.diagnosis
+        : session.summary.diagnosis.slice(0, 18) + "…"
+    }
+
+    // 组合标题
+    if (detectedSymptoms.length > 0) {
+      const mainSymptoms = detectedSymptoms.slice(0, 3).join("、")
+      if (durationHint) {
+        return `${mainSymptoms}${durationHint}`
+      }
+      return `${mainSymptoms}问诊`
+    }
+
+    // 兜底：用 chiefComplaint 截断
+    const complaint = session.summary.chiefComplaint ?? patientMessages[0] ?? ""
+    if (complaint.length <= 15) {
+      return complaint || "问诊记录"
+    }
+    return complaint.slice(0, 13) + "…"
+  }
+
   // ─── Auth ───────────────────────────────────────────────────────────────────
 
   register(input: { phone: string; password: string; realName?: string }): {

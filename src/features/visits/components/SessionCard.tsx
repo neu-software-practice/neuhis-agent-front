@@ -52,7 +52,7 @@ export function SessionCard({
   onViewRecord,
   className,
 }: SessionCardProps) {
-  const title = session.summary.chiefComplaint ?? "未命名问诊"
+  const title = session.summary.title ?? session.summary.chiefComplaint ?? "未命名问诊"
   const isActive = ACTIVE_STATUSES.has(session.status)
   const isCompleted = session.status === "completed"
   const isTerminal = TERMINAL_STATUSES.has(session.status)

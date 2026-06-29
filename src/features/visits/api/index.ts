@@ -4,6 +4,8 @@ import {
   createFollowUpInputSchema,
   createSessionInputSchema,
   createSessionResultSchema,
+  generateTitleInputSchema,
+  generateTitleResultSchema,
   listSessionsInputSchema,
   listSessionsResultSchema,
   visitSessionSchema,
@@ -12,6 +14,7 @@ import {
 import type {
   CreateFollowUpInput,
   CreateSessionInput,
+  GenerateTitleInput,
   ListSessionsInput,
 } from "@/features/visits/api/types"
 
@@ -47,6 +50,15 @@ export const visitsApi = {
   async getReadonlySnapshot(input: { sessionId: SessionId }) {
     const result = await getTransport().get(`/visits/${input.sessionId}/snapshot`)
     return visitSnapshotSchema.parse(result)
+  },
+
+  async generateTitle(input: GenerateTitleInput) {
+    const body = generateTitleInputSchema.parse(input)
+    const result = await getTransport().post(
+      `/visits/${body.sessionId}/generate-title`,
+      body,
+    )
+    return generateTitleResultSchema.parse(result)
   },
 }
 

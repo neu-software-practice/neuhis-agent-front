@@ -30,6 +30,7 @@ import {
 } from "@/features/workbench/utils/timeline-merge"
 import { useFlowCardAction } from "@/features/workbench/hooks/useFlowCardAction"
 import { useAssistantStream } from "@/features/workbench/hooks/useAssistantStream"
+import { useSessionTitleGeneration } from "@/features/workbench/hooks/useSessionTitleGeneration"
 
 // ---- 公开类型 ----
 
@@ -411,6 +412,10 @@ export function useWorkbenchSession(
       [queryClient, sessionId],
     ),
   })
+
+  // ---- 会话标题生成 ----
+  // 首轮 AI 回复完成后，自动触发后端 LLM 总结会话标题。
+  useSessionTitleGeneration(sessionId, isStreaming)
 
   // ---- 首轮自动回复 ----
   // 从首页/新建会话进入工作台时，createSession 已把主诉写成首条患者消息，但

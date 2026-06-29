@@ -2,6 +2,7 @@ import type { RequestOptions } from "@/lib/api/transport"
 import {
   createFollowUpInputSchema,
   createSessionInputSchema,
+  generateTitleInputSchema,
   listSessionsInputSchema,
 } from "@/features/visits/api/schemas"
 import { mockDb } from "@/mocks/api/mock-db"
@@ -32,4 +33,8 @@ export function handleGetSession(sessionId: string) {
 
 export function handleGetReadonlySnapshot(sessionId: string) {
   return mockDb.getReadonlySnapshot(sessionId)
+}
+
+export function handleGenerateTitle(body: unknown) {
+  return mockDb.generateTitle(generateTitleInputSchema.parse(body))
 }
