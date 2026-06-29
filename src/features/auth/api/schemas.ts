@@ -8,8 +8,11 @@ import { z } from "zod"
 /** 手机号：11 位数字。 */
 const phoneSchema = z.string().regex(/^1[3-9]\d{9}$/, "请输入正确的手机号")
 
-/** 密码：6-32 位，至少含字母和数字。 */
-const passwordSchema = z
+/** 登录密码：仅非空校验，不限制复杂度（复杂度是注册时的事）。 */
+const loginPasswordSchema = z.string().min(1, "请输入密码")
+
+/** 注册密码：6-32 位，至少含字母和数字。 */
+const registerPasswordSchema = z
   .string()
   .min(6, "密码至少 6 位")
   .max(32, "密码最长 32 位")
@@ -18,12 +21,12 @@ const passwordSchema = z
 
 export const loginInputSchema = z.object({
   phone: phoneSchema,
-  password: passwordSchema,
+  password: loginPasswordSchema,
 })
 
 export const registerInputSchema = z.object({
   phone: phoneSchema,
-  password: passwordSchema,
+  password: registerPasswordSchema,
   realName: z.string().trim().min(1).max(32).optional(),
 })
 
