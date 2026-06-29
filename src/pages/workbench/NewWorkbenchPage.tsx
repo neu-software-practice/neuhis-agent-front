@@ -1,13 +1,41 @@
 import { useEffect, useRef } from "react"
 import { useLoaderData, useNavigate } from "react-router"
-import { useMutation } from "@tanstack/react-query"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
+import type { InfiniteData } from "@tanstack/react-query"
 
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/features/shared/components/EmptyState"
 import { PageShell } from "@/features/shared/components/PageShell"
 import { visitsApi } from "@/features/visits/api"
+import { visitsQueryKeys } from "@/features/visits/api/queries"
+import { workbenchQueryKeys } from "@/features/workbench/api/queries"
+import type { ListTimelineResult } from "@/features/workbench/api"
 import { useAuthStore } from "@/features/auth/store/auth-store"
 import type { NewWorkbenchLoaderData } from "@/pages/workbench/workbench-loaders"
+
+export function getCreateVisitTimeoutMs(): number {
+  const raw = Number(import.meta.env.VITE_CREATE_VISIT_TIMEOUT_MS ?? 10_000)
+  return Number.isFinite(raw) && raw > 0 ? raw : 10_000
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timeoutId = window.setTimeout(() => {
+      reject(new Error("复诊创建超时，请重试。"))
+    }, timeoutMs)
+
+    promise.then(
+      (value) => {
+        window.clearTimeout(timeoutId)
+        resolve(value)
+      },
+      (error: unknown) => {
+        window.clearTimeout(timeoutId)
+        reject(error)
+      },
+    )
+  })
+}
 
 /**
  * 新建问诊工作台页面。
@@ -18,6 +46,7 @@ import type { NewWorkbenchLoaderData } from "@/pages/workbench/workbench-loaders
 export default function NewWorkbenchPage() {
   const { draft, followUpFrom } = useLoaderData() as NewWorkbenchLoaderData
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const hasCreated = useRef(false)
   const patientId = useAuthStore((s) => s.user?.patientId ?? "")
 
@@ -26,21 +55,46 @@ export default function NewWorkbenchPage() {
     isPending,
     isError,
     error,
-    data,
   } = useMutation({
     mutationFn: () => {
       if (followUpFrom) {
-        return visitsApi.createFollowUp({
-          patientId,
-          parentSessionId: followUpFrom,
-          chiefComplaint: draft || undefined,
-        })
+        return withTimeout(
+          visitsApi.createFollowUp({
+            patientId,
+            parentSessionId: followUpFrom,
+            chiefComplaint: draft || undefined,
+          }),
+          getCreateVisitTimeoutMs(),
+        )
       }
-      return visitsApi.createSession({
-        patientId,
-        entryType: "new",
-        chiefComplaint: draft || undefined,
-      })
+      return withTimeout(
+        visitsApi.createSession({
+          patientId,
+          entryType: "new",
+          chiefComplaint: draft || undefined,
+        }),
+        getCreateVisitTimeoutMs(),
+      )
+    },
+    onSuccess: (result) => {
+      queryClient.setQueryData(
+        visitsQueryKeys.session(result.session.id),
+        result.session,
+      )
+      queryClient.setQueryData<InfiniteData<ListTimelineResult>>(
+        workbenchQueryKeys.timeline(result.session.id),
+        {
+          pages: [
+            {
+              items: result.initialTimeline,
+              hasMore: false,
+            },
+          ],
+          pageParams: [undefined],
+        },
+      )
+      void queryClient.invalidateQueries({ queryKey: visitsQueryKeys.all })
+      navigate(`/workbench/${result.session.id}`, { replace: true })
     },
   })
 
@@ -50,13 +104,6 @@ export default function NewWorkbenchPage() {
     hasCreated.current = true
     mutate()
   }, [mutate])
-
-  // 创建成功后跳转到工作台
-  useEffect(() => {
-    if (data?.session?.id) {
-      navigate(`/workbench/${data.session.id}`, { replace: true })
-    }
-  }, [data, navigate])
 
   // 创建中
   if (isPending) {
