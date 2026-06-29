@@ -1,6 +1,6 @@
 # 项目地图
 
-更新时间：2026-06-29（修复检验支付后卡片状态刷新）
+更新时间：2026-06-29（修复历史页发起复诊后工作台卡死）
 
 ## 项目定位
 
@@ -302,6 +302,16 @@ P6 按「文件所有权分波次」并行实现：5 个 quality / docs lane 各
 - 缺浏览器端完整 UI 流程测试（jsdom 层 hook / 机器 / 组件单测已有，端到端走查与 P6.3 的 375 / 340 / 768px 响应式人工走查未在无头环境补齐）。
 - 支付失败重试 UI 仍未单独实现（mock 已支持 `PAYMENT_FAILED` 链路，UI 上的重试 / 换支付方式交互待补）。
 - MSW handler 仍未实现；契约 / 组件测试当前走 mock transport。
+
+## 修复记录：历史页发起复诊后工作台卡死（2026-06-29）
+
+- 调查结论：mock/API 层 `POST /visits/:parentSessionId/follow-up` 已可正常创建 `entryType: "follow_up"` 会话，并返回 `initialTimeline`；卡死不是因为 mock 后端缺复诊接口。
+- 根因：`NewWorkbenchPage.tsx` 创建复诊成功后只执行 `navigate("/workbench/:sessionId")`，没有把 createFollowUp 返回的 `session` 和 `initialTimeline` 预写入 TanStack Query cache。跳转后的 `WorkbenchPage` 需要重新 GET 新会话和时间线；当真实后端未完全接入这些读接口、读接口滞后或本地环境请求异常时，患者会看到工作台停在加载/空状态。
+- 修复：`NewWorkbenchPage.tsx` 在跳转前写入 `visitsQueryKeys.session(newSessionId)` 与 `workbenchQueryKeys.timeline(newSessionId)`，并 invalidate visits list，使复诊工作台可直接使用创建接口返回的数据完成首屏渲染。
+- 兜底：创建初诊/复诊请求增加 10 秒超时保护；如果请求挂起，页面从「正在准备复诊...」进入「创建问诊失败」并展示「复诊创建超时，请重试。」，避免患者永久停留在 pending 态。
+- 新增 `src/pages/workbench/NewWorkbenchPage.test.tsx`：覆盖历史已完成会话发起复诊时调用 `createFollowUp`、成功后必须预热新 session / timeline cache、请求挂起时必须转入可重试错误态。
+- 本次未实现：真实后端 `GET /visits/:id` 与 `GET /visits/:id/timeline` 的联调兜底、浏览器端 E2E 复诊点击流程仍未补齐。
+- 验证：`./node_modules/.bin/vitest run src/pages/workbench/NewWorkbenchPage.test.tsx`、`./node_modules/.bin/vitest run src/features/workbench/api/workbench-api.test.ts src/pages/workbench/NewWorkbenchPage.test.tsx`、`./node_modules/.bin/tsc -b` 均通过。
 
 ## 修复记录：检验支付后卡片状态刷新（2026-06-29）
 
