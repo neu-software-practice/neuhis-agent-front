@@ -8,21 +8,17 @@ import { useWorkbenchSession } from "@/features/workbench/hooks/useWorkbenchSess
 import { ChatTimeline } from "@/features/workbench/components/ChatTimeline"
 import { ContextSummaryBar } from "@/features/workbench/components/ContextSummaryBar"
 import { ContextSummaryDrawer } from "@/features/workbench/components/ContextSummaryDrawer"
+import { EmergencyOverlay } from "@/features/workbench/components/EmergencyOverlay"
+import { ExitVisitSheet } from "@/features/workbench/components/ExitVisitSheet"
 import { InputDock } from "@/features/workbench/components/InputDock"
 import { LockBar } from "@/features/workbench/components/LockBar"
 import { LockQuestionSheet } from "@/features/workbench/components/LockQuestionSheet"
+import { TimeoutOverlay } from "@/features/workbench/components/TimeoutOverlay"
 import { WorkbenchHeader } from "@/features/workbench/components/WorkbenchHeader"
 import { WorkbenchShell } from "@/features/workbench/components/WorkbenchShell"
+import { useExitSettlement } from "@/features/workbench/hooks/useExitSettlement"
+import { useVisitCountdown } from "@/features/workbench/hooks/useVisitCountdown"
 import type { WorkbenchLoaderData } from "@/pages/workbench/workbench-loaders"
-
-/** 格式化超时时间为 "截止 HH:mm" 简写（纯函数，不含 Date.now）。 */
-function formatTimeoutShort(iso: string): string {
-  const date = new Date(iso)
-  if (isNaN(date.getTime())) return iso
-  const hh = date.getHours().toString().padStart(2, "0")
-  const mm = date.getMinutes().toString().padStart(2, "0")
-  return `截止 ${hh}:${mm}`
-}
 
 /**
  * 进行中工作台页面。
@@ -69,6 +65,28 @@ export default function WorkbenchPage() {
   const lockQuestionSheetOpen = useWorkbenchUiStore((s) => s.lockQuestionSheetOpen)
   const lockQuestionCardId = useWorkbenchUiStore((s) => s.lockQuestionCardId)
   const setLockQuestionSheet = useWorkbenchUiStore((s) => s.setLockQuestionSheet)
+  const timeoutOverlayOpen = useWorkbenchUiStore((s) => s.timeoutOverlayOpen)
+  const setTimeoutOverlayOpen = useWorkbenchUiStore((s) => s.setTimeoutOverlayOpen)
+  const exitSheetOpen = useWorkbenchUiStore((s) => s.exitSheetOpen)
+  const setExitSheetOpen = useWorkbenchUiStore((s) => s.setExitSheetOpen)
+
+  // ---- 倒计时（会话级单一计时，completed / 终止态停止）----
+  const isTerminated = state === "terminated" || state === "exited"
+  const countdownActive = !isTerminated && state !== "completed"
+  const handleExpire = useCallback(() => {
+    setTimeoutOverlayOpen(true)
+    actions.triggerTimeout()
+  }, [setTimeoutOverlayOpen, actions])
+  const { warningText } = useVisitCountdown({
+    timeoutAt: session?.timeoutAt,
+    pausedAt: session?.pausedAt,
+    timerPaused: context.timerPaused,
+    active: countdownActive,
+    onExpire: handleExpire,
+  })
+
+  // ---- 退出后果（从时间线派生）----
+  const { consequence } = useExitSettlement(items)
 
   // ---- 返回首页 ----
   const handleNavigateHome = useCallback(() => {
@@ -111,13 +129,8 @@ export default function WorkbenchPage() {
 
   // ==================== 数据就绪 ====================
 
-  // 超时警告文案
-  const timeoutWarning = session?.timeoutAt
-    ? formatTimeoutShort(session.timeoutAt)
-    : undefined
-
-  // 阻断状态：存在阻塞卡时显示 LockBar，否则显示 InputDock
-  const isTerminated = state === "terminated" || state === "exited"
+  // 超时警告文案由倒计时 hook 驱动（warn5 / warn2 阶段非空）。
+  const timeoutWarning = warningText || undefined
 
   return (
     <WorkbenchShell
@@ -127,7 +140,14 @@ export default function WorkbenchPage() {
           timerPaused={context.timerPaused}
           onPause={actions.pauseVisit}
           onResume={actions.resumeVisit}
-          onExit={actions.requestExit}
+          onReportEmergency={() => {
+            actions.reportVitals({
+              sessionId,
+              source: "patient_report",
+              symptoms: ["患者主动上报不适"],
+            })
+          }}
+          onExit={() => setExitSheetOpen(true)}
         />
       }
       timeline={
@@ -199,6 +219,29 @@ export default function WorkbenchPage() {
             onSubmit={(content) => {
               actions.sendMessage(content)
             }}
+          />
+          <EmergencyOverlay
+            open={state === "emergencyPending"}
+            source={context.emergencySource}
+            onConfirmEmergency={actions.confirmEmergency}
+            onDismiss={() => {
+              void actions.dismissEmergency()
+            }}
+          />
+          <TimeoutOverlay
+            open={timeoutOverlayOpen}
+            onConfirm={() => {
+              setTimeoutOverlayOpen(false)
+            }}
+          />
+          <ExitVisitSheet
+            open={exitSheetOpen}
+            onOpenChange={setExitSheetOpen}
+            consequence={consequence}
+            onConfirm={() => {
+              void actions.confirmExit()
+            }}
+            onCancel={() => setExitSheetOpen(false)}
           />
         </>
       }

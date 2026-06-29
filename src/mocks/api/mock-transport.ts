@@ -26,6 +26,7 @@ import {
 import {
   handleAckAdvice,
   handleClassifyIntent,
+  handleDismissEmergency,
   handleExitVisit,
   handleListTimeline,
   handlePauseTimer,
@@ -166,6 +167,14 @@ function route(method: MockMethod, path: string, body?: unknown, options?: Reque
     return handleExitVisit({
       ...(body as Record<string, unknown>),
       sessionId: exitMatch[1],
+    })
+  }
+
+  const dismissEmergencyMatch = match(path, /^\/visits\/([^/]+)\/dismiss-emergency$/)
+  if (method === "POST" && dismissEmergencyMatch) {
+    return handleDismissEmergency({
+      ...(body as Record<string, unknown>),
+      sessionId: dismissEmergencyMatch[1],
     })
   }
 

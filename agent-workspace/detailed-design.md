@@ -1,6 +1,6 @@
 # 前端详细设计
 
-更新时间：2026-06-27
+更新时间：2026-06-29（P5 全局机制与异常态落地校准）
 
 产品名：**东软云脑智能医疗**
 
@@ -620,6 +620,7 @@ askLockedQuestion(input: AskLockedQuestionInput, handlers: StreamHandlers<Assist
 classifyFollowUpIntent(input: ClassifyIntentInput): Promise<ClassifyIntentResult>
 streamConsultationReply(input: ConsultationInput, handlers: StreamHandlers<AssistantStreamEvent>): Promise<void>
 reportVitals(input: ReportVitalsInput): Promise<EmergencyRecheckResult>
+dismissEmergency(input: DismissEmergencyInput): Promise<DismissEmergencyResult>
 exitVisit(input: ExitVisitInput): Promise<ExitSettlementResult>
 pauseVisitTimer(input: PauseVisitTimerInput): Promise<VisitSession>
 resumeVisitTimer(input: ResumeVisitTimerInput): Promise<VisitSession>
@@ -631,6 +632,7 @@ resumeVisitTimer(input: ResumeVisitTimerInput): Promise<VisitSession>
 > - `askLockedQuestion`：阻塞卡锁定期间“我有疑问”通道，流式回复但不推进主流程（对应 UI §3.4）。
 > - `classifyFollowUpIntent` / `streamConsultationReply`：完成态输入的意图分类与咨询回答，**优先走 AI**（对应 UI §3.7 的咨询 / 复诊 / 不确定三分类）。
 > - `reportVitals`：锁定态或普通问诊中由患者主动上报“我现在很不舒服”等体征/急症信号，触发急症守护复检；若复检命中，后续仍以 `EMERGENCY_DETECTED` 事件进入急症覆盖态。
+> - `dismissEmergency`：急症 Overlay 中“情况已缓解/描述的是过去”的误报申诉通道，写入 `emergency_dismissed` 系统事件并恢复急症前态（不产生终止卡），由前端 / mock 实现；HTTP 模式下后端会话已关闭的约束见 §7.3。
 
 命名约定：
 
@@ -759,9 +761,15 @@ interface WorkbenchUiState {
   rightSummaryCollapsed: boolean
   atTimelineBottom: boolean
   emergencyTooltipSeen: boolean
+  timeoutOverlayOpen: boolean
+  exitSheetOpen: boolean
   setAtTimelineBottom: (value: boolean) => void
+  setTimeoutOverlayOpen: (value: boolean) => void
+  setExitSheetOpen: (value: boolean) => void
 }
 ```
+
+> 说明：`timeoutOverlayOpen` / `exitSheetOpen` 是 P5 新增的纯 UI flag，分别驱动 `TimeoutOverlay` 与 `ExitVisitSheet` 的开合；`EmergencyOverlay` 的 open 不走 store，而是直接派生自机器 `emergencyPending` 态（急症由状态机而非 UI 主导）。
 
 约定：
 
@@ -799,6 +807,8 @@ exited
 - 处置分支映射：`medication → medicationPayment → medicationFulfillment`、`advice_only → adviceOnly`、`treatment → treatmentExecution`、`referral → terminated(reason: referral)`。
 - **`treatmentExecution`（自动化治疗）是产品保留分支，当前 medAgent 决策引擎不实现院内治疗执行**（处置只 `MEDICATION` / `ADVICE_ONLY` / `REFERRAL`，需操作/手术直接 `REFERRAL`）。首版由前端 / mock 通过 `submitTreatmentExecution` 演示预约、排队、执行和完成；本院不具备能力时进 `terminated(reason: capability_insufficient)`。接 HTTP 时该分支须等后端业务层补齐治疗执行 contract，否则后端只会回 `REFERRAL`。详见 api.md「与 medAgent 后端的映射与边界」。
 - 急症拆成两态：`emergencyPending` 是**可恢复**的覆盖态，对应 UI §4.1 的误报申诉（“情况已缓解/描述的是过去”）；患者确认“前往急诊”才落入 `terminated(reason: emergency)`。`context.previousStateBeforeOverlay` 仅在 `emergencyPending` 期间有效。
+- **急症绝对最高优先级（P5 安全修正）**：`EMERGENCY_DETECTED` 在任意非终止态（含 `exitSettlement` 退出结算态、`completed` 完成态）都能抢占进入 `emergencyPending`。`exitSettlement` 仅 shadow `VISIT_TIMEOUT` / 重复 `EXIT_REQUESTED`（退出 > 超时），**绝不 shadow 急症**——此前曾以“结算期间不被急症打断”为由屏蔽急症，违反安全保证，已修正。误报 dismiss 时经 `previousExitSettlement` 守卫分支恢复回 `exitSettlement`（而非掉到 `chatting`），结算上下文不丢失。
+- `completed` 完成态停止计时：用空过渡 shadow 掉 `VISIT_TIMEOUT` / `EXIT_REQUESTED`（会话已正常结束，无需再超时或退出结算），但**故意保留 `EMERGENCY_DETECTED` 冒泡**——患者完成后突发不适仍可上报进入急症态。
 - `terminated` 统一承载急症确认、超时、达上限、本院能力不足 / 后端 `REFERRAL`、退出结算后的终止，由 `context.terminalReason` 区分，与时间线的 `TerminalTimelineItem.reason` 对应。
 - 注意：medAgent 急症命中后**后端会话即关闭**（见接入指南 §10）。前端 `emergencyPending` 的“恢复”只在前端 / mock 层成立；接 HTTP 时若需可恢复语义，须由后端 contract 显式支持“申诉不关闭会话”，否则恢复后只能新开会话续诊。此约束记入待确认问题。
 
@@ -927,11 +937,14 @@ type VisitMachineEvent =
 | `treatmentExecution` | `TREATMENT_COMPLETED` | `completed` | 生成完成卡 |
 | `adviceOnly` | `ADVICE_ACKNOWLEDGED` | `completed` | 留痕并生成完成卡 |
 | `completed` | `FOLLOW_UP_MESSAGE_SENT` | `loadingContext` | 创建复诊 session 并加载上下文 |
-| 任意非终止态 | `EMERGENCY_DETECTED` | `emergencyPending` | abort SSE、禁用输入和卡片 |
-| `emergencyPending` | `EMERGENCY_DISMISSED` | 前态 | 恢复前态，插入误报恢复系统事件 |
+| `completed` | `VISIT_TIMEOUT` / `EXIT_REQUESTED` | `completed`（空过渡 shadow） | 会话已正常完成，停止计时、不再退出结算；但**不** shadow `EMERGENCY_DETECTED`（完成后突发不适仍可上报） |
+| 任意非终止态 | `EMERGENCY_DETECTED` | `emergencyPending` | abort SSE、禁用输入和卡片；保存前态（含 `exitSettlement`） |
+| `emergencyPending` | `EMERGENCY_RECHECK_REQUESTED` | `emergencyPending`（自过渡） | `markEmergencyRecheck`，不解除覆盖态 |
+| `emergencyPending` | `EMERGENCY_DISMISSED` | 前态（`previousExitSettlement` 时回 `exitSettlement`） | 恢复前态，插入 `emergency_dismissed` 系统事件，不产生终止卡 |
 | `emergencyPending` | `EMERGENCY_CONFIRMED` | `terminated` | 写入急症终止卡 |
 | 任意非终止态 | `VISIT_TIMEOUT` | `terminated` | 写入超时终止卡 |
 | 任意非终止态 | `EXIT_REQUESTED` | `exitSettlement` | 打开退出结算 Sheet |
+| `exitSettlement` | `VISIT_TIMEOUT` / 重复 `EXIT_REQUESTED` / `TRANSFER_REQUIRED` | `exitSettlement`（空过渡 shadow） | 退出 > 超时；结算期间不被超时/转诊抢占。**但 `EMERGENCY_DETECTED` 不在此 shadow**——急症仍可冒泡进 `emergencyPending` |
 | `exitSettlement` | `EXIT_SETTLED` | `terminated` | 写入退出终止卡和快照 |
 
 ## 8. 页面与组件拆分
@@ -1146,25 +1159,26 @@ interface FlowCardProps<TCard extends FlowCard> {
 
 ### 8.7 全局覆盖态
 
-`EmergencyOverlay`：
+三个覆盖件统一挂在 `WorkbenchPage` 的 overlays slot。open 来源按优先级语义区分：`EmergencyOverlay` 的 open **派生自机器 `emergencyPending` 态**（急症由机器决定，不走 UI flag）；`TimeoutOverlay` / `ExitVisitSheet` 的 open 来自 `workbench-ui-store` 的 `timeoutOverlayOpen` / `exitSheetOpen` flag。
 
-- 监听 machine `emergencyPending` 态（可恢复）。
-- 展示最高优先级 Modal。
+`EmergencyOverlay`（已实现，HeroUI `Modal`）：
+
+- open 派生自机器 `emergencyPending` 态（可恢复），居中最高优先级阻断。
 - 进入时 abort 当前 SSE、禁用卡片动作和输入。
 - “我已知晓，前往急诊”发送 `EMERGENCY_CONFIRMED`，进入 `terminated(reason: emergency)` 并追加终止卡。
-- “情况已缓解/描述的是过去”发送 `EMERGENCY_DISMISSED`，恢复 `previousStateBeforeOverlay` 并插入 `emergency_dismissed` 系统事件（不产生终止卡）。
+- “情况已缓解/描述的是过去”发送 `EMERGENCY_DISMISSED`，恢复进入急症前的状态（普通态恢复前态；退出结算期恢复回 `exitSettlement`，见 §7.3）并插入 `emergency_dismissed` 系统事件（不产生终止卡，保留草稿 / 滚动 / 未处理卡）。
 - 注意接 HTTP 时后端会话已关闭的约束（见 §7.3）。
 
-`TimeoutOverlay`：
+`TimeoutOverlay`（已实现，HeroUI `Modal`，PC `max-w` 480）：
 
-- 来自 `useVisitCountdown` 或服务端状态。
+- open 来自 `workbench-ui-store.timeoutOverlayOpen`，由 `useVisitCountdown` 到期回调置位。
 - 确认后发送 `VISIT_TIMEOUT`，进入 `terminated(reason: timeout)`，时间线追加 `reason: timeout` 的终止卡。
 
-`ExitVisitSheet`：
+`ExitVisitSheet`（已实现，HeroUI `Drawer` placement=bottom）：
 
-- 任意非终止态可打开。
-- `useExitSettlement` 先查询或计算退出后果。
-- 确认后调用 `workbenchApi.exitVisit`，成功后进入 `exited` 或历史回看。
+- 任意非终止态可打开，open 来自 `workbench-ui-store.exitSheetOpen`（顶栏退出按钮置位）。
+- `useExitSettlement` 从 timeline 客户端派生退出后果四档文案（见 §9.5），只展示当前阶段匹配的一条。
+- 确认后 `confirmExit` 先进 `exitSettlement` 再调用 `workbenchApi.exitVisit`，成功后进入 `exited` 或历史回看。
 
 ## 9. 关键 Hook 设计
 
@@ -1260,9 +1274,24 @@ action 到 facade 的映射：
 职责：
 
 - 根据 `session.timeoutAt`、暂停状态和服务端时间偏移计算剩余时间。
-- 剩余 5 分钟和 2 分钟时给顶栏不同文案。
-- 到时发送 `VISIT_TIMEOUT`。
-- 暂离后不继续本地递减，恢复时重新以 session 数据为准。
+- 输出 `phase: 'normal' | 'warn5' | 'warn2' | 'expired'`：≤5min 进 `warn5`（顶栏「问诊时间即将结束」低对比小字），≤2min 进 `warn2`（「即将超时，请尽快完成」），默认不显示秒数。
+- 到时只触发一次 `onExpire`（驱动 `VISIT_TIMEOUT` 与 `TimeoutOverlay`），不重复触发。
+- 暂离后不继续本地递减，恢复时重新以 session 数据（`pausedAt` / 延后后的 `timeoutAt`）为准。
+- 会话级单一计时，不按步骤重置；completed / 终止态停止计时。
+
+实现说明：纯计算 hook 本身只产出 phase 与文案，`TimeoutOverlay` 的开合由 `workbench-ui-store` 的 `timeoutOverlayOpen` flag 承载。
+
+### 9.5 `useExitSettlement`
+
+职责：
+
+- 从当前 timeline 客户端派生退出后果，供 `ExitVisitSheet` 展示恰一行文案。
+- 后果四档（由「已发生的不可逆动作」决定，承诺度最高者优先）：
+  - `no_fee`：「本次问诊将直接结束，不产生费用。」
+  - `refundable`：「已支付的 ¥x 将原路退回，通常 1-3 个工作日到账。」
+  - `executed_no_refund`：「已完成的检验/治疗费用不可退，结果会留档供下次使用。」
+  - `medication_dispensed`：「已取药品按退药政策处理，详见结算明细。」
+- 与服务端对齐：`ExitVisitInput` 提交后 `ExitSettlementResult.consequence?: { kind; amount?; text }` 给出权威结算；mock-db `computeSettlement` 按 timeline 真实推算，客户端派生用于退出前预览。
 
 ## 10. 业务流程时序
 

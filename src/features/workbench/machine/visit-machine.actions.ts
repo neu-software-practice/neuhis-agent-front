@@ -211,6 +211,20 @@ export const visitMachineActions = {
     }
   }),
 
+  // 急症复检：仅记录复检请求（保留来源/前态），真正的收口仍由
+  // EMERGENCY_DISMISSED（误报恢复前态）/ EMERGENCY_CONFIRMED（确认急症→terminated）驱动。
+  // 因此该 action 不改变 previousStateBeforeOverlay / interruptedBy，只在带 cardId 时
+  // 记录待复检的卡片，自过渡停留在 emergencyPending。
+  markEmergencyRecheck: visitAssign(({ event, context }) => {
+    if (event.type !== "EMERGENCY_RECHECK_REQUESTED") {
+      return {}
+    }
+
+    return {
+      currentCardId: event.cardId ?? context.currentCardId,
+    }
+  }),
+
   markTimerPaused: visitAssign(() => {
     return {
       timerPaused: true,

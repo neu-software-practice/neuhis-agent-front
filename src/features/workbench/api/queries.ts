@@ -3,8 +3,10 @@ import { infiniteQueryOptions, mutationOptions, queryOptions } from "@tanstack/r
 import { workbenchApi } from "@/features/workbench/api"
 import type {
   AckAdviceInput,
+  DismissEmergencyInput,
   ExitVisitInput,
   ListTimelineInput,
+  ReportVitalsInput,
   SendMessageInput,
   SubmitFulfillmentInput,
   SubmitLabDecisionInput,
@@ -72,5 +74,24 @@ export const workbenchMutations = {
   exitVisit: () =>
     mutationOptions({
       mutationFn: (input: ExitVisitInput) => workbenchApi.exitVisit(input),
+    }),
+  reportVitals: () =>
+    mutationOptions({
+      mutationFn: (input: ReportVitalsInput) => workbenchApi.reportVitals(input),
+    }),
+  pauseVisitTimer: () =>
+    mutationOptions({
+      mutationFn: (input: { sessionId: SessionId }) =>
+        workbenchApi.pauseVisitTimer(input),
+    }),
+  resumeVisitTimer: () =>
+    mutationOptions({
+      mutationFn: (input: { sessionId: SessionId }) =>
+        workbenchApi.resumeVisitTimer(input),
+    }),
+  dismissEmergency: () =>
+    mutationOptions({
+      mutationFn: (input: DismissEmergencyInput) =>
+        workbenchApi.dismissEmergency(input),
     }),
 }

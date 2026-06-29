@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react"
 import { useNavigate } from "react-router"
 import { useQuery } from "@tanstack/react-query"
-import { History, List } from "lucide-react"
+import { SearchX, Stethoscope } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { AppBottomTabs } from "@/features/shared/components/AppBottomTabs"
@@ -147,33 +147,27 @@ export default function HistoryPage() {
 
         {/* ── 空态 ── */}
         {!isLoading && filteredSessions.length === 0 ? (
-          <EmptyState
-            icon={<List className="size-10" />}
-            title={
-              activeFilter === "all"
-                ? "暂无历史记录"
-                : activeFilter === "in_progress"
-                  ? "暂无进行中的问诊"
-                  : activeFilter === "completed"
-                    ? "暂无完成的问诊"
-                    : "暂无已终止的问诊"
-            }
-            description={
-              activeFilter === "all"
-                ? "完成一次问诊后，可在这里继续就诊、发起复诊或回看记录。"
-                : undefined
-            }
-            action={
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => navigate("/")}
-              >
-                <History className="size-4" />
-                去问诊
-              </Button>
-            }
-          />
+          (data?.items.length ?? 0) === 0 ? (
+            // 首用空态：从未有任何就诊记录，引导新建问诊。
+            <EmptyState
+              icon={<Stethoscope className="size-10" />}
+              title="还没有就诊记录，开始你的第一次问诊吧"
+              description="完成一次问诊后，可在这里继续就诊、发起复诊或回看记录。"
+              action={
+                <Button size="sm" onClick={() => navigate("/workbench/new")}>
+                  <Stethoscope className="size-4" />
+                  新建问诊
+                </Button>
+              }
+            />
+          ) : (
+            // 筛选无结果：有记录但当前筛选条件无匹配，不提供新建入口。
+            <EmptyState
+              icon={<SearchX className="size-10" />}
+              title="没有找到匹配的记录"
+              description="试试切换上方的筛选条件。"
+            />
+          )
         ) : null}
       </div>
     </PageShell>

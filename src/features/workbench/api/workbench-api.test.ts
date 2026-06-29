@@ -359,4 +359,108 @@ describe("workbench API facade with mock transport", () => {
     expect(events.some((event) => event.type === "emergency")).toBe(true)
     expect(events.at(-1)?.type).toBe("done")
   })
+
+  it("dismisses an emergency and restores the session to a continuable state", async () => {
+    const created = await api.visits.createSession({
+      patientId: "patient-mock-001",
+      entryType: "new",
+      chiefComplaint: "胸痛伴呼吸困难。",
+    })
+
+    await api.workbench.exitVisit({
+      sessionId: created.session.id,
+      reason: "emergency",
+    })
+    expect((await api.workbench.getSession(created.session.id)).status).toBe(
+      "emergency_terminated",
+    )
+
+    const result = await api.workbench.dismissEmergency({
+      sessionId: created.session.id,
+    })
+
+    expect(result.timelineItem.kind).toBe("system_event")
+    if (result.timelineItem.kind !== "system_event") {
+      throw new Error("expected system event timeline item")
+    }
+    expect(result.timelineItem.eventType).toBe("emergency_dismissed")
+    expect(result.session.status).not.toBe("emergency_terminated")
+    expect(result.session.terminalReason).toBeUndefined()
+    expect(["chatting", "blocked", "analyzing"]).toContain(result.session.status)
+  })
+
+  it("settles an exit with no paid items as no_fee", async () => {
+    const { sessionId, labCard } = await createSessionAndRaiseLabCard(
+      "体温 38.5 度，咽痛明显，需要药物治疗。",
+    )
+    const labResult = await api.workbench.submitLabDecision({
+      sessionId,
+      cardId: labCard.id,
+      decision: "accepted",
+    })
+    if (!labResult.card || labResult.card.kind !== "payment") {
+      throw new Error("expected lab payment card")
+    }
+
+    const settlement = await api.workbench.exitVisit({
+      sessionId,
+      reason: "patient_request",
+    })
+
+    // 检验费尚未支付，无任何已支付项 → 无费用。
+    expect(settlement.consequence?.kind).toBe("no_fee")
+    expect(settlement.refundAmount).toBe(0)
+  })
+
+  it("settles an executed lab exit as non-refundable for the consumed amount", async () => {
+    const { sessionId, labCard } = await createSessionAndRaiseLabCard(
+      "体温 38.5 度，咽痛明显，需要药物治疗。",
+    )
+    // 检验已支付并回填（lab_execution completed）→ 已执行不可退。
+    await acceptLabAndPay(sessionId, labCard)
+
+    const settlement = await api.workbench.exitVisit({
+      sessionId,
+      reason: "patient_request",
+    })
+
+    expect(settlement.consequence?.kind).toBe("executed_no_refund")
+  })
+
+  it("extends timeoutAt when a paused timer is resumed", async () => {
+    const created = await api.visits.createSession({
+      patientId: "patient-mock-001",
+      entryType: "new",
+      chiefComplaint: "发热两天。",
+    })
+    const beforeTimeout = created.session.timeoutAt
+
+    const paused = await api.workbench.pauseVisitTimer({
+      sessionId: created.session.id,
+    })
+    expect(paused.timerPaused).toBe(true)
+    expect(paused.pausedAt).toBeTruthy()
+
+    await new Promise((resolve) => setTimeout(resolve, 20))
+
+    const resumed = await api.workbench.resumeVisitTimer({
+      sessionId: created.session.id,
+    })
+    expect(resumed.timerPaused).toBe(false)
+    expect(resumed.pausedAt).toBeUndefined()
+    if (beforeTimeout && resumed.timeoutAt) {
+      expect(new Date(resumed.timeoutAt).getTime()).toBeGreaterThanOrEqual(
+        new Date(beforeTimeout).getTime(),
+      )
+    }
+  })
+
+  it("exposes a readonly snapshot via the object-signature facade", async () => {
+    const snapshot = await api.visits.getReadonlySnapshot({
+      sessionId: "visit-mock-completed",
+    })
+    expect(snapshot.readonly).toBe(true)
+    expect(snapshot.session.id).toBe("visit-mock-completed")
+    expect(Array.isArray(snapshot.timeline)).toBe(true)
+  })
 })

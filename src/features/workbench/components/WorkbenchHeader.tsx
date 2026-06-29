@@ -15,6 +15,8 @@ interface WorkbenchHeaderProps {
   onPause?: () => void
   /** 恢复计时回调。 */
   onResume?: () => void
+  /** 患者主动上报急症回调（盾牌按钮）。 */
+  onReportEmergency?: () => void
   /** 退出问诊回调。 */
   onExit?: () => void
   className?: string
@@ -35,6 +37,7 @@ export function WorkbenchHeader({
   timerPaused = false,
   onPause,
   onResume,
+  onReportEmergency,
   onExit,
   className,
 }: WorkbenchHeaderProps) {
@@ -83,11 +86,12 @@ export function WorkbenchHeader({
           </button>
         )}
 
-        {/* 紧急盾牌：始终可见 */}
+        {/* 紧急盾牌：始终可见，点击患者主动上报不适 */}
         <button
           type="button"
           aria-label="紧急求助"
           className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          onClick={onReportEmergency}
         >
           <Shield className="h-4 w-4" />
         </button>

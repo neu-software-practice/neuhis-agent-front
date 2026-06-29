@@ -134,12 +134,24 @@ export const exitVisitInputSchema = z.object({
   reason: z.enum(["patient_request", "timeout", "emergency", "other"]),
 })
 
+export const exitConsequenceSchema = z.object({
+  kind: z.enum([
+    "no_fee",
+    "refundable",
+    "executed_no_refund",
+    "medication_dispensed",
+  ]),
+  amount: z.number().min(0).optional(),
+  text: z.string().trim().min(1),
+})
+
 export const exitSettlementResultSchema = z.object({
   sessionId: sessionIdSchema,
   terminalReason: terminalReasonSchema,
   refundAmount: z.number().min(0),
   payableAmount: z.number().min(0),
   timelineItem: timelineItemSchema,
+  consequence: exitConsequenceSchema.optional(),
 })
 
 export const pauseVisitTimerInputSchema = z.object({
@@ -149,6 +161,23 @@ export const pauseVisitTimerInputSchema = z.object({
 export const resumeVisitTimerInputSchema = z.object({
   sessionId: sessionIdSchema,
 })
+
+export const dismissEmergencyInputSchema = z.object({
+  sessionId: sessionIdSchema,
+})
+
+export const dismissEmergencyResultSchema = z.object({
+  session: visitSessionSchema,
+  timelineItem: timelineItemSchema,
+})
+
+export function parseDismissEmergencyResult(value: unknown) {
+  return dismissEmergencyResultSchema.parse(value)
+}
+
+export function safeParseDismissEmergencyResult(value: unknown) {
+  return dismissEmergencyResultSchema.safeParse(value)
+}
 
 export function parseListTimelineResult(value: unknown) {
   return listTimelineResultSchema.parse(value)

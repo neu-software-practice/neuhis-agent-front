@@ -26,6 +26,9 @@ const visitSessionBaseSchema = z.object({
   updatedAt: z.string().datetime(),
   endedAt: z.string().datetime().optional(),
   timeoutAt: z.string().datetime().optional(),
+  // 暂停账：记录当前一次暂停的起点。resume 时把暂停时长加回 timeoutAt 并清空。
+  // 与 timerPaused 并存：timerPaused 表达"是否暂停"，pausedAt 表达"从何时暂停"。
+  pausedAt: z.string().datetime().optional(),
   askRound: z.number().int().min(0),
   askRoundLimit: z.number().int().positive(),
   labRound: z.number().int().min(0),

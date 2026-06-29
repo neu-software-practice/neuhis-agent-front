@@ -44,8 +44,8 @@ export const visitsApi = {
     return createSessionResultSchema.parse(result)
   },
 
-  async getReadonlySnapshot(sessionId: SessionId) {
-    const result = await getTransport().get(`/visits/${sessionId}/snapshot`)
+  async getReadonlySnapshot(input: { sessionId: SessionId }) {
+    const result = await getTransport().get(`/visits/${input.sessionId}/snapshot`)
     return visitSnapshotSchema.parse(result)
   },
 }

@@ -1,6 +1,6 @@
 # 项目地图
 
-更新时间：2026-06-28（P4 主链路联动补完）
+更新时间：2026-06-29（P5 全局机制与异常态完成）
 
 ## 项目定位
 
@@ -20,12 +20,12 @@ NEUHIS Agent 前端是一个 React + HeroUI 3 + Magic UI 的 AI 诊疗 Agent 聊
       router.tsx             # createBrowserRouter 路由表
       error-boundary.tsx     # 路由级错误边界，患者可理解兜底页
     pages/
-      home/HomePage.tsx      # 首页：TanStack Query 活跃会话 + 症状快速填充 + 创建新会话
-      home/HistoryPage.tsx   # 历史就诊：筛选 tab + TanStack Query 列表 + SessionCard
+      home/HomePage.tsx      # 首页：TanStack Query 活跃会话 + 症状快速填充 + 创建新会话 + 首用引导空态
+      home/HistoryPage.tsx   # 历史就诊：筛选 tab + TanStack Query 列表 + SessionCard + 首用/筛选无结果两类空态
       home/ProfilePage.tsx   # 个人中心：TanStack Query 患者上下文 + PatientSummaryCard
       workbench/NewWorkbenchPage.tsx    # 新建问诊占位（解析 draft/followUpFrom）
-      workbench/WorkbenchPage.tsx       # 进行中工作台占位（解析 sessionId）
-      workbench/ReadonlyVisitPage.tsx   # 只读回看占位
+      workbench/WorkbenchPage.tsx       # 进行中工作台：装配 overlays slot（急症/超时/退出）+ 倒计时 + 退出结算
+      workbench/ReadonlyVisitPage.tsx   # 只读回看页：只读快照时间线，四态，无输入框，不触发主循环
       workbench/workbench-loaders.ts    # 路由 loader，仅参数解析与轻量校验
     features/shared/components/
       PageShell.tsx          # 通用页面壳：移动端单列 + 安全区 + header/footer slot
@@ -38,6 +38,7 @@ NEUHIS Agent 前端是一个 React + HeroUI 3 + Magic UI 的 AI 诊疗 Agent 聊
     lib/query-client.ts      # 全局 QueryClient 单例
     lib/ids.ts               # 纯前端本地 ID 生成
     lib/time.ts              # 时间格式化工具
+    lib/ui-message.ts        # ApiError → 患者可懂 UiMessage 的归一化映射
     lib/api/
       config.ts              # API_MODE / BASE_URL / mock 延迟配置
       types.ts               # ApiError、ID、分页、状态枚举等通用契约
@@ -53,8 +54,9 @@ NEUHIS Agent 前端是一个 React + HeroUI 3 + Magic UI 的 AI 诊疗 Agent 聊
       visits/components/     # VisitStatusBadge（就诊状态标签）、SessionCard（就诊会话卡片）
       workbench/api/         # 时间线/流程卡/SSE schema、types、facade、query/mutation options
       workbench/machine/     # XState visitMachine、事件/上下文类型、guards、actions、状态机测试
-      workbench/store/       # Zustand stores：composer-store（输入草稿）、workbench-ui-store（UI 状态）
-      workbench/components/  # 工作台 UI 组件：ChatTimeline、MessageBubble、TimelineRow、SystemEventRow、TerminalEventRow、AssistantThinkingRow、InputDock、InputAssistPanel、LockBar、LockQuestionSheet
+      workbench/store/       # Zustand stores：composer-store（输入草稿）、workbench-ui-store（UI 状态 + timeoutOverlayOpen/exitSheetOpen flag）
+      workbench/hooks/       # useWorkbenchSession（含 dismiss/confirm 急症、triggerTimeout、confirmExit 先进结算）、useTimeline、useAssistantStream、useFlowCardAction、useVisitCountdown（剩余时间纯计算 normal/warn5/warn2/expired）、useExitSettlement（客户端派生退出后果四档文案）
+      workbench/components/  # 工作台 UI 组件：ChatTimeline、MessageBubble、TimelineRow、SystemEventRow、TerminalEventRow、AssistantThinkingRow、InputDock、InputAssistPanel、LockBar、LockQuestionSheet、EmergencyOverlay、TimeoutOverlay、ExitVisitSheet
     mocks/api/
       fixtures/              # patient / visits / timeline / flow-cards fixture 工厂
       handlers/              # patient / visit / chat mock handler
@@ -231,11 +233,45 @@ NEUHIS Agent 前端是一个 React + HeroUI 3 + Magic UI 的 AI 诊疗 Agent 聊
 - 在 `src/pages/workbench/WorkbenchPage.tsx` 的 overlays slot 中接入 `LockQuestionSheet`，使 LockBar 的 "疑问" 逃生按钮完整闭环：打开 Sheet → 输入疑问 → 提交（经 `sendMessage` 发送，阻塞态下机器不推进主流程）→ 关闭 Sheet。
 - 本次验证：`pnpm lint`、`pnpm tsc --noEmit`、`pnpm test`（4 files / 19 tests）、`pnpm build` 均通过。
 
+### P5 全局机制与异常态
+
+P5 按「文件所有权分波次」并行实现，已全部合入。整体验证：`pnpm lint`、`pnpm build`（tsc -b + vite）、`pnpm test`（6 files / 45 tests）全部通过。
+
+全局打断优先级最终确认为 **急症 > 退出 > 超时 > 阻塞卡 > 普通消息**（与 detailed-design.md §7.3 一致；development-plan.md 旧表述「急症 > 超时 > 退出」有误，已以本实现为准）。
+
+#### P5.1 急症守护与误报恢复
+
+- 新增 `src/features/workbench/components/EmergencyOverlay.tsx`：HeroUI Modal，最高优先级居中阻断；open 派生自机器 `emergencyPending` 态。提供「我已知晓，前往急诊」（`EMERGENCY_CONFIRMED` → terminated）与「情况已缓解/描述的是过去」（`EMERGENCY_DISMISSED` → 恢复前态）。
+- `WorkbenchHeader.tsx` 盾牌按钮接 `onReportEmergency`，锁定态 / 普通态患者可主动上报。
+- 数据/mock：`workbenchApi.dismissEmergency` + `handleDismissEmergency` + mock-db `dismissEmergency`：误报恢复前态并写入 `emergency_dismissed` 系统事件，不产生终止卡，保留草稿 / 滚动位置 / 未处理卡。
+- **安全修正（本次重点）**：状态机 `exitSettlement` 退出结算态此前错误地用空过渡 shadow 掉 `EMERGENCY_DETECTED`（理由曾是「结算期间不被急症打断」），违反「急症绝对最高优先级」的安全保证。已修正——急症事件在 `exitSettlement` 也能冒泡进 `emergencyPending`；误报 dismiss 时经新增的 `previousExitSettlement` 守卫分支恢复回 `exitSettlement`（而非掉到 `chatting`），结算上下文不丢失。新增 `markEmergencyRecheck` action，`EMERGENCY_RECHECK_REQUESTED` 在 `emergencyPending` 内作自过渡保留。
+
+#### P5.2 超时倒计时与暂离
+
+- 新增 `src/features/workbench/hooks/useVisitCountdown.ts`：纯计算剩余时间，`phase: normal / warn5 / warn2 / expired`；暂停不递减、恢复重读 session、到期 `onExpire` 只触发一次。
+- 新增 `src/features/workbench/components/TimeoutOverlay.tsx`：HeroUI Modal 居中（PC max-w 480），open 来自 `workbench-ui-store` 的 `timeoutOverlayOpen` flag。
+- `WorkbenchHeader.tsx` 倒计时文案改由 `useVisitCountdown.warningText` 驱动：默认不显示秒数；≤5min「问诊时间即将结束」低对比小字，≤2min「即将超时，请尽快完成」。会话级单一计时，不按步骤重置，completed / 终止态停止。
+- 暂离：mock-db `pause/resume` 真正延后 `timeoutAt`（`VisitSession` 增 `pausedAt?`，resume 把暂停时长加回）；手动恢复，暂停期间急症守护仍生效。
+
+#### P5.3 主动退出与结算后果
+
+- 新增 `src/features/workbench/components/ExitVisitSheet.tsx`：HeroUI Drawer（placement=bottom），open 来自 `workbench-ui-store` 的 `exitSheetOpen` flag；`WorkbenchHeader.tsx` 退出按钮改为打开该 Sheet。
+- 新增 `src/features/workbench/hooks/useExitSettlement.ts`：从 timeline 客户端派生退出后果四档文案（每档恰一行）：无费用「本次问诊将直接结束，不产生费用。」/ 可退「已支付的 ¥x 将原路退回，通常 1-3 个工作日到账。」/ 已执行「已完成的检验/治疗费用不可退，结果会留档供下次使用。」/ 已取药「已取药品按退药政策处理，详见结算明细。」。由「已发生的不可逆动作」决定，承诺度最高者优先。
+- 数据/mock：`ExitSettlementResult` 增 `consequence?: { kind: "no_fee" | "refundable" | "executed_no_refund" | "medication_dispensed"; amount?; text }`；mock-db `computeSettlement` 按 timeline 真实推算结算后果。
+- `useWorkbenchSession.confirmExit` 调整为先进 `exitSettlement` 再提交。
+
+#### P5.4 异常态与只读回看
+
+- 重写 `src/pages/workbench/ReadonlyVisitPage.tsx`：只读快照页，四态，无可发送输入框，不触发 Agent 主循环；`ChatTimeline` / `TimelineRow` 新增 `readonly` 直通 → 各卡 `disabled`（readonly 作为独立 prop，不与 disabled/pending 混用）。
+- `visits/api` `getReadonlySnapshot` 改对象签名 + 新增 snapshot query。
+- 空态：`HomePage` 首用引导空态；`HistoryPage` 区分首用空态「还没有就诊记录，开始你的第一次问诊吧」（带新建问诊入口）vs 筛选无结果「没有找到匹配的记录」（无新建入口）。
+- 新增 `src/lib/ui-message.ts`：`ApiError` → 患者可懂 `UiMessage` 的归一化映射。
+
 ## 当前未完成
 
-- mock 主链路已覆盖用药、仅医嘱、自动化治疗三条 P4 路径；支付失败重试 UI、locked-question SSE 流、急症 Overlay、超时 Overlay、退出 Sheet 留给 P5。
-- 完成后复诊/咨询已接入工作台主输入，并有 API/mock 层与关键 hook 回归测试覆盖；尚缺浏览器端 UI 流程测试覆盖。
 - 尚未产出结项 `special-designs/rest-api.md`；等 schema、MSW/契约测试和 UI 主流程稳定后整理。
+- 缺浏览器端完整 UI 流程测试（jsdom 层 hook / 机器单测已有，端到端走查未补）。
+- 支付失败重试 UI 仍未单独实现（mock 已支持 `PAYMENT_FAILED` 链路，UI 上的重试 / 换支付方式交互待补）。
 
 ## P4 实现完成度审查（2026-06-28）
 
@@ -313,11 +349,11 @@ NEUHIS Agent 前端是一个 React + HeroUI 3 + Magic UI 的 AI 诊疗 Agent 聊
 | `useFlowCardAction.test.ts` | 3 | 检验支付成功事件映射、药品支付成功事件映射、支付失败不推进 |
 | `useAssistantStream.test.tsx` | 1 | 急症流中断时 streaming 占位消息 invalidated |
 
-### 审查发现的次要问题
+### 审查发现的次要问题（均已在后续轮次修复）
 
-1. **`card-normalizers.ts` 存在死代码**：`mapActionToSuccessEvent`（75-109 行）与 `toPaymentInput`（33-40 行）未被任何模块导入。`useFlowCardAction.ts` 有自身的局部版本且正确返回 null 给支付类 action。card-normalizers 版本对 `submit_payment` 错误硬编码 `LAB_PAYMENT_SUCCEEDED`，但因为是死代码，不影响运行时行为。建议在后续清理轮次移除。
+1. ~~**`card-normalizers.ts` 存在死代码**~~ — 已修复。`card-normalizers.ts` 中的 `mapActionToSuccessEvent` 与 `toPaymentInput` 已移除（见上「P4 审查修复：死代码清理与 LockQuestionSheet 接入」）。注意：`useFlowCardAction.ts` 内仍保留同名局部 `mapActionToSuccessEvent`，但它是活代码——由 `collectFlowActionSuccessEvents` 的 default 分支调用，对支付类 action 正确返回 null（支付事件由 `collectFlowActionSuccessEvents` 按 `purpose` 单独分发），不存在硬编码 `LAB_PAYMENT_SUCCEEDED` 问题。
 
-2. **`LockBar.onAskQuestion` 设置了 store 状态但 WorkbenchPage 未渲染 `LockQuestionSheet`**：该 Sheet 组件已存在于 `P3.3`，但 WorkbenchPage 的 overlays slot 仅渲染了 `ContextSummaryDrawer`。不影响 P4 阻塞卡主链路（LockBar 的两个逃生按钮均可点击触发状态变更），完整 Sheet 交互留给 P5。
+2. ~~**`LockBar.onAskQuestion` 设置了 store 状态但 WorkbenchPage 未渲染 `LockQuestionSheet`**~~ — 已修复。WorkbenchPage 的 overlays slot 现已渲染 `LockQuestionSheet`（`WorkbenchPage.tsx:195-202`），LockBar「疑问」逃生按钮闭环完整。
 
 ### 明确不在 P4 范围（留给 P5）
 
@@ -325,7 +361,6 @@ NEUHIS Agent 前端是一个 React + HeroUI 3 + Magic UI 的 AI 诊疗 Agent 聊
 - `TimeoutOverlay` 超时打断 UI
 - `ExitVisitSheet` 退出结算 Sheet
 - `useVisitCountdown` 实时倒计时 hook（顶栏仅展示静态超时文案）
-- `LockQuestionSheet` 在 WorkbenchPage 的渲染接入
 - `ReadonlyVisitPage` 只读回看完整实现
 - 支付失败重试 UI
 - 浏览器端完整 UI 流程测试（jsdom 层 hook 单测已有）

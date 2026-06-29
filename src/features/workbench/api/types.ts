@@ -6,6 +6,8 @@ import type {
   classifyIntentInputSchema,
   classifyIntentResultSchema,
   consultationInputSchema,
+  dismissEmergencyInputSchema,
+  dismissEmergencyResultSchema,
   emergencyRecheckResultSchema,
   exitSettlementResultSchema,
   exitVisitInputSchema,
@@ -55,6 +57,8 @@ export type ExitVisitInput = z.infer<typeof exitVisitInputSchema>
 export type ExitSettlementResult = z.infer<typeof exitSettlementResultSchema>
 export type PauseVisitTimerInput = z.infer<typeof pauseVisitTimerInputSchema>
 export type ResumeVisitTimerInput = z.infer<typeof resumeVisitTimerInputSchema>
+export type DismissEmergencyInput = z.infer<typeof dismissEmergencyInputSchema>
+export type DismissEmergencyResult = z.infer<typeof dismissEmergencyResultSchema>
 
 /**
  * FlowCard 用户操作。

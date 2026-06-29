@@ -149,6 +149,166 @@ describe("visitMachine", () => {
     expect(secondActor.getSnapshot().context.terminalReason).toBe("emergency")
   })
 
+  it("stops the timer in completed: shadows timeout and exit but still allows emergency", () => {
+    const timeoutActor = startVisitActor()
+    timeoutActor.send({
+      type: "HYDRATE",
+      state: "completed",
+      session: createSession({ status: "completed" }),
+    })
+    expect(timeoutActor.getSnapshot().value).toBe("completed")
+
+    timeoutActor.send({ type: "VISIT_TIMEOUT" })
+    expect(timeoutActor.getSnapshot().value).toBe("completed")
+    expect(timeoutActor.getSnapshot().context.terminalReason).toBeUndefined()
+
+    timeoutActor.send({ type: "EXIT_REQUESTED" })
+    expect(timeoutActor.getSnapshot().value).toBe("completed")
+
+    timeoutActor.send({ type: "EMERGENCY_DETECTED", source: "vitals" })
+    expect(timeoutActor.getSnapshot().value).toBe("emergencyPending")
+    expect(timeoutActor.getSnapshot().context.previousStateBeforeOverlay).toBe("completed")
+  })
+
+  it("records an emergency recheck request without leaving emergencyPending", () => {
+    const actor = startVisitActor()
+    actor.send({
+      type: "HYDRATE",
+      state: "chatting",
+      session: createSession(),
+    })
+    actor.send({ type: "EMERGENCY_DETECTED", source: "stream" })
+    expect(actor.getSnapshot().value).toBe("emergencyPending")
+
+    actor.send({ type: "EMERGENCY_RECHECK_REQUESTED", cardId: "card-recheck-001" })
+    expect(actor.getSnapshot().value).toBe("emergencyPending")
+    expect(actor.getSnapshot().context.currentCardId).toBe("card-recheck-001")
+    expect(actor.getSnapshot().context.previousStateBeforeOverlay).toBe("chatting")
+
+    actor.send({ type: "EMERGENCY_DISMISSED" })
+    expect(actor.getSnapshot().value).toBe("chatting")
+  })
+
+  it("shadows VISIT_TIMEOUT once in exitSettlement (exit outranks timeout)", () => {
+    const actor = startVisitActor()
+    actor.send({
+      type: "HYDRATE",
+      state: "chatting",
+      session: createSession(),
+    })
+    actor.send({ type: "EXIT_REQUESTED" })
+    expect(actor.getSnapshot().value).toBe("exitSettlement")
+
+    actor.send({ type: "VISIT_TIMEOUT" })
+    expect(actor.getSnapshot().value).toBe("exitSettlement")
+    expect(actor.getSnapshot().context.terminalReason).toBeUndefined()
+
+    actor.send({ type: "EXIT_CONFIRMED" })
+    expect(actor.getSnapshot().value).toBe("exited")
+  })
+
+  it("lets emergency interrupt exitSettlement (emergency > exit), but shadows transfer and repeat exit", () => {
+    // 安全保证：急症是绝对最高优先级，必须能打断退出结算（患者在退费界面突发不适）。
+    // exitSettlement 仅 shadow VISIT_TIMEOUT / TRANSFER_REQUIRED / 重复 EXIT_REQUESTED，
+    // 但【不】shadow EMERGENCY_DETECTED——它冒泡进 emergencyPending 并快照前态。
+    const actor = startVisitActor()
+    actor.send({
+      type: "HYDRATE",
+      state: "chatting",
+      session: createSession(),
+    })
+    actor.send({ type: "EXIT_REQUESTED" })
+    expect(actor.getSnapshot().value).toBe("exitSettlement")
+
+    // 转诊 / 重复退出仍被 shadow，结算态保持确定性。
+    actor.send({ type: "TRANSFER_REQUIRED", reason: "referral" })
+    expect(actor.getSnapshot().value).toBe("exitSettlement")
+    actor.send({ type: "EXIT_REQUESTED" })
+    expect(actor.getSnapshot().value).toBe("exitSettlement")
+
+    // 急症打断退出结算，进入 emergencyPending 并记住前态。
+    actor.send({ type: "EMERGENCY_DETECTED", source: "vitals" })
+    expect(actor.getSnapshot().value).toBe("emergencyPending")
+    expect(actor.getSnapshot().context.previousStateBeforeOverlay).toBe(
+      "exitSettlement",
+    )
+  })
+
+  it("restores to exitSettlement after a false-alarm emergency dismiss from the settlement screen", () => {
+    const actor = startVisitActor()
+    actor.send({
+      type: "HYDRATE",
+      state: "chatting",
+      session: createSession(),
+    })
+    actor.send({ type: "EXIT_REQUESTED" })
+    expect(actor.getSnapshot().value).toBe("exitSettlement")
+
+    actor.send({ type: "EMERGENCY_DETECTED", source: "vitals" })
+    expect(actor.getSnapshot().value).toBe("emergencyPending")
+
+    // 误报恢复：回到退出结算态，而不是兜底的 chatting。
+    actor.send({ type: "EMERGENCY_DISMISSED" })
+    expect(actor.getSnapshot().value).toBe("exitSettlement")
+    expect(actor.getSnapshot().context.previousStateBeforeOverlay).toBeUndefined()
+
+    // 恢复后仍可正常收口结算。
+    actor.send({ type: "EXIT_SETTLED" })
+    expect(actor.getSnapshot().value).toBe("exited")
+  })
+
+  it("confirms emergency from exitSettlement terminates with reason emergency", () => {
+    const actor = startVisitActor()
+    actor.send({
+      type: "HYDRATE",
+      state: "chatting",
+      session: createSession(),
+    })
+    actor.send({ type: "EXIT_REQUESTED" })
+    actor.send({ type: "EMERGENCY_DETECTED", source: "vitals" })
+    actor.send({ type: "EMERGENCY_CONFIRMED" })
+    expect(actor.getSnapshot().value).toBe("terminated")
+    expect(actor.getSnapshot().context.terminalReason).toBe("emergency")
+  })
+
+  it("restores labDecision after an emergency false-alarm dismiss", () => {
+    const actor = startVisitActor()
+    actor.send({
+      type: "HYDRATE",
+      state: "labDecision",
+      session: createSession({
+        status: "blocked",
+        activeCardId: "card-lab-001",
+      }),
+    })
+    actor.send({ type: "EMERGENCY_DETECTED", source: "stream" })
+    expect(actor.getSnapshot().value).toBe("emergencyPending")
+    expect(actor.getSnapshot().context.previousStateBeforeOverlay).toBe("labDecision")
+
+    actor.send({ type: "EMERGENCY_DISMISSED" })
+    expect(actor.getSnapshot().value).toBe("labDecision")
+    expect(actor.getSnapshot().context.previousStateBeforeOverlay).toBeUndefined()
+  })
+
+  it("ignores external interrupts after terminating on emergency confirm", () => {
+    const actor = startVisitActor()
+    actor.send({
+      type: "HYDRATE",
+      state: "chatting",
+      session: createSession(),
+    })
+    actor.send({ type: "EMERGENCY_DETECTED", source: "vitals" })
+    actor.send({ type: "EMERGENCY_CONFIRMED" })
+    expect(actor.getSnapshot().value).toBe("terminated")
+    expect(actor.getSnapshot().context.terminalReason).toBe("emergency")
+
+    actor.send({ type: "VISIT_TIMEOUT" })
+    actor.send({ type: "EXIT_REQUESTED" })
+    actor.send({ type: "EMERGENCY_DETECTED", source: "vitals" })
+    expect(actor.getSnapshot().value).toBe("terminated")
+    expect(actor.getSnapshot().context.terminalReason).toBe("emergency")
+  })
+
   it("routes treatment decisions to medication, advice, treatment, or referral states", () => {
     const medicationActor = startVisitActor()
     medicationActor.send({

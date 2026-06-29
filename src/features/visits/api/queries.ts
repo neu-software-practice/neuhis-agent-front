@@ -32,7 +32,7 @@ export const visitsQueries = {
   snapshot: (sessionId: SessionId) =>
     queryOptions({
       queryKey: visitsQueryKeys.snapshot(sessionId),
-      queryFn: () => visitsApi.getReadonlySnapshot(sessionId),
+      queryFn: () => visitsApi.getReadonlySnapshot({ sessionId }),
     }),
 }
 

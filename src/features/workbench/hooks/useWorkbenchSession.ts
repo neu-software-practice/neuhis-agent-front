@@ -41,6 +41,12 @@ export interface UseWorkbenchSessionActions {
   pauseVisit: () => Promise<void>
   resumeVisit: () => Promise<void>
   reportVitals: (input: ReportVitalsInput) => Promise<void>
+  /** 急症误报恢复：还原会话 + 追加系统事件 + EMERGENCY_DISMISSED。 */
+  dismissEmergency: () => Promise<void>
+  /** 确认急症（前往急诊）：EMERGENCY_CONFIRMED → terminated。 */
+  confirmEmergency: () => void
+  /** 到期触发超时终止：abort 流 + VISIT_TIMEOUT → terminated(timeout)。 */
+  triggerTimeout: () => void
 }
 
 export interface UseWorkbenchSessionResult {
@@ -621,11 +627,13 @@ export function useWorkbenchSession(
     actorRef.send({ type: "EXIT_REQUESTED" })
   }, [abortStream, actorRef])
 
-  /** 确认退出 */
+  /** 确认退出：进入退出结算 → 提交 exitVisit → 终止。 */
   const confirmExit = useCallback(async () => {
+    abortStream("exit")
+    actorRef.send({ type: "EXIT_REQUESTED" })
     await workbenchApi.exitVisit({ sessionId, reason: "patient_request" })
     actorRef.send({ type: "EXIT_CONFIRMED" })
-  }, [sessionId, actorRef])
+  }, [abortStream, sessionId, actorRef])
 
   /** 暂停计时 */
   const pauseVisit = useCallback(async () => {
@@ -654,6 +662,28 @@ export function useWorkbenchSession(
     [abortStream, actorRef],
   )
 
+  /** 急症误报恢复：还原会话 cache + 追加系统事件 + EMERGENCY_DISMISSED。 */
+  const dismissEmergency = useCallback(async () => {
+    const result = await workbenchApi.dismissEmergency({ sessionId })
+    queryClient.setQueryData(
+      visitsQueryKeys.session(sessionId),
+      result.session,
+    )
+    appendTimelineItem(result.timelineItem)
+    actorRef.send({ type: "EMERGENCY_DISMISSED" })
+  }, [sessionId, queryClient, appendTimelineItem, actorRef])
+
+  /** 确认急症（前往急诊）：EMERGENCY_CONFIRMED → terminated。 */
+  const confirmEmergency = useCallback(() => {
+    actorRef.send({ type: "EMERGENCY_CONFIRMED" })
+  }, [actorRef])
+
+  /** 到期触发超时终止：abort 流 + VISIT_TIMEOUT → terminated(timeout)。 */
+  const triggerTimeout = useCallback(() => {
+    abortStream("timeout")
+    actorRef.send({ type: "VISIT_TIMEOUT" })
+  }, [abortStream, actorRef])
+
   // ---- Compose result ----
 
   const loading = sessionQuery.isLoading || timelineLoading
@@ -667,6 +697,9 @@ export function useWorkbenchSession(
     pauseVisit,
     resumeVisit,
     reportVitals,
+    dismissEmergency,
+    confirmEmergency,
+    triggerTimeout,
   }
 
   return {

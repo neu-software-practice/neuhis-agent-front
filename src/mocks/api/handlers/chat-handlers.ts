@@ -2,6 +2,7 @@ import type { RequestOptions } from "@/lib/api/transport"
 import {
   ackAdviceInputSchema,
   classifyIntentInputSchema,
+  dismissEmergencyInputSchema,
   exitVisitInputSchema,
   listTimelineInputSchema,
   pauseVisitTimerInputSchema,
@@ -74,4 +75,8 @@ export function handlePauseTimer(body: unknown) {
 export function handleResumeTimer(body: unknown) {
   const input = resumeVisitTimerInputSchema.parse(body)
   return mockDb.resumeVisitTimer(input.sessionId)
+}
+
+export function handleDismissEmergency(body: unknown) {
+  return mockDb.dismissEmergency(dismissEmergencyInputSchema.parse(body))
 }

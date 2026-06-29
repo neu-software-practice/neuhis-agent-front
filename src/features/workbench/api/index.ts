@@ -8,6 +8,8 @@ import {
   classifyIntentInputSchema,
   classifyIntentResultSchema,
   consultationInputSchema,
+  dismissEmergencyInputSchema,
+  dismissEmergencyResultSchema,
   emergencyRecheckResultSchema,
   exitSettlementResultSchema,
   exitVisitInputSchema,
@@ -32,6 +34,7 @@ import type {
   AssistantStreamEvent,
   ClassifyIntentInput,
   ConsultationInput,
+  DismissEmergencyInput,
   ExitVisitInput,
   ListTimelineInput,
   ReportVitalsInput,
@@ -195,6 +198,15 @@ export const workbenchApi = {
       action: "resume",
     })
     return visitSessionSchema.parse(result)
+  },
+
+  async dismissEmergency(input: DismissEmergencyInput) {
+    const body = dismissEmergencyInputSchema.parse(input)
+    const result = await getTransport().post(
+      `/visits/${body.sessionId}/dismiss-emergency`,
+      body,
+    )
+    return dismissEmergencyResultSchema.parse(result)
   },
 }
 

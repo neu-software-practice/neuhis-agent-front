@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react"
 import { useNavigate } from "react-router"
 import { useQuery, useMutation } from "@tanstack/react-query"
-import { Stethoscope } from "lucide-react"
+import { HeartPulse, Stethoscope } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { AppBottomTabs } from "@/features/shared/components/AppBottomTabs"
@@ -150,11 +150,20 @@ export default function HomePage() {
           </Button>
         </section>
 
-        {/* ── 无活跃会话时 ── */}
+        {/* ── 首用 / 无活跃会话引导 ── */}
         {!sessionsLoading && !activeSession && sessionsData ? (
           <EmptyState
-            title="暂无进行中的问诊"
-            description={'描述症状后点击「开始问诊」，AI 将引导您完成就诊流程。'}
+            icon={<HeartPulse className="size-10" />}
+            title={
+              sessionsData.items.length === 0
+                ? "欢迎使用东软云脑智能医疗"
+                : "暂无进行中的问诊"
+            }
+            description={
+              sessionsData.items.length === 0
+                ? "在上方描述症状并点击「开始问诊」，AI 医生会一步步引导你完成就诊。"
+                : "描述症状后点击「开始问诊」，AI 将引导你完成就诊流程。"
+            }
           />
         ) : null}
       </div>

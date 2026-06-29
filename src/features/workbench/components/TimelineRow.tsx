@@ -15,6 +15,8 @@ import { FlowCardRenderer } from "@/features/workbench/flow-cards/FlowCardRender
 interface TimelineRowProps {
   item: TimelineItem
   onAction?: (action: FlowCardAction) => void
+  /** 只读回看：透传为流程卡的 disabled，使按钮呈禁用态。 */
+  readonly?: boolean
 }
 
 /**
@@ -26,12 +28,19 @@ interface TimelineRowProps {
 export const TimelineRow = memo(function TimelineRow({
   item,
   onAction,
+  readonly,
 }: TimelineRowProps) {
   switch (item.kind) {
     case "message":
       return <MessageBubble item={item} />
     case "flow_card":
-      return <FlowCardRenderer card={item.card} onAction={onAction} />
+      return (
+        <FlowCardRenderer
+          card={item.card}
+          onAction={onAction}
+          disabled={readonly}
+        />
+      )
     case "system_event":
       return <SystemEventRow item={item} />
     case "terminal":

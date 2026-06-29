@@ -151,7 +151,7 @@ subagent 分组和文件所有权：
 6. `workbench-machine` 合入 `P2.5` 状态机骨架；状态机事件名、阻塞态和终止态稳定后，`ui-pages` 与 `flow-cards` 开始 `P3`。
 7. `ui-pages` 合入 `P3.1`、`P3.2`、`P3.3`；`flow-cards` 合入 `P3.4`。若两者都需要改时间线总装点，由 `ui-pages` 先放置卡片插槽，`flow-cards` 后接入 renderer。
 8. `workbench-machine` 或主 agent 合入 `P4.1` 工作台总 hook；之后 `P4.2` 流式、`P4.3` 检验支付、`P4.4` 处置完成复诊按 hook/action/mock/card 的边界分批合并。
-9. `P5.1` 急症、`P5.2` 超时、`P5.3` 退出、`P5.4` 异常和只读回看可以并行开发，但最终由 `workbench-machine` 统一确认全局事件优先级：急症 > 超时 > 退出 > 阻塞卡 > 普通消息。
+9. `P5.1` 急症、`P5.2` 超时、`P5.3` 退出、`P5.4` 异常和只读回看可以并行开发，但最终由 `workbench-machine` 统一确认全局事件优先级：急症 > 退出 > 超时 > 阻塞卡 > 普通消息（与 `detailed-design.md` L805–811 及 `visit-machine.ts` 实现一致；2026-06-29 P5 修正，原表述「急症 > 超时 > 退出」有误）。
 10. `quality` 从 `P2` 开始旁路补测试；每个业务批次合入后至少运行与范围匹配的 `pnpm lint`、`pnpm test`、`pnpm build`，失败原因必须写入本计划或 `agent-workspace/map.md` 的未完成事项。
 
 任务领取模板：

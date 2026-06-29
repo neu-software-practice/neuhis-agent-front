@@ -12,6 +12,8 @@ interface ChatTimelineProps {
   loading?: boolean
   hasMore?: boolean
   onLoadMore?: () => void
+  /** 只读回看：向下透传到流程卡，使 pending 卡按钮呈禁用态。 */
+  readonly?: boolean
   className?: string
 }
 
@@ -29,6 +31,7 @@ export function ChatTimeline({
   loading = false,
   hasMore = false,
   onLoadMore,
+  readonly = false,
   className,
 }: ChatTimelineProps) {
   const [atBottom, setAtBottom] = useState(true)
@@ -74,7 +77,7 @@ export function ChatTimeline({
         data={items}
         itemContent={(_index, item) => (
           <div className="px-4 py-1.5">
-            <TimelineRow item={item} onAction={onAction} />
+            <TimelineRow item={item} onAction={onAction} readonly={readonly} />
           </div>
         )}
         startReached={handleStartReached}

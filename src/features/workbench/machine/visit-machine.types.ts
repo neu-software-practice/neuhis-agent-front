@@ -61,6 +61,8 @@ export type VisitMachineEvent =
   | { type: "ADVICE_ACKNOWLEDGED"; cardId: FlowCardId }
   | { type: "VISIT_COMPLETED" }
   | { type: "FOLLOW_UP_MESSAGE_SENT"; content: string }
+  // 决策 a：保留该事件。在 `emergencyPending` 内接线为自过渡（markEmergencyRecheck），
+  // 仅记录「请求对急症二次复检」，真正结果由 EMERGENCY_DISMISSED / EMERGENCY_CONFIRMED 收口。
   | { type: "EMERGENCY_RECHECK_REQUESTED"; cardId?: FlowCardId }
   | { type: "EMERGENCY_DETECTED"; source: string }
   | { type: "EMERGENCY_CONFIRMED" }

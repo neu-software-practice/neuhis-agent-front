@@ -1,5 +1,10 @@
 import { createApiError, throwApiError } from "@/lib/api/errors"
-import type { PatientId, SessionId, TerminalReason } from "@/lib/api/types"
+import type {
+  PatientId,
+  SessionId,
+  TerminalReason,
+  VisitStatus,
+} from "@/lib/api/types"
 import type { PatientContext, PatientProfile } from "@/features/patient/api/types"
 import {
   parsePatientContext,
@@ -65,11 +70,19 @@ import {
   mockCompletedSession,
 } from "@/mocks/api/fixtures/visits"
 
+interface EmergencyRestorePoint {
+  status: VisitStatus
+  activeCardId?: string
+}
+
 interface MockDbState {
   patients: Record<PatientId, PatientProfile>
   contexts: Record<PatientId, PatientContext>
   sessions: Record<SessionId, VisitSession>
   timelines: Record<SessionId, TimelineItem[]>
+  // 急症误报恢复点：进入 emergency_terminated 前的可恢复状态。
+  // dismissEmergency 据此把会话还原到急症发生前。
+  emergencyRestore: Record<SessionId, EmergencyRestorePoint>
   nextId: number
 }
 
@@ -99,6 +112,7 @@ function createInitialState(): MockDbState {
       [mockActiveSession.id]: clone(mockActiveTimeline),
       [mockCompletedSession.id]: clone(mockCompletedTimeline),
     },
+    emergencyRestore: {},
     nextId: 1,
   }
 }
@@ -646,7 +660,16 @@ class MockDb {
         : input.reason === "timeout"
           ? "timeout"
           : "exited"
+    const settlement = this.computeSettlement(input.sessionId)
     const terminal = this.terminalItem(input.sessionId, reason, "本次问诊已结束")
+    if (input.reason === "emergency") {
+      // 记录急症发生前的可恢复状态，供误报恢复 dismissEmergency 还原。
+      const current = this.requireSession(input.sessionId)
+      this.state.emergencyRestore[input.sessionId] = {
+        status: current.status,
+        activeCardId: current.activeCardId,
+      }
+    }
     this.pushTimeline(input.sessionId, terminal)
     this.updateSession(input.sessionId, {
       status: input.reason === "emergency" ? "emergency_terminated" : "exited",
@@ -658,18 +681,201 @@ class MockDb {
     return parseExitSettlementResult({
       sessionId: input.sessionId,
       terminalReason: reason,
-      refundAmount: 0,
-      payableAmount: 0,
+      refundAmount: settlement.refundAmount,
+      payableAmount: settlement.payableAmount,
       timelineItem: terminal,
+      consequence: settlement.consequence,
     })
   }
 
+  /**
+   * 真实退出结算：扫描时间线已支付/已执行/已取药卡片，计算退款与后果摘要。
+   *
+   * 四档后果（取承诺度最高者）：
+   * - medication_dispensed：药品已取（取药卡 completed）→ 不可退。
+   * - executed_no_refund：检验/治疗已执行（执行卡 completed）→ 不可退。
+   * - refundable：已支付但未消费 → 可退该自费金额。
+   * - no_fee：无任何已支付项 → 无费用。
+   *
+   * payableAmount 在 mock 中恒为 0（退出时不追加欠费）。金额以支付卡 selfPayAmount 计。
+   */
+  private computeSettlement(sessionId: SessionId): {
+    refundAmount: number
+    payableAmount: number
+    consequence: {
+      kind: "no_fee" | "refundable" | "executed_no_refund" | "medication_dispensed"
+      amount?: number
+      text: string
+    }
+  } {
+    const items = this.state.timelines[sessionId] ?? []
+    const cards = items
+      .filter(
+        (item): item is Extract<TimelineItem, { kind: "flow_card" }> =>
+          item.kind === "flow_card",
+      )
+      .map((item) => item.card)
+
+    let labConsumed = false
+    let treatmentExecuted = false
+    let medicationDispensed = false
+    let refundAmount = 0
+    let consumedAmount = 0
+
+    for (const card of cards) {
+      if (card.kind === "lab_execution" && card.executionStatus === "completed") {
+        labConsumed = true
+      }
+      if (
+        card.kind === "treatment_execution" &&
+        card.executionStatus === "completed"
+      ) {
+        treatmentExecuted = true
+      }
+      if (
+        card.kind === "medication_fulfillment" &&
+        card.fulfillmentStatus === "completed"
+      ) {
+        medicationDispensed = true
+      }
+    }
+
+    for (const card of cards) {
+      if (card.kind !== "payment") continue
+      const paid = card.paymentStatus === "paid" || card.status === "paid"
+      if (!paid) continue
+      const amount = card.selfPayAmount
+      const consumed =
+        card.purpose === "lab"
+          ? labConsumed
+          : medicationDispensed || treatmentExecuted
+      if (consumed) {
+        consumedAmount += amount
+      } else {
+        refundAmount += amount
+      }
+    }
+
+    if (medicationDispensed) {
+      return {
+        refundAmount,
+        payableAmount: 0,
+        consequence: {
+          kind: "medication_dispensed",
+          amount: consumedAmount > 0 ? consumedAmount : undefined,
+          text:
+            refundAmount > 0
+              ? `药品已取，已取药费用不可退；其余 ¥${refundAmount} 将原路退回。`
+              : "药品已取，相关费用不可退。",
+        },
+      }
+    }
+
+    if (labConsumed || treatmentExecuted) {
+      return {
+        refundAmount,
+        payableAmount: 0,
+        consequence: {
+          kind: "executed_no_refund",
+          amount: consumedAmount > 0 ? consumedAmount : undefined,
+          text:
+            refundAmount > 0
+              ? `检验或治疗已执行，已执行费用不可退；其余 ¥${refundAmount} 将原路退回。`
+              : "检验或治疗已执行，相关费用不可退。",
+        },
+      }
+    }
+
+    if (refundAmount > 0) {
+      return {
+        refundAmount,
+        payableAmount: 0,
+        consequence: {
+          kind: "refundable",
+          amount: refundAmount,
+          text: `本次已支付但未执行，¥${refundAmount} 将原路退回。`,
+        },
+      }
+    }
+
+    return {
+      refundAmount: 0,
+      payableAmount: 0,
+      consequence: {
+        kind: "no_fee",
+        text: "本次未产生任何费用，可放心退出。",
+      },
+    }
+  }
+
   pauseVisitTimer(sessionId: SessionId) {
-    return this.updateSession(sessionId, { timerPaused: true, updatedAt: nowIso() })
+    const session = this.requireSession(sessionId)
+    // 已暂停则保持原 pausedAt 不变，避免重复暂停吞掉已记账起点。
+    return this.updateSession(sessionId, {
+      timerPaused: true,
+      pausedAt: session.pausedAt ?? nowIso(),
+      updatedAt: nowIso(),
+    })
   }
 
   resumeVisitTimer(sessionId: SessionId) {
-    return this.updateSession(sessionId, { timerPaused: false, updatedAt: nowIso() })
+    const session = this.requireSession(sessionId)
+    const now = Date.now()
+    // 把本次暂停时长加回 timeoutAt，让暂停真正延后截止；随后清空 pausedAt。
+    let timeoutAt = session.timeoutAt
+    if (session.pausedAt && timeoutAt) {
+      const pausedMs = Math.max(0, now - new Date(session.pausedAt).getTime())
+      timeoutAt = new Date(new Date(timeoutAt).getTime() + pausedMs).toISOString()
+    }
+    return this.updateSession(sessionId, {
+      timerPaused: false,
+      pausedAt: undefined,
+      timeoutAt,
+      updatedAt: nowIso(),
+    })
+  }
+
+  /**
+   * 急症误报恢复：把会话从 emergency_terminated 还原到急症发生前的状态，
+   * 写入一条 emergency_dismissed 系统事件，返回 { session, timelineItem }。
+   *
+   * 仅前端 / mock 语义：HTTP 模式下后端命中急症即关闭会话，无法恢复（见 api.md）。
+   * 恢复点优先用 exitVisit(emergency) 记录的前态；缺失时务实回退到 chatting。
+   */
+  dismissEmergency(input: { sessionId: SessionId }): {
+    session: VisitSession
+    timelineItem: TimelineItem
+  } {
+    this.requireSession(input.sessionId)
+    const restore = this.state.emergencyRestore[input.sessionId]
+    const restoredStatus: VisitStatus = restore?.status ?? "chatting"
+    // 阻塞态必须带 activeCardId（schema 约束）；恢复点无卡时降级到 chatting。
+    const restoredCardId = restore?.activeCardId
+    const safeStatus: VisitStatus =
+      restoredStatus === "blocked" && !restoredCardId ? "chatting" : restoredStatus
+
+    const dismissedItem: TimelineItem = {
+      id: this.id("tl"),
+      sessionId: input.sessionId,
+      kind: "system_event",
+      status: "done",
+      createdAt: nowIso(),
+      eventType: "emergency_dismissed",
+      title: "急症误报已解除",
+      description: "经复核未达急症标准，已恢复本次问诊。",
+    }
+    this.pushTimeline(input.sessionId, dismissedItem)
+
+    const updated = this.updateSession(input.sessionId, {
+      status: safeStatus,
+      activeCardId: safeStatus === "blocked" ? restoredCardId : undefined,
+      terminalReason: undefined,
+      endedAt: undefined,
+      updatedAt: nowIso(),
+    })
+    delete this.state.emergencyRestore[input.sessionId]
+
+    return { session: updated, timelineItem: dismissedItem }
   }
 
   appendAssistantMessage(sessionId: SessionId, content: string) {
