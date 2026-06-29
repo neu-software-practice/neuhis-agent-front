@@ -4,7 +4,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { ClipboardList, LogOut, Pill, RefreshCw, ShieldAlert, Stethoscope, User } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { AppBottomTabs } from "@/features/shared/components/AppBottomTabs"
 import { EmptyState } from "@/features/shared/components/EmptyState"
 import { PageShell } from "@/features/shared/components/PageShell"
 import { EditableChipList } from "@/features/patient/components/EditableChipList"
@@ -68,7 +67,6 @@ export default function ProfilePage() {
           <h1 className="text-lg font-semibold">个人中心</h1>
         </div>
       }
-      footer={<AppBottomTabs />}
     >
       <div className="mx-auto w-full max-w-md px-4 py-6 md:max-w-2xl">
         {/* ── 加载态 ── */}

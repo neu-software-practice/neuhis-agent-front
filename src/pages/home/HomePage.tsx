@@ -4,7 +4,6 @@ import { useQuery, useMutation } from "@tanstack/react-query"
 import { HeartPulse, Stethoscope } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { AppBottomTabs } from "@/features/shared/components/AppBottomTabs"
 import { EmptyState } from "@/features/shared/components/EmptyState"
 import { PageShell } from "@/features/shared/components/PageShell"
 import { SessionCard } from "@/features/visits/components/SessionCard"
@@ -73,7 +72,7 @@ export default function HomePage() {
   }
 
   return (
-    <PageShell footer={<AppBottomTabs />}>
+    <PageShell>
       <div className="mx-auto flex w-full max-w-md flex-col gap-6 px-4 py-6 md:max-w-xl md:py-10">
         <h1 className="text-xl font-semibold">东软云脑智能医疗</h1>
 

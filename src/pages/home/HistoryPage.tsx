@@ -4,7 +4,6 @@ import { useQuery } from "@tanstack/react-query"
 import { SearchX, Stethoscope } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { AppBottomTabs } from "@/features/shared/components/AppBottomTabs"
 import { EmptyState } from "@/features/shared/components/EmptyState"
 import { PageShell } from "@/features/shared/components/PageShell"
 import { SessionCard } from "@/features/visits/components/SessionCard"
@@ -85,7 +84,6 @@ export default function HistoryPage() {
           <h1 className="text-lg font-semibold">历史记录</h1>
         </div>
       }
-      footer={<AppBottomTabs />}
     >
       <div className="mx-auto w-full max-w-md px-4 py-6 md:max-w-2xl">
         {/* ── 筛选 tabs ── */}
