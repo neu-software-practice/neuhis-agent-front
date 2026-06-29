@@ -34,7 +34,7 @@ export const LabDecisionCard = memo(function LabDecisionCard({
   const isLocked = disabled || isHandled
 
   return (
-    <Card className="w-full border border-divider">
+    <Card className="w-full border border-divider bg-warning-foreground">
       <CardHeader className="flex items-center justify-between gap-2 pb-2">
         <div className="flex items-center gap-2">
           <FlaskConical className="size-4 text-primary" />

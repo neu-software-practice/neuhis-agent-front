@@ -62,9 +62,9 @@
     /* 中性灰底色 + 蓝色品牌色，匹配高保真原型 */
     --background: oklch(0.965 0 0);
     --foreground: oklch(0.22 0 0);
-    --card: oklch(1 0 0);
+    --card: oklch(0.985 0 0);
     --card-foreground: oklch(0.22 0 0);
-    --popover: oklch(1 0 0);
+    --popover: oklch(0.985 0 0);
     --popover-foreground: oklch(0.22 0 0);
     --primary: oklch(0.44 0.13 250);
     --primary-foreground: oklch(0.985 0 0);

@@ -37,7 +37,7 @@ export const DiagnosisCard = memo(function DiagnosisCard({
   const conf = confidenceConfig[card.confidence]
 
   return (
-    <Card className="w-full border border-divider">
+    <Card className="w-full border border-divider bg-info-foreground">
       <CardHeader className="flex items-center justify-between gap-2 pb-2">
         <div className="flex items-center gap-2">
           <Stethoscope className="size-4 text-primary" />
