@@ -10,6 +10,7 @@ import { ContextSummaryBar } from "@/features/workbench/components/ContextSummar
 import { ContextSummaryDrawer } from "@/features/workbench/components/ContextSummaryDrawer"
 import { EmergencyOverlay } from "@/features/workbench/components/EmergencyOverlay"
 import { ExitVisitSheet } from "@/features/workbench/components/ExitVisitSheet"
+import { PauseVisitSheet } from "@/features/workbench/components/PauseVisitSheet"
 import { InputDock } from "@/features/workbench/components/InputDock"
 import { LockBar } from "@/features/workbench/components/LockBar"
 import { LockQuestionSheet } from "@/features/workbench/components/LockQuestionSheet"
@@ -70,6 +71,8 @@ export default function WorkbenchPage() {
   const setTimeoutOverlayOpen = useWorkbenchUiStore((s) => s.setTimeoutOverlayOpen)
   const exitSheetOpen = useWorkbenchUiStore((s) => s.exitSheetOpen)
   const setExitSheetOpen = useWorkbenchUiStore((s) => s.setExitSheetOpen)
+  const pauseSheetOpen = useWorkbenchUiStore((s) => s.pauseSheetOpen)
+  const setPauseSheetOpen = useWorkbenchUiStore((s) => s.setPauseSheetOpen)
 
   // ---- 空闲计时（基于最后一次操作，达到阈值自动挂起；completed / 挂起 / 终止态停止）----
   const isTerminated = state === "terminated" || state === "exited"
@@ -149,7 +152,7 @@ export default function WorkbenchPage() {
           timeoutWarning={timeoutWarning}
           timerPaused={context.timerPaused}
           isTerminated={isTerminated}
-          onPause={actions.pauseVisit}
+          onPause={() => setPauseSheetOpen(true)}
           onResume={actions.resumeVisit}
           onReportEmergency={() => {
             actions.reportVitals({
@@ -245,6 +248,14 @@ export default function WorkbenchPage() {
               setTimeoutOverlayOpen(false)
               void actions.resumeFromSuspended()
             }}
+          />
+          <PauseVisitSheet
+            open={pauseSheetOpen && !isTerminated}
+            onOpenChange={setPauseSheetOpen}
+            onConfirm={() => {
+              void actions.pauseVisit()
+            }}
+            onCancel={() => setPauseSheetOpen(false)}
           />
           <ExitVisitSheet
             open={exitSheetOpen && !isTerminated}
