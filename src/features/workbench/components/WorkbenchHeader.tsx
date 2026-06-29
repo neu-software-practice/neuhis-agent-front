@@ -54,7 +54,7 @@ export function WorkbenchHeader({
     >
       {/* 左侧：头像 + 名称（有警告时允许名称收缩以让出空间） */}
       <div className="flex min-w-0 items-center gap-2">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-black text-white">
           {aiAvatar ? (
             <span className="text-xs font-semibold">{aiAvatar}</span>
           ) : (
