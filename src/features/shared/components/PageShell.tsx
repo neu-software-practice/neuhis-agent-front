@@ -20,7 +20,7 @@ interface PageShellProps {
  */
 export function PageShell({ children, header, footer, className }: PageShellProps) {
   return (
-    <div className="flex h-dvh flex-col overflow-hidden bg-background text-foreground">
+    <div className="flex h-full flex-col overflow-hidden bg-background text-foreground">
       {header ? (
         <header className="sticky top-0 z-20 border-b border-border bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           {header}
