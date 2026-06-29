@@ -199,7 +199,14 @@ function markHandledCard(
     case "veto_lab":
       return { ...card, status: "vetoed", blocking: false }
     case "submit_payment":
-      return { ...card, status: "paid", blocking: false }
+      return {
+        ...card,
+        status: "paid",
+        blocking: false,
+        ...(card.kind === "payment"
+          ? { paymentStatus: "paid" as const, handledAt: new Date().toISOString() }
+          : {}),
+      }
     case "defer_payment":
       return { ...card, status: "invalidated", blocking: false }
     case "choose_fulfillment":

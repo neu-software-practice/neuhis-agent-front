@@ -1,6 +1,6 @@
 # 项目地图
 
-更新时间：2026-06-29（JWT 认证体系实现）
+更新时间：2026-06-29（JWT 认证体系实现 + 修复检验支付后卡片状态刷新）
 
 ## 项目定位
 
@@ -370,6 +370,14 @@ P6 按「文件所有权分波次」并行实现：5 个 quality / docs lane 各
 - 缺浏览器端完整 UI 流程测试（jsdom 层 hook / 机器 / 组件单测已有，端到端走查与 P6.3 的 375 / 340 / 768px 响应式人工走查未在无头环境补齐）。
 - 支付失败重试 UI 仍未单独实现（mock 已支持 `PAYMENT_FAILED` 链路，UI 上的重试 / 换支付方式交互待补）。
 - MSW handler 仍未实现；契约 / 组件测试当前走 mock transport。
+
+## 修复记录：检验支付后卡片状态刷新（2026-06-29）
+
+- 修复 `useFlowCardAction.ts`：当患者在检验缴费卡点击「确认支付」后，即使 mock / 后端返回的 `result.card` 是下一张流程卡（如药品缴费卡、医嘱卡、治疗执行卡），前端也会把被操作的原支付卡同步更新为 `status: "paid"`、`paymentStatus: "paid"`、`blocking: false` 并写入 `handledAt`，避免 UI 仍显示「未支付」。
+- 修复 `LabExecutionCard.tsx`：检验执行卡 `executionStatus: "completed"` 的患者侧文案从「已完成」改为「已检验」，和检验流程语义一致。
+- 新增回归测试：`useFlowCardAction.test.ts` 覆盖“支付成功但返回下一张卡时，原支付卡仍必须刷新为已支付”；`FlowCardRenderer.test.tsx` 覆盖完成检验卡展示「已检验」。
+- 本次未实现：支付失败后的换支付方式 / 重试详情 UI 仍维持既有能力，未扩展真实支付渠道交互。
+- 验证：`./node_modules/.bin/vitest run src/features/workbench/hooks/useFlowCardAction.test.ts src/features/workbench/flow-cards/FlowCardRenderer.test.tsx`、`./node_modules/.bin/vitest run`、`./node_modules/.bin/tsc -b` 均通过。
 
 ## P4 实现完成度审查（2026-06-28）
 

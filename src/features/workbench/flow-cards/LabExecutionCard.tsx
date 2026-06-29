@@ -20,7 +20,7 @@ const executionStatusConfig: Record<
   collecting: { label: "采集中", icon: Loader, color: "text-primary" },
   testing: { label: "检验中", icon: Loader, color: "text-primary" },
   result_ready: { label: "结果已出", icon: CheckCircle, color: "text-success" },
-  completed: { label: "已完成", icon: CheckCircle, color: "text-success" },
+  completed: { label: "已检验", icon: CheckCircle, color: "text-success" },
 }
 
 const statusSteps = [

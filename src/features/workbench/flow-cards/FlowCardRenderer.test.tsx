@@ -128,4 +128,12 @@ describe("FlowCardRenderer 分发", () => {
       cardId: card.id,
     })
   })
+
+  it("LabExecutionCard completed 状态展示为已检验", () => {
+    const card = createCompletedLabExecutionCard(SESSION_ID, "card-lab-done")
+
+    render(<FlowCardRenderer card={card} />)
+
+    expect(screen.getByText("已检验")).toBeInTheDocument()
+  })
 })
