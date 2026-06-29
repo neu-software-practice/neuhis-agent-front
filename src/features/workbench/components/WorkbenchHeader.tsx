@@ -103,7 +103,7 @@ export function WorkbenchHeader({
             </button>
           )}
 
-          {/* 急症求助：移动端仅图标，PC 端显示文字 */}
+          {/* 急症求助：移动端显示"急症"，PC 端显示"急症求助" */}
           <button
             type="button"
             aria-label="急症求助"
@@ -112,6 +112,7 @@ export function WorkbenchHeader({
             onClick={onReportEmergency}
           >
             <ShieldAlert className="h-4 w-4" />
+            <span className="inline text-xs font-medium md:hidden">急症</span>
             <span className="hidden text-xs font-medium md:inline">急症求助</span>
           </button>
 
