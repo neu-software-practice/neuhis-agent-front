@@ -24,11 +24,22 @@ export const loginInputSchema = z.object({
   password: loginPasswordSchema,
 })
 
-export const registerInputSchema = z.object({
-  phone: phoneSchema,
-  password: registerPasswordSchema,
-  realName: z.string().trim().min(1).max(32).optional(),
-})
+export const registerFormSchema = z
+  .object({
+    phone: phoneSchema,
+    password: registerPasswordSchema,
+    confirmPassword: z.string().min(1, "请再次输入密码"),
+    gender: z.string().min(1, "请选择或输入性别"),
+    birthDate: z.string().min(1, "请选择出生日期"),
+    realName: z.string().trim().min(1).max(32).optional(),
+  })
+  .refine((data) => data.confirmPassword === data.password, {
+    message: "两次输入的密码不一致",
+    path: ["confirmPassword"],
+  })
+
+/** @deprecated 使用 registerFormSchema 代替 */
+export const registerInputSchema = registerFormSchema
 
 export const refreshInputSchema = z.object({
   refreshToken: z.string().min(1),
