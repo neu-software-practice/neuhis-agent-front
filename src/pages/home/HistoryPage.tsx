@@ -73,11 +73,9 @@ export default function HistoryPage() {
   }
 
   function handleViewRecord(session: VisitSessionSummary) {
-    if (session.status === "completed") {
-      navigate(`/history/${session.id}`)
-    } else {
-      navigate(`/workbench/${session.id}`)
-    }
+    // 已结束的会话（completed / terminated / exited）统一使用只读回看页面，
+    // 避免进入交互式 WorkbenchPage 触发退出等操作。
+    navigate(`/history/${session.id}`)
   }
 
   return (
