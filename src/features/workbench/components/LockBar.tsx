@@ -30,12 +30,12 @@ export function LockBar({
   return (
     <div
       className={cn(
-        "sticky bottom-0 z-10 border-t border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-800 dark:bg-amber-950/60",
+        "sticky bottom-0 z-10 border-t border-warning/30 bg-warning-foreground px-4 py-3",
         className,
       )}
     >
       {/* 锁原因 */}
-      <div className="mb-2 flex items-center gap-1.5 text-sm text-amber-700 dark:text-amber-400">
+      <div className="mb-2 flex items-center gap-1.5 text-sm text-warning">
         <Lock className="size-4" />
         <span>{lockReason ?? "有操作待处理"}</span>
       </div>
@@ -46,9 +46,8 @@ export function LockBar({
           type="button"
           onClick={onReportEmergency}
           className={cn(
-            "flex-1 rounded-lg border border-red-300 px-3 py-2 text-sm font-medium",
-            "text-red-600 transition-colors hover:bg-red-50",
-            "dark:border-red-700 dark:text-red-400 dark:hover:bg-red-950/40",
+            "flex-1 rounded-lg border border-danger/30 px-3 py-2 text-sm font-medium",
+            "text-danger transition-colors hover:bg-danger-foreground",
             "cursor-pointer",
           )}
         >
