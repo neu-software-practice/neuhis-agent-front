@@ -2,7 +2,7 @@ import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Link, useNavigate, useSearchParams } from "react-router"
-import { Eye, EyeOff, Stethoscope } from "lucide-react"
+import { Stethoscope } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { loginInputSchema } from "@/features/auth/api/schemas"
@@ -21,7 +21,6 @@ export default function LoginPage() {
   const redirectTo = searchParams.get("redirectTo") || "/"
   const login = useAuthStore((s) => s.login)
 
-  const [showPassword, setShowPassword] = useState(false)
   const [serverError, setServerError] = useState<string | null>(null)
 
   const {
@@ -86,28 +85,14 @@ export default function LoginPage() {
             <label htmlFor="password" className="text-sm font-medium">
               密码
             </label>
-            <div className="relative">
-              <input
-                id="password"
-                type={showPassword ? "text" : "password"}
-                autoComplete="current-password"
-                placeholder="请输入密码"
-                className="w-full rounded-lg border border-default-200 bg-default-100 px-3 py-2.5 pr-10 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary"
-                {...register("password")}
-              />
-              <button
-                type="button"
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground-400 hover:text-foreground-600"
-                onClick={() => setShowPassword(!showPassword)}
-                aria-label={showPassword ? "隐藏密码" : "显示密码"}
-              >
-                {showPassword ? (
-                  <EyeOff className="size-4" />
-                ) : (
-                  <Eye className="size-4" />
-                )}
-              </button>
-            </div>
+            <input
+              id="password"
+              type="password"
+              autoComplete="current-password"
+              placeholder="请输入密码"
+              className="w-full rounded-lg border border-default-200 bg-default-100 px-3 py-2.5 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary"
+              {...register("password")}
+            />
             {errors.password && (
               <p className="text-xs text-danger">{errors.password.message}</p>
             )}
