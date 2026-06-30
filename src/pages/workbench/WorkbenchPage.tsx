@@ -169,7 +169,6 @@ export default function WorkbenchPage() {
         <>
           <ContextSummaryBar
             patientName={session?.patientId}
-            chiefComplaint={session?.summary?.chiefComplaint}
             onClick={() => setDrawerOpen(true)}
           />
           <ChatTimeline

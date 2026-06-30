@@ -115,7 +115,7 @@ export default function ProfilePage() {
 
             {/* 可编辑医疗信息 */}
             <Card>
-              <CardContent className="flex flex-col gap-4 p-4">
+              <CardContent className="flex flex-col gap-4">
               <EditableChipList
                 label="过敏史"
                 items={context.patient.allergies}
@@ -156,7 +156,7 @@ export default function ProfilePage() {
 
             {/* 既往病史 */}
             <Card>
-              <CardContent className="p-4">
+              <CardContent>
               <EditableChipList
                 label="既往病史"
                 items={context.medicalHistory}
@@ -218,7 +218,7 @@ export default function ProfilePage() {
               <section>
                 <h2 className="mb-2 text-base font-medium">上次就诊</h2>
                 <Card>
-                  <CardContent className="p-3 text-sm">
+                  <CardContent className="text-sm">
                   <p>
                     <span className="font-medium text-foreground">诊断：</span>
                     {context.priorVisit.diagnosis}

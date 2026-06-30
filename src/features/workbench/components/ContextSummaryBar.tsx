@@ -5,8 +5,6 @@ import { cn } from "@/lib/utils"
 interface ContextSummaryBarProps {
   /** 患者姓名。 */
   patientName?: string
-  /** 主诉。 */
-  chiefComplaint?: string
   /** 点击展开完整 Drawer。 */
   onClick?: () => void
   className?: string
@@ -15,16 +13,15 @@ interface ContextSummaryBarProps {
 /**
  * 可折叠的上下文摘要条。
  *
- * 移动端默认折叠为单行，显示 "患者: {name} | 主诉: {complaint}"。
+ * 移动端默认折叠为单行，显示 "患者: {name}"。
  * 点击调用 onClick 打开完整 ContextSummaryDrawer。
  */
 export function ContextSummaryBar({
   patientName,
-  chiefComplaint,
   onClick,
   className,
 }: ContextSummaryBarProps) {
-  const hasContext = patientName || chiefComplaint
+  const hasContext = patientName
 
   if (!hasContext) {
     return null
@@ -32,7 +29,6 @@ export function ContextSummaryBar({
 
   const parts: string[] = []
   if (patientName) parts.push(`患者: ${patientName}`)
-  if (chiefComplaint) parts.push(`主诉: ${chiefComplaint}`)
 
   return (
     <button
