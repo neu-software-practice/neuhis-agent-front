@@ -80,33 +80,35 @@ export default function PatientListPage() {
         </div>
       ) : (
         <>
-          <Table aria-label="患者列表" className="w-full">
-            <Table.Header>
-              <Table.Column isRowHeader>姓名</Table.Column>
-              <Table.Column>手机号</Table.Column>
-              <Table.Column>性别</Table.Column>
-              <Table.Column>出生日期</Table.Column>
-              <Table.Column>注册时间</Table.Column>
-              <Table.Column>问诊次数</Table.Column>
-            </Table.Header>
-            <Table.Body>
-              {data.items.map((patient) => (
-                <Table.Row key={patient.id}>
-                  <Table.Cell>{patient.realName || "—"}</Table.Cell>
-                  <Table.Cell>{patient.phone}</Table.Cell>
-                  <Table.Cell>
-                    <Chip size="sm" color="default" variant="secondary">
-                      {GENDER_MAP[patient.gender] ?? "未知"}
-                    </Chip>
-                  </Table.Cell>
-                  <Table.Cell>{patient.birthDate || "—"}</Table.Cell>
-                  <Table.Cell>
-                    {new Date(patient.createdAt).toLocaleDateString("zh-CN")}
-                  </Table.Cell>
-                  <Table.Cell>{patient.sessionCount}</Table.Cell>
-                </Table.Row>
-              ))}
-            </Table.Body>
+          <Table className="w-full">
+            <Table.Content aria-label="患者列表">
+              <Table.Header>
+                <Table.Column isRowHeader>姓名</Table.Column>
+                <Table.Column>手机号</Table.Column>
+                <Table.Column>性别</Table.Column>
+                <Table.Column>出生日期</Table.Column>
+                <Table.Column>注册时间</Table.Column>
+                <Table.Column>问诊次数</Table.Column>
+              </Table.Header>
+              <Table.Body>
+                {data.items.map((patient) => (
+                  <Table.Row key={patient.id}>
+                    <Table.Cell>{patient.realName || "—"}</Table.Cell>
+                    <Table.Cell>{patient.phone}</Table.Cell>
+                    <Table.Cell>
+                      <Chip size="sm" color="default" variant="secondary">
+                        {GENDER_MAP[patient.gender] ?? "未知"}
+                      </Chip>
+                    </Table.Cell>
+                    <Table.Cell>{patient.birthDate || "—"}</Table.Cell>
+                    <Table.Cell>
+                      {new Date(patient.createdAt).toLocaleDateString("zh-CN")}
+                    </Table.Cell>
+                    <Table.Cell>{patient.sessionCount}</Table.Cell>
+                  </Table.Row>
+                ))}
+              </Table.Body>
+            </Table.Content>
           </Table>
 
           {/* 分页 */}

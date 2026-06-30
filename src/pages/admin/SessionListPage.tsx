@@ -109,29 +109,31 @@ export default function SessionListPage() {
         </div>
       ) : (
         <>
-          <Table aria-label="问诊记录列表">
-            <Table.Header>
-              <Table.Column isRowHeader>患者姓名</Table.Column>
-              <Table.Column>主诉</Table.Column>
-              <Table.Column>状态</Table.Column>
-              <Table.Column>创建时间</Table.Column>
-              <Table.Column>更新时间</Table.Column>
-            </Table.Header>
-            <Table.Body>
-              {data.items.map((item) => (
-                <Table.Row key={item.id}>
-                  <Table.Cell>{item.patientName || "—"}</Table.Cell>
-                  <Table.Cell>{item.title || "—"}</Table.Cell>
-                  <Table.Cell>
-                    <Chip size="sm" color={STATUS_COLOR_MAP[item.status] ?? "default"}>
-                      {STATUS_LABEL_MAP[item.status] ?? item.status}
-                    </Chip>
-                  </Table.Cell>
-                  <Table.Cell>{formatDateTime(item.createdAt)}</Table.Cell>
-                  <Table.Cell>{formatDateTime(item.updatedAt)}</Table.Cell>
-                </Table.Row>
-              ))}
-            </Table.Body>
+          <Table>
+            <Table.Content aria-label="问诊记录列表">
+              <Table.Header>
+                <Table.Column isRowHeader>患者姓名</Table.Column>
+                <Table.Column>主诉</Table.Column>
+                <Table.Column>状态</Table.Column>
+                <Table.Column>创建时间</Table.Column>
+                <Table.Column>更新时间</Table.Column>
+              </Table.Header>
+              <Table.Body>
+                {data.items.map((item) => (
+                  <Table.Row key={item.id}>
+                    <Table.Cell>{item.patientName || "—"}</Table.Cell>
+                    <Table.Cell>{item.title || "—"}</Table.Cell>
+                    <Table.Cell>
+                      <Chip size="sm" color={STATUS_COLOR_MAP[item.status] ?? "default"}>
+                        {STATUS_LABEL_MAP[item.status] ?? item.status}
+                      </Chip>
+                    </Table.Cell>
+                    <Table.Cell>{formatDateTime(item.createdAt)}</Table.Cell>
+                    <Table.Cell>{formatDateTime(item.updatedAt)}</Table.Cell>
+                  </Table.Row>
+                ))}
+              </Table.Body>
+            </Table.Content>
           </Table>
 
           {totalPages > 1 && (
