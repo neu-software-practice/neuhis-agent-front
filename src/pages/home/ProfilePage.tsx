@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from "react"
 import { useNavigate } from "react-router"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { Card, CardContent } from "@heroui/react"
 import { ChevronRight, ClipboardList, FileText, LogOut, MapPin, Phone, Pill, Receipt, RefreshCw, ShieldAlert, Stethoscope, User } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -113,7 +114,8 @@ export default function ProfilePage() {
             <PatientSummaryCard patient={context.patient} hideMedicalSections />
 
             {/* 可编辑医疗信息 */}
-            <div className="flex flex-col gap-4 rounded-xl border border-border bg-card p-4">
+            <Card>
+              <CardContent className="flex flex-col gap-4 p-4">
               <EditableChipList
                 label="过敏史"
                 items={context.patient.allergies}
@@ -149,10 +151,12 @@ export default function ProfilePage() {
                 onCancel={() => setEditingSection(null)}
                 saving={isPending && editingSection === "longTermMedications"}
               />
-            </div>
+              </CardContent>
+            </Card>
 
             {/* 既往病史 */}
-            <div className="rounded-xl border border-border bg-card p-4">
+            <Card>
+              <CardContent className="p-4">
               <EditableChipList
                 label="既往病史"
                 items={context.medicalHistory}
@@ -164,13 +168,14 @@ export default function ProfilePage() {
                 onCancel={() => setEditingSection(null)}
                 saving={isPending && editingSection === "medicalHistory"}
               />
-            </div>
+              </CardContent>
+            </Card>
 
             {/* 收货地址入口 */}
-            <section className="rounded-xl border border-border bg-card">
+            <Card>
               <button
                 type="button"
-                className="flex w-full items-start gap-3 px-4 py-3 text-left hover:bg-muted/50 transition-colors rounded-xl"
+                className="flex w-full items-start gap-3 px-4 py-3 text-left hover:bg-muted/50 transition-colors"
                 onClick={() => navigate("/addresses")}
               >
                 <MapPin className="mt-0.5 size-5 shrink-0 text-primary" />
@@ -206,13 +211,14 @@ export default function ProfilePage() {
                   )}
                 </div>
               </button>
-            </section>
+            </Card>
 
             {/* 上次就诊摘要 */}
             {context.priorVisit ? (
               <section>
                 <h2 className="mb-2 text-base font-medium">上次就诊</h2>
-                <div className="rounded-lg border border-border bg-card p-3 text-sm">
+                <Card>
+                  <CardContent className="p-3 text-sm">
                   <p>
                     <span className="font-medium text-foreground">诊断：</span>
                     {context.priorVisit.diagnosis}
@@ -231,14 +237,15 @@ export default function ProfilePage() {
                     </span>
                     {context.priorVisit.treatmentSummary}
                   </p>
-                </div>
+                  </CardContent>
+                </Card>
               </section>
             ) : null}
 
             {/* 功能入口 */}
-            <div className="rounded-xl border border-border bg-card">
+            <Card>
               <button
-                className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm hover:bg-muted/50 transition-colors rounded-t-xl"
+                className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm hover:bg-muted/50 transition-colors"
                 onClick={() => navigate("/billing")}
               >
                 <Receipt className="size-5 text-muted-foreground" />
@@ -247,14 +254,14 @@ export default function ProfilePage() {
               </button>
               <div className="border-t border-border" />
               <button
-                className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm hover:bg-muted/50 transition-colors rounded-b-xl"
+                className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm hover:bg-muted/50 transition-colors"
                 onClick={() => navigate("/medical-orders")}
               >
                 <FileText className="size-5 text-muted-foreground" />
                 <span className="flex-1 font-medium">医嘱记录</span>
                 <ChevronRight className="size-4 text-muted-foreground" />
               </button>
-            </div>
+            </Card>
 
             {/* 退出登录 */}
             <div className="pt-4">
