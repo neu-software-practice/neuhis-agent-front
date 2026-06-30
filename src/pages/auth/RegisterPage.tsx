@@ -231,7 +231,7 @@ export default function RegisterPage() {
                 }`}
                 onClick={handleGenderCustom}
               >
-                其他
+                ...
               </button>
             </div>
             {isCustomGender && (
