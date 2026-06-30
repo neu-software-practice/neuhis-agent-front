@@ -27,7 +27,7 @@ interface AddressFormModalProps {
   onSuccess?: (address: Address) => void
 }
 
-const ADDRESS_TAGS: AddressTag[] = ["家", "公司", "医院", "其他"]
+const ADDRESS_TAGS: AddressTag[] = ["家", "公司", "病房", "其他"]
 type CreateAddressFormValues = z.input<typeof createAddressInputSchema>
 
 function buildDefaultValues(
@@ -48,7 +48,7 @@ function buildDefaultValues(
 }
 
 const inputClass =
-  "w-full rounded-lg border border-default-200 bg-default-100 px-3 py-2.5 text-sm outline-none transition-colors placeholder:text-foreground-400 focus:border-primary focus:ring-1 focus:ring-primary"
+  "w-full rounded-lg border border-default-200 bg-default-100 px-3 py-2.5 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary"
 
 export function AddressFormModal({
   isOpen,

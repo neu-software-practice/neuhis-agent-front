@@ -74,7 +74,7 @@ export default function LoginPage() {
               type="tel"
               autoComplete="tel"
               placeholder="请输入手机号"
-              className="w-full rounded-lg border border-default-200 bg-default-100 px-3 py-2.5 text-sm outline-none transition-colors placeholder:text-foreground-400 focus:border-primary focus:ring-1 focus:ring-primary"
+              className="w-full rounded-lg border border-default-200 bg-default-100 px-3 py-2.5 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary"
               {...register("phone")}
             />
             {errors.phone && (
@@ -92,7 +92,7 @@ export default function LoginPage() {
                 type={showPassword ? "text" : "password"}
                 autoComplete="current-password"
                 placeholder="请输入密码"
-                className="w-full rounded-lg border border-default-200 bg-default-100 px-3 py-2.5 pr-10 text-sm outline-none transition-colors placeholder:text-foreground-400 focus:border-primary focus:ring-1 focus:ring-primary"
+                className="w-full rounded-lg border border-default-200 bg-default-100 px-3 py-2.5 pr-10 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary"
                 {...register("password")}
               />
               <button

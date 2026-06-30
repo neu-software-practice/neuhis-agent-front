@@ -80,7 +80,7 @@ export default function RegisterPage() {
   }
 
   const inputClass =
-    "w-full rounded-lg border border-default-200 bg-default-100 px-3 py-2.5 text-sm outline-none transition-colors placeholder:text-foreground-400 focus:border-primary focus:ring-1 focus:ring-primary"
+    "w-full rounded-lg border border-default-200 bg-default-100 px-3 py-2.5 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary"
 
   return (
     <div className="flex min-h-dvh items-center justify-center bg-background px-4">

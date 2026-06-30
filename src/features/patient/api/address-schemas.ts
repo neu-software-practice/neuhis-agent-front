@@ -4,7 +4,7 @@ import { patientIdSchema } from "@/lib/api/types"
 
 export const addressIdSchema = z.string().trim().min(1)
 
-export const addressTagSchema = z.enum(["家", "公司", "医院", "其他"])
+export const addressTagSchema = z.enum(["家", "公司", "病房", "其他"])
 
 export const addressSchema = z.object({
   id: addressIdSchema,
