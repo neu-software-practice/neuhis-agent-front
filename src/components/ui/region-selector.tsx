@@ -9,7 +9,6 @@ import {
   Label,
   ListBox,
   Select,
-  type SelectProps,
 } from "@heroui/react"
 import areaData from "china-area-data"
 
@@ -172,15 +171,6 @@ export function RegionSelector({
     onChange({ ...value, district: key })
   }
 
-  // ── Select Props 工厂 ──────────────────────────
-
-  function selectProps(extra?: Partial<SelectProps>): Partial<SelectProps> {
-    return {
-      isDisabled,
-      ...extra,
-    }
-  }
-
   // ── 渲染 ──────────────────────────────────────
 
   return (
@@ -194,49 +184,39 @@ export function RegionSelector({
       {/* 省份 */}
       <RegionSelect
         label="省份"
-        placeholder="请选择省份"
+        placeholder="省份"
         items={provinces}
         selectedKey={value.province || null}
         onSelectionChange={(k) => handleProvinceChange(String(k))}
         isInvalid={inv.province}
         errorMessage={errorMsg?.province}
-        {...selectProps()}
+        isDisabled={isDisabled}
       />
 
       {/* 城市 */}
       {!skipCityLevel && (
         <RegionSelect
           label="城市"
-          placeholder={provinceCode ? "请选择城市" : "请先选择省份"}
+          placeholder="城市"
           items={cities}
           selectedKey={effectiveCity || null}
           onSelectionChange={(k) => handleCityChange(String(k))}
           isInvalid={inv.city}
           errorMessage={errorMsg?.city}
           isDisabled={isDisabled || cities.length === 0}
-          {...selectProps()}
         />
       )}
 
       {/* 区县 */}
       <RegionSelect
         label="区县"
-        placeholder={
-          !provinceCode
-            ? "请先选择省份"
-            : !cityCode && !skipCityLevel
-              ? "请先选择城市"
-              : districts.length === 0
-                ? "暂无数据"
-                : "请选择区县"
-        }
+        placeholder={districts.length === 0 ? "暂无数据" : "区县"}
         items={districts}
         selectedKey={value.district || null}
         onSelectionChange={(k) => handleDistrictChange(String(k))}
         isInvalid={inv.district}
         errorMessage={errorMsg?.district}
         isDisabled={isDisabled || districts.length === 0}
-        {...selectProps()}
       />
     </div>
   )
@@ -275,7 +255,7 @@ function RegionSelect({
       isInvalid={isInvalid}
       errorMessage={errorMessage}
       isDisabled={isDisabled}
-      className="w-full"
+      className="w-full [&_[data-slot=select-trigger]]:bg-[#f3f3f3] [&_[data-placeholder=true]]:text-[#999] [&_[data-slot=select-popover]]:shadow-2xl [&_[data-slot=label]]:text-foreground"
     >
       <Label>{label}</Label>
       <Select.Trigger>

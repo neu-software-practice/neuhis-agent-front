@@ -147,6 +147,12 @@
 }
 
 @layer base {
+  /* shadcn 的 --muted 是浅灰底色(oklch 0.945)，会覆盖 HeroUI 的 text-muted 图标色。
+     此处将 HeroUI 使用 text-muted 的组件统一改为 text-muted-foreground，保证可读性。 */
+  .close-button--default {
+    color: var(--muted-foreground) !important;
+  }
+
   * {
     @apply border-border outline-ring/50;
     }

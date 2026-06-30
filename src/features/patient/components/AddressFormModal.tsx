@@ -15,6 +15,9 @@ import type {
   CreateAddressInput,
 } from "@/features/patient/api"
 import type { PatientId } from "@/lib/api/types"
+import { Input } from "@/components/ui/input"
+import { SwitchField } from "@/components/ui/switch-field"
+import { Textarea } from "@/components/ui/textarea"
 import { RegionSelector } from "@/components/ui/region-selector"
 import { cn } from "@/lib/utils"
 
@@ -50,9 +53,6 @@ function buildDefaultValues(
     tag: initialData?.tag,
   }
 }
-
-const inputClass =
-  "w-full rounded-lg border border-default-200 bg-default-100 px-3 py-2.5 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary"
 
 export function AddressFormModal({
   isOpen,
@@ -138,13 +138,13 @@ export function AddressFormModal({
   return (
     <Modal>
       <Modal.Backdrop isOpen={isOpen} onOpenChange={(open) => !open && handleClose()}>
-        <Modal.Container placement="center" size="md">
+        <Modal.Container placement="center" size="lg">
           <Modal.Dialog
             aria-label={mode === "create" ? "新增收货地址" : "编辑收货地址"}
-            className="bg-background text-foreground shadow-xl"
+            className="bg-[#fafafa] text-foreground shadow-xl"
           >
             <Modal.CloseTrigger />
-            <Modal.Header className="flex items-center gap-3">
+            <Modal.Header className="flex items-center gap-3 pb-4">
               <Modal.Icon className="bg-primary/10 text-primary">
                 {mode === "create" ? (
                   <Plus className="size-5" />
@@ -166,22 +166,20 @@ export function AddressFormModal({
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <FormField label="收件人" error={errors.name?.message}>
-                    <input
+                    <Input
                       type="text"
                       autoComplete="name"
                       placeholder="请输入收件人姓名"
-                      className={inputClass}
                       disabled={submitting}
                       {...register("name")}
                     />
                   </FormField>
 
                   <FormField label="联系电话" error={errors.phone?.message}>
-                    <input
+                    <Input
                       type="tel"
                       autoComplete="tel"
                       placeholder="请输入 11 位手机号"
-                      className={inputClass}
                       disabled={submitting}
                       {...register("phone")}
                     />
@@ -209,17 +207,16 @@ export function AddressFormModal({
                 />
 
                 <FormField label="详细地址" error={errors.detail?.message}>
-                  <textarea
+                  <Textarea
                     rows={3}
                     placeholder="街道、门牌号、楼栋和房间号"
-                    className={cn(inputClass, "min-h-24 resize-y")}
                     disabled={submitting}
                     {...register("detail")}
                   />
                 </FormField>
 
                 <fieldset className="space-y-2">
-                  <legend className="text-sm font-medium">地址标签</legend>
+                  <legend className="text-sm font-medium text-foreground">地址标签</legend>
                   <div className="flex flex-wrap gap-2">
                     {TAG_PRESETS.map((preset) => (
                       <button
@@ -252,10 +249,9 @@ export function AddressFormModal({
                     </button>
                   </div>
                   {isCustomTag && (
-                    <input
+                    <Input
                       type="text"
                       placeholder="请输入地址标签"
-                      className={inputClass}
                       disabled={submitting}
                       value={tagValue}
                       onChange={(e) =>
@@ -270,39 +266,23 @@ export function AddressFormModal({
                   ) : null}
                 </fieldset>
 
-                <button
-                  type="button"
-                  className={cn(
-                    "flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors",
-                    isDefault
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-default-200 bg-default-100 text-foreground",
-                  )}
-                  disabled={submitting}
-                  aria-pressed={isDefault}
-                  onClick={() =>
-                    setValue("isDefault", !isDefault, {
+                <SwitchField
+                  isSelected={isDefault}
+                  isDisabled={submitting}
+                  onChange={(v) =>
+                    setValue("isDefault", v, {
                       shouldDirty: true,
                       shouldValidate: true,
                     })
                   }
                 >
-                  <span>设为默认收货地址</span>
-                  <span
-                    className={cn(
-                      "flex h-6 w-11 items-center rounded-full p-0.5 transition-colors",
-                      isDefault ? "bg-primary" : "bg-default-300",
-                    )}
-                    aria-hidden="true"
-                  >
-                    <span
-                      className={cn(
-                        "size-5 rounded-full bg-background transition-transform",
-                        isDefault && "translate-x-5",
-                      )}
-                    />
-                  </span>
-                </button>
+                  <SwitchField.Content>
+                    <SwitchField.Control>
+                      <SwitchField.Thumb />
+                    </SwitchField.Control>
+                    设为默认收货地址
+                  </SwitchField.Content>
+                </SwitchField>
               </Modal.Body>
 
               <Modal.Footer className="flex flex-col gap-2 sm:flex-row sm:justify-end">
@@ -344,7 +324,7 @@ function FormField({
 }) {
   return (
     <label className="space-y-1.5">
-      <span className="text-sm font-medium">{label}</span>
+      <span className="text-sm font-medium text-foreground">{label}</span>
       {children}
       {error ? <p className="text-xs text-danger">{error}</p> : null}
     </label>
