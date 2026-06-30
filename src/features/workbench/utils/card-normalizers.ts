@@ -34,7 +34,12 @@ export function toFulfillmentInput(
   action: Extract<FlowCardAction, { type: "choose_fulfillment" }>,
   sessionId: string,
 ): SubmitFulfillmentInput {
-  return { sessionId, cardId: action.cardId, mode: action.mode }
+  return {
+    sessionId,
+    cardId: action.cardId,
+    mode: action.mode,
+    addressId: action.addressId,
+  }
 }
 
 /** submit_treatment_execution → SubmitTreatmentExecutionInput */

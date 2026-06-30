@@ -1,6 +1,7 @@
 import { memo } from "react"
 
 import type { FlowCard, FlowCardAction } from "@/features/workbench/api"
+import type { PatientId } from "@/lib/api/types"
 import { assertNever } from "@/lib/utils"
 
 import { AdviceOnlyCard } from "@/features/workbench/flow-cards/AdviceOnlyCard"
@@ -15,6 +16,7 @@ import { TreatmentPlanCard } from "@/features/workbench/flow-cards/TreatmentPlan
 
 interface FlowCardRendererProps {
   card: FlowCard
+  patientId?: PatientId
   disabled?: boolean
   onAction?: (action: FlowCardAction) => void
 }
@@ -27,6 +29,7 @@ interface FlowCardRendererProps {
  */
 export const FlowCardRenderer = memo(function FlowCardRenderer({
   card,
+  patientId,
   disabled,
   onAction,
 }: FlowCardRendererProps) {
@@ -57,6 +60,7 @@ export const FlowCardRenderer = memo(function FlowCardRenderer({
       return (
         <MedicationFulfillmentCard
           card={card}
+          patientId={patientId}
           disabled={disabled}
           onAction={onAction}
         />

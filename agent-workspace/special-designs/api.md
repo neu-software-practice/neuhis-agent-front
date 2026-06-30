@@ -1,6 +1,6 @@
 # 前端 API 合约与 Mock 设计
 
-更新时间：2026-06-26
+更新时间：2026-06-30
 
 ## 背景
 
@@ -116,6 +116,7 @@ VITE_MOCK_DELAY_MS=400
 export interface ApiTransport {
   get<T>(path: string, options?: RequestOptions): Promise<T>
   post<T>(path: string, body?: unknown, options?: RequestOptions): Promise<T>
+  put<T>(path: string, body?: unknown, options?: RequestOptions): Promise<T>
   patch<T>(path: string, body?: unknown, options?: RequestOptions): Promise<T>
   delete<T>(path: string, options?: RequestOptions): Promise<T>
   stream(path: string, body: unknown, handlers: StreamHandlers): Promise<void>
@@ -159,6 +160,11 @@ export const api = {
 patientApi.verifyIdentity(input)
 patientApi.getPatientContext(patientId)
 patientApi.updatePatientProfile(input)
+patientApi.listAddresses(patientId)
+patientApi.createAddress(input)
+patientApi.updateAddress(input)
+patientApi.deleteAddress(input)
+patientApi.setDefaultAddress(input)
 
 visitsApi.listSessions(input)
 visitsApi.getSession(sessionId)
@@ -207,6 +213,11 @@ facade 与 detailed-design §6.4 保持一致，按 `patient` / `visits` / `work
 | patient | `POST` | `/patients/verify` | 身份核验，返回患者摘要和历史病史可读范围 | `patientApi.verifyIdentity` | 后端职责（鉴权网关） |
 | patient | `GET` | `/patients/:patientId/context` | 读取新出诊/复诊上下文（病史、过敏史、上次诊断摘要） | `patientApi.getPatientContext` | 渲染进 `POST /sessions` 的 `profile`/`prior` |
 | patient | `PATCH` | `/patients/:patientId/profile` | 更新患者基础资料、过敏史、长期用药 | `patientApi.updatePatientProfile` | 后端职责 |
+| patient | `GET` | `/patients/:patientId/addresses` | 查询患者收货地址列表 | `patientApi.listAddresses` | 后端职责 |
+| patient | `POST` | `/patients/:patientId/addresses` | 新增收货地址，上限 10 条 | `patientApi.createAddress` | 后端职责 |
+| patient | `PATCH` | `/patients/:patientId/addresses/:addressId` | 更新收货地址 | `patientApi.updateAddress` | 后端职责 |
+| patient | `DELETE` | `/patients/:patientId/addresses/:addressId` | 删除收货地址 | `patientApi.deleteAddress` | 后端职责 |
+| patient | `PUT` | `/patients/:patientId/addresses/:addressId/default` | 设置默认收货地址 | `patientApi.setDefaultAddress` | 后端职责 |
 | visit | `POST` | `/visits` | 创建新出诊 session | `visitsApi.createSession` | `POST /sessions`（`initial:true`） |
 | visit | `POST` | `/visits/:sessionId/follow-up` | 由已完成会话创建复诊 session（携带父会话纪要） | `visitsApi.createFollowUp` | `POST /sessions`（`initial:false`, `prior:[record]`） |
 | visit | `GET` | `/visits` | 查询历史就诊列表 | `visitsApi.listSessions` | 后端持久化（`GET /record` 导出后存库） |
@@ -218,7 +229,7 @@ facade 与 detailed-design §6.4 保持一致，按 `patient` / `visits` / `work
 | lab | `POST` | `/visits/:sessionId/lab-decision` | 提交是否检验、暂不决定、不查等动作 | `workbenchApi.submitLabDecision` | 前端卡片交互（后端职责），accepted 后驱动检验 |
 | lab | `POST` | `/visits/:sessionId/lab-results` | 回填检验结果，触发 Agent 重新分析 | `workbenchApi`（内部，mock/后端驱动） | `POST /sessions/{id}/test-results` |
 | payment | `POST` | `/visits/:sessionId/payments` | 创建或确认检验/药品支付 | `workbenchApi.submitPayment` | 后端药品/支付子系统 |
-| treatment | `POST` | `/visits/:sessionId/fulfillment` | 提交药品取药/配送方式确认 | `workbenchApi.submitFulfillment` | `POST /sessions/{id}/purchase-result` |
+| treatment | `POST` | `/visits/:sessionId/fulfillment` | 提交药品取药/配送方式确认；配送时必须带 `addressId` | `workbenchApi.submitFulfillment` | `POST /sessions/{id}/purchase-result` |
 | treatment | `POST` | `/visits/:sessionId/treatment-execution` | 提交自动化治疗预约、到号、开始、完成或取消动作 | `workbenchApi.submitTreatmentExecution` | 后端业务层 / mock；medAgent 无直接对应 |
 | treatment | `POST` | `/visits/:sessionId/advice-ack` | 确认仅医嘱处置并留痕 | `workbenchApi.ackAdvice` | 后端业务层留痕（medAgent 已 `DONE`） |
 | consult | `POST` | `/visits/:sessionId/consult` | 完成态咨询类 SSE 回复，AI 基于本次记录作答，不触发复诊 | `workbenchApi.streamConsultationReply` | `GET /record` 上下文 + 一次 LLM 问答 |
@@ -459,7 +470,7 @@ MSW 后续用于更接近真实网络的测试，并验证 REST/SSE contract：
 - 接口联调：`VITE_API_MODE=http` 使用真实服务端，并按前端 contract 做契约测试。
 - 测试阶段：unit 使用 mock transport，integration 使用 MSW。
 
-## 当前实现进度（2026-06-28）
+## 当前实现进度（2026-06-30）
 
 本轮已启动并完成首批可编码地基，实际覆盖 `development-plan.md` 的 `P2.0-P2.5` 主要内容：
 
@@ -471,6 +482,7 @@ MSW 后续用于更接近真实网络的测试，并验证 REST/SSE contract：
 - 契约测试：`src/features/workbench/api/workbench-api.test.ts`。
 - 状态机骨架：`src/features/workbench/machine/{visit-machine,visit-machine.types,visit-machine.guards,visit-machine.actions}.ts`。
 - 状态机测试：`src/features/workbench/machine/visit-machine.test.ts`。
+- 地址簿 v5：新增 `patientApi` 地址 CRUD / 默认地址 facade 与 query hooks；mock transport 支持 `PUT`；个人中心支持地址管理；取药卡配送前弹出地址选择器，确认后向 `submitFulfillment` 提交 `addressId`。
 
 首批稳定枚举与对象：
 
@@ -495,6 +507,7 @@ MSW 后续用于更接近真实网络的测试，并验证 REST/SSE contract：
 | 支付失败 | `submitPayment(simulateStatus: failed)` 返回失败卡状态 |
 | 诊断完成 | 检验支付成功后产出 `diagnosis` 与 `treatment_plan` |
 | 用药完成 | 药品支付后产出取药卡，`submitFulfillment` 进入完成 |
+| 配送地址 | 个人中心维护收货地址，取药卡选择配送时必须确认地址；mock 会把地址摘要写入 `medication_fulfillment.deliveryAddress` |
 | 仅医嘱完成 | `ackAdvice` 进入完成 |
 | 急症 | stream 关键词或 `reportVitals` 命中返回急症事件 / 结果 |
 | 空闲挂起 | `suspendVisit` 把会话置为 `suspended`（非终态，写 `session_suspended` 系统事件），由空闲计时 `useVisitCountdown`（`lastActivityAt + 10min`）到期触发；患者按复诊流程 `createFollowUp` 继续 |

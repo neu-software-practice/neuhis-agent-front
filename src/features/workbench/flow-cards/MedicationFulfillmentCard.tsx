@@ -1,12 +1,15 @@
-import { memo } from "react"
+import { memo, useState } from "react"
 import { Button, Card, CardFooter, CardHeader, Chip } from "@heroui/react"
 import { Package, Pill, Truck } from "lucide-react"
 
 import type { FlowCard, FlowCardAction } from "@/features/workbench/api"
+import { AddressPickerModal } from "@/features/workbench/flow-cards/AddressPickerModal"
+import type { PatientId } from "@/lib/api/types"
 import { formatDateTime } from "@/lib/time"
 
 interface MedicationFulfillmentCardProps {
   card: FlowCard & { kind: "medication_fulfillment" }
+  patientId?: PatientId
   disabled?: boolean
   onAction?: (action: FlowCardAction) => void
 }
@@ -32,9 +35,11 @@ const modeLabels: Record<string, string> = {
 export const MedicationFulfillmentCard = memo(
   function MedicationFulfillmentCard({
     card,
+    patientId,
     disabled,
     onAction,
   }: MedicationFulfillmentCardProps) {
+    const [addressPickerOpen, setAddressPickerOpen] = useState(false)
     const isHandled = card.fulfillmentStatus !== "pending"
     const isLocked = disabled || isHandled
 
@@ -108,7 +113,8 @@ export const MedicationFulfillmentCard = memo(
 
           {/* 已选方式 */}
           {card.selectedMode ? (
-            <div className="flex items-center gap-2 rounded-md bg-primary/5 px-3 py-2 text-sm">
+            <div className="flex flex-col gap-2 rounded-md bg-primary/5 px-3 py-2 text-sm">
+              <div className="flex items-center gap-2">
               {card.selectedMode === "pickup" ? (
                 <Package className="size-4 text-primary" />
               ) : (
@@ -124,6 +130,15 @@ export const MedicationFulfillmentCard = memo(
                 <span className="ml-auto text-xs text-muted-foreground">
                   {formatDateTime(card.handledAt)}
                 </span>
+              ) : null}
+              </div>
+              {card.deliveryAddress ? (
+                <div className="pl-6 text-xs leading-5 text-muted-foreground">
+                  <div>
+                    {card.deliveryAddress.name} {card.deliveryAddress.phone}
+                  </div>
+                  <div>{card.deliveryAddress.fullAddress}</div>
+                </div>
               ) : null}
             </div>
           ) : null}
@@ -152,20 +167,30 @@ export const MedicationFulfillmentCard = memo(
               <Button
                 size="sm"
                 variant="secondary"
-                isDisabled={isLocked}
-                onPress={() =>
-                  onAction?.({
-                    type: "choose_fulfillment",
-                    cardId: card.id,
-                    mode: "delivery",
-                  })
-                }
+                isDisabled={isLocked || !patientId}
+                onPress={() => setAddressPickerOpen(true)}
               >
                 <Truck className="size-3.5" />
                 配送
               </Button>
             ) : null}
           </CardFooter>
+        ) : null}
+
+        {patientId ? (
+          <AddressPickerModal
+            isOpen={addressPickerOpen}
+            onClose={() => setAddressPickerOpen(false)}
+            patientId={patientId}
+            onConfirm={(addressId) =>
+              onAction?.({
+                type: "choose_fulfillment",
+                cardId: card.id,
+                mode: "delivery",
+                addressId,
+              })
+            }
+          />
         ) : null}
       </Card>
     )

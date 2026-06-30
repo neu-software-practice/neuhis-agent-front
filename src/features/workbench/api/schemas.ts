@@ -67,11 +67,17 @@ export const submitPaymentInputSchema = z.object({
   defer: z.boolean().optional(),
 })
 
-export const submitFulfillmentInputSchema = z.object({
-  sessionId: sessionIdSchema,
-  cardId: flowCardIdSchema,
-  mode: z.enum(["pickup", "delivery"]),
-})
+export const submitFulfillmentInputSchema = z
+  .object({
+    sessionId: sessionIdSchema,
+    cardId: flowCardIdSchema,
+    mode: z.enum(["pickup", "delivery"]),
+    addressId: z.string().trim().min(1).optional(),
+  })
+  .refine((data) => data.mode !== "delivery" || !!data.addressId, {
+    message: "addressId is required when mode is delivery",
+    path: ["addressId"],
+  })
 
 export const submitTreatmentExecutionInputSchema = z.object({
   sessionId: sessionIdSchema,

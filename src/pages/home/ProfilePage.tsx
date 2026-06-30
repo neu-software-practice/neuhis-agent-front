@@ -1,11 +1,14 @@
 import { useCallback, useState } from "react"
 import { useNavigate } from "react-router"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { ChevronRight, ClipboardList, LogOut, Pill, Receipt, RefreshCw, ShieldAlert, Stethoscope, User } from "lucide-react"
+import { ChevronRight, ClipboardList, LogOut, MapPin, Pill, Plus, Receipt, RefreshCw, ShieldAlert, Stethoscope, User } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/features/shared/components/EmptyState"
 import { PageShell } from "@/features/shared/components/PageShell"
+import type { Address } from "@/features/patient/api"
+import { AddressCard } from "@/features/patient/components/AddressCard"
+import { AddressFormModal } from "@/features/patient/components/AddressFormModal"
 import { EditableChipList } from "@/features/patient/components/EditableChipList"
 import { PatientSummaryCard } from "@/features/patient/components/PatientSummaryCard"
 import {
@@ -38,9 +41,19 @@ export default function ProfilePage() {
     error,
     refetch,
   } = useQuery({ ...patientQueries.context(patientId), enabled: !!patientId })
+  const {
+    data: addressData,
+    isLoading: addressesLoading,
+    isError: addressesError,
+    error: addressesQueryError,
+    refetch: refetchAddresses,
+  } = useQuery({ ...patientQueries.addresses(patientId), enabled: !!patientId })
+  const addresses = addressData?.addresses ?? []
 
   // ---- 编辑状态（同一时间仅一个 section 可编辑）----
   const [editingSection, setEditingSection] = useState<EditingSection>(null)
+  const [addressModalOpen, setAddressModalOpen] = useState(false)
+  const [editingAddress, setEditingAddress] = useState<Address | null>(null)
 
   // ---- Mutation ----
   const { mutate, isPending } = useMutation({
@@ -52,12 +65,44 @@ export default function ProfilePage() {
       })
     },
   })
+  const deleteAddressMutation = useMutation(patientMutations.deleteAddress())
+  const setDefaultAddressMutation = useMutation(patientMutations.setDefaultAddress())
 
   const handleSave = useCallback(
     (field: "allergies" | "chronicDiseases" | "longTermMedications" | "medicalHistory", items: string[]) => {
       mutate({ patientId, [field]: items })
     },
     [mutate, patientId],
+  )
+
+  const handleOpenCreateAddress = useCallback(() => {
+    setEditingAddress(null)
+    setAddressModalOpen(true)
+  }, [])
+
+  const handleOpenEditAddress = useCallback((address: Address) => {
+    setEditingAddress(address)
+    setAddressModalOpen(true)
+  }, [])
+
+  const handleCloseAddressModal = useCallback(() => {
+    setAddressModalOpen(false)
+    setEditingAddress(null)
+  }, [])
+
+  const handleDeleteAddress = useCallback(
+    (address: Address) => {
+      if (!window.confirm("确认删除该收货地址？")) return
+      deleteAddressMutation.mutate({ patientId, addressId: address.id })
+    },
+    [deleteAddressMutation, patientId],
+  )
+
+  const handleSetDefaultAddress = useCallback(
+    (address: Address) => {
+      setDefaultAddressMutation.mutate({ patientId, addressId: address.id })
+    },
+    [patientId, setDefaultAddressMutation],
   )
 
   return (
@@ -159,6 +204,83 @@ export default function ProfilePage() {
               />
             </div>
 
+            {/* 收货地址 */}
+            <section className="space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <MapPin className="size-4 text-primary" />
+                  <h2 className="text-base font-medium">收货地址</h2>
+                  <span className="text-xs text-muted-foreground">
+                    {addresses.length}/10
+                  </span>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleOpenCreateAddress}
+                  disabled={addresses.length >= 10}
+                >
+                  <Plus className="size-4" />
+                  添加
+                </Button>
+              </div>
+
+              {addressesLoading ? (
+                <div className="flex flex-col gap-3" aria-label="地址加载中">
+                  <div className="h-24 animate-pulse rounded-lg bg-muted" />
+                  <div className="h-24 animate-pulse rounded-lg bg-muted" />
+                </div>
+              ) : null}
+
+              {addressesError ? (
+                <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card p-4">
+                  <p className="text-sm text-muted-foreground">
+                    {addressesQueryError instanceof Error
+                      ? addressesQueryError.message
+                      : "收货地址加载失败"}
+                  </p>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => {
+                      void refetchAddresses()
+                    }}
+                  >
+                    <RefreshCw className="size-4" />
+                    重试
+                  </Button>
+                </div>
+              ) : null}
+
+              {!addressesLoading && !addressesError && addresses.length === 0 ? (
+                <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-border px-4 py-8 text-center">
+                  <p className="text-sm text-muted-foreground">暂无收货地址</p>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={handleOpenCreateAddress}
+                  >
+                    <Plus className="size-4" />
+                    添加地址
+                  </Button>
+                </div>
+              ) : null}
+
+              {addresses.length > 0 ? (
+                <div className="flex flex-col gap-3">
+                  {addresses.map((address) => (
+                    <AddressCard
+                      key={address.id}
+                      address={address}
+                      onEdit={handleOpenEditAddress}
+                      onDelete={handleDeleteAddress}
+                      onSetDefault={handleSetDefaultAddress}
+                    />
+                  ))}
+                </div>
+              ) : null}
+            </section>
+
             {/* 上次就诊摘要 */}
             {context.priorVisit ? (
               <section>
@@ -212,6 +334,14 @@ export default function ProfilePage() {
                 退出登录
               </Button>
             </div>
+
+            <AddressFormModal
+              isOpen={addressModalOpen}
+              onClose={handleCloseAddressModal}
+              mode={editingAddress ? "edit" : "create"}
+              patientId={patientId}
+              initialData={editingAddress ?? undefined}
+            />
           </div>
         ) : null}
       </div>

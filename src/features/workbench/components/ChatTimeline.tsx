@@ -3,11 +3,13 @@ import { ChevronDown, Loader2 } from "lucide-react"
 import { Virtuoso } from "react-virtuoso"
 
 import type { FlowCardAction, TimelineItem } from "@/features/workbench/api"
+import type { PatientId } from "@/lib/api/types"
 import { TimelineRow } from "@/features/workbench/components/TimelineRow"
 import { cn } from "@/lib/utils"
 
 interface ChatTimelineProps {
   items: TimelineItem[]
+  patientId?: PatientId
   onAction?: (action: FlowCardAction) => void
   loading?: boolean
   hasMore?: boolean
@@ -27,6 +29,7 @@ interface ChatTimelineProps {
  */
 export function ChatTimeline({
   items,
+  patientId,
   onAction,
   loading = false,
   hasMore = false,
@@ -77,7 +80,12 @@ export function ChatTimeline({
         data={items}
         itemContent={(_index, item) => (
           <div className="px-4 py-1.5">
-            <TimelineRow item={item} onAction={onAction} readonly={readonly} />
+            <TimelineRow
+              item={item}
+              patientId={patientId}
+              onAction={onAction}
+              readonly={readonly}
+            />
           </div>
         )}
         startReached={handleStartReached}

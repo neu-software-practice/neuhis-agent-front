@@ -1,6 +1,6 @@
 # 项目地图
 
-更新时间：2026-06-30（账单记录功能）
+更新时间：2026-06-30（账单记录功能 + 地址簿 v5）
 
 ## 项目定位
 
@@ -61,7 +61,7 @@ NEUHIS Agent 前端——基于 React + HeroUI 3 + Magic UI 的 AI 诊疗 Agent 
 │   │   │   ├── HomePage.tsx          # 首页：活跃会话 + 症状快速填充 + 创建新会话
 │   │   │   ├── HistoryPage.tsx       # 历史就诊：筛选 tab + SessionCard 列表
 │   │   │   ├── BillingPage.tsx       # 账单记录：筛选 tab + TanStack Query 列表 + 空态
-│   │   │   └── ProfilePage.tsx       # 个人中心：PatientSummaryCard + 可编辑医疗信息 + 退出登录
+│   │   │   └── ProfilePage.tsx       # 个人中心：PatientSummaryCard + 可编辑医疗信息 + 地址簿 + 账单入口 + 退出登录
 │   │   └── workbench/
 │   │       ├── NewWorkbenchPage.tsx   # 自动创建会话（初诊/复诊）→ 跳转工作台
 │   │       ├── NewWorkbenchPage.test.tsx
@@ -86,8 +86,8 @@ NEUHIS Agent 前端——基于 React + HeroUI 3 + Magic UI 的 AI 诊疗 Agent 
 │   │       ├── types.ts              # ApiError、ID 品牌类型、状态枚举、PageResult<T>
 │   │       ├── errors.ts             # ApiException、toApiError、ZodError 转换
 │   │       ├── errors.test.ts
-│   │       ├── transport.ts          # ApiTransport 接口 + RequestOptions + StreamHandlers
-│   │       ├── client.ts             # ky HTTP transport：JWT 注入、401 refresh retry、SSE
+│   │       ├── transport.ts          # ApiTransport 接口 + RequestOptions + StreamHandlers（GET/POST/PUT/PATCH/DELETE）
+│   │       ├── client.ts             # ky HTTP transport：JWT 注入、401 refresh retry、SSE、PUT
 │   │       ├── schemas.test.ts
 │   │       └── index.ts              # getTransport() mock/http 选择器
 │   │
@@ -112,11 +112,15 @@ NEUHIS Agent 前端——基于 React + HeroUI 3 + Magic UI 的 AI 诊疗 Agent 
 │   │   │   ├── api/
 │   │   │   │   ├── types.ts          # PatientProfile、PatientContext、UpdatePatientProfileInput
 │   │   │   │   ├── schemas.ts        # 患者相关 Zod schemas + parse helpers
-│   │   │   │   ├── queries.ts        # TanStack Query queryOptions / mutationOptions
+│   │   │   │   ├── address-types.ts  # Address、地址 CRUD 输入类型
+│   │   │   │   ├── address-schemas.ts# 地址簿 Zod schemas + parse helpers
+│   │   │   │   ├── queries.ts        # TanStack Query queryOptions / mutationOptions（含地址簿）
 │   │   │   │   └── index.ts          # patientApi facade（verify / getContext / updateProfile）
 │   │   │   └── components/
 │   │   │       ├── PatientSummaryCard.tsx   # 患者档案摘要卡片
-│   │   │       └── EditableChipList.tsx     # 可编辑 Chip 列表（添加/删除/保存/取消）
+│   │   │       ├── EditableChipList.tsx     # 可编辑 Chip 列表（添加/删除/保存/取消）
+│   │   │       ├── AddressCard.tsx          # 收货地址展示/操作卡片
+│   │   │       └── AddressFormModal.tsx     # 新增/编辑收货地址 Modal
 │   │   │
 │   │   ├── billing/
 │   │   │   ├── api/
@@ -206,7 +210,8 @@ NEUHIS Agent 前端——基于 React + HeroUI 3 + Magic UI 的 AI 诊疗 Agent 
 │   │   │       ├── DiagnosisCard.tsx             # 诊断卡（结论/置信度/依据/风险）
 │   │   │       ├── TreatmentPlanCard.tsx         # 处置方案卡（类型/能力/动作清单）
 │   │   │       ├── TreatmentExecutionCard.tsx    # 治疗执行卡（状态推进 + 动态按钮）
-│   │   │       ├── MedicationFulfillmentCard.tsx # 取药/配送卡（药品清单 + 选择模式）
+│   │   │       ├── MedicationFulfillmentCard.tsx # 取药/配送卡（药品清单 + 地址选择配送）
+│   │   │       ├── AddressPickerModal.tsx        # 配送地址选择 Modal
 │   │   │       ├── AdviceOnlyCard.tsx            # 医嘱卡（建议 + 已知晓确认）
 │   │   │       ├── CompletedVisitCard.tsx        # 完成卡（诊断/处置摘要 + 随访）
 │   │   │       └── TerminalCard.tsx              # 终止展示卡（reason + 保存摘要）
@@ -229,6 +234,7 @@ NEUHIS Agent 前端——基于 React + HeroUI 3 + Magic UI 的 AI 诊疗 Agent 
 │   │   │   ├── timeline.ts          # mockActiveTimeline + mockCompletedTimeline
 │   │   │   └── flow-cards.ts        # 各类 FlowCard 工厂函数
 │   │   └── handlers/
+│   │       ├── address-handlers.ts  # 地址簿 CRUD 路由处理
 │   │       ├── auth-handlers.ts     # auth 路由处理
 │   │       ├── billing-handlers.ts  # 账单记录查询处理
 │   │       ├── chat-handlers.ts     # workbench 动作处理（消息/流程卡/退出/急症…）
@@ -337,6 +343,7 @@ API 层
 - [REST API Patch v2](./special-designs/rest-api-patch-v2.md)
 - [REST API Patch v3（JWT 认证）](./special-designs/rest-api-patch-v3.md)
 - [REST API Patch v4（会话标题生成）](./special-designs/rest-api-patch-v4.md)
+- [REST API Patch v5（地址簿与药品配送地址）](./special-designs/rest-api-patch-v5.md)
 - [REST API Patch v6（账单记录查询）](./special-designs/rest-api-patch-v6.md)
 - [QA Wave 1 走查记录](./qa/wave-1.md)
 - [medAgent 后端参考](./medagent-backend.md)

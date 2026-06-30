@@ -17,6 +17,13 @@ import {
   handleVerifyIdentity,
 } from "@/mocks/api/handlers/patient-handlers"
 import {
+  handleCreateAddress,
+  handleDeleteAddress,
+  handleListAddresses,
+  handleSetDefaultAddress,
+  handleUpdateAddress,
+} from "@/mocks/api/handlers/address-handlers"
+import {
   handleCreateFollowUp,
   handleCreateSession,
   handleGenerateTitle,
@@ -52,7 +59,7 @@ import {
   simulateSimpleReplyStream,
 } from "@/mocks/api/stream-simulator"
 
-type MockMethod = "GET" | "POST" | "PATCH" | "DELETE"
+type MockMethod = "GET" | "POST" | "PATCH" | "DELETE" | "PUT"
 
 function match(path: string, pattern: RegExp) {
   return path.match(pattern)
@@ -97,6 +104,28 @@ function route(method: MockMethod, path: string, body?: unknown, options?: Reque
 
   if (method === "GET" && path === "/billing/records") {
     return handleListBillingRecords()
+  }
+
+  // ── 地址簿路由 ──
+  const addressDefaultMatch = match(path, /^\/patients\/([^/]+)\/addresses\/([^/]+)\/default$/)
+  if (method === "PUT" && addressDefaultMatch) {
+    return handleSetDefaultAddress(addressDefaultMatch[1], addressDefaultMatch[2])
+  }
+
+  const addressDetailMatch = match(path, /^\/patients\/([^/]+)\/addresses\/([^/]+)$/)
+  if (method === "PATCH" && addressDetailMatch) {
+    return handleUpdateAddress(addressDetailMatch[1], addressDetailMatch[2], body)
+  }
+  if (method === "DELETE" && addressDetailMatch) {
+    return handleDeleteAddress(addressDetailMatch[1], addressDetailMatch[2])
+  }
+
+  const addressListMatch = match(path, /^\/patients\/([^/]+)\/addresses$/)
+  if (method === "GET" && addressListMatch) {
+    return handleListAddresses(addressListMatch[1])
+  }
+  if (method === "POST" && addressListMatch) {
+    return handleCreateAddress(addressListMatch[1], body)
   }
 
   if (method === "GET" && path === "/visits") {
@@ -257,6 +286,9 @@ export function createMockTransport(): ApiTransport {
     },
     async patch<T>(path: string, body?: unknown, options?: RequestOptions) {
       return delayed(route("PATCH", path, body, options) as T)
+    },
+    async put<T>(path: string, body?: unknown, options?: RequestOptions) {
+      return delayed(route("PUT", path, body, options) as T)
     },
     async delete<T>(path: string, options?: RequestOptions) {
       return delayed(route("DELETE", path, undefined, options) as T)

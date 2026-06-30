@@ -103,7 +103,7 @@ const httpClient = ky.create({
 })
 
 async function request<T>(
-  method: "get" | "post" | "patch" | "delete",
+  method: "get" | "post" | "patch" | "delete" | "put",
   path: string,
   body?: unknown,
   options?: RequestOptions,
@@ -156,6 +156,7 @@ export function createHttpTransport(): ApiTransport {
     get: (path, options) => request("get", path, undefined, options),
     post: (path, body, options) => request("post", path, body, options),
     patch: (path, body, options) => request("patch", path, body, options),
+    put: (path, body, options) => request("put", path, body, options),
     delete: (path, options) => request("delete", path, undefined, options),
     async stream<TEvent>(
       path: string,

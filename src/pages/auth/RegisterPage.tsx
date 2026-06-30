@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { useForm, Controller } from "react-hook-form"
+import { useForm, Controller, useWatch } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Link, useNavigate } from "react-router"
 import { Eye, EyeOff, Stethoscope } from "lucide-react"
@@ -37,7 +37,6 @@ export default function RegisterPage() {
     register,
     handleSubmit,
     setValue,
-    watch,
     control,
     formState: { errors, isSubmitting },
   } = useForm<RegisterFormValues>({
@@ -48,7 +47,7 @@ export default function RegisterPage() {
     },
   })
 
-  const genderValue = watch("gender")
+  const genderValue = useWatch({ control, name: "gender" }) ?? ""
 
   function handleGenderPreset(value: string) {
     setIsCustomGender(false)

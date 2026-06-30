@@ -111,6 +111,12 @@ export const treatmentPlanCardSchema = flowCardBaseSchema.extend({
   actions: z.array(z.string().trim().min(1)),
 })
 
+export const deliveryAddressSummarySchema = z.object({
+  name: z.string().trim().min(1),
+  phone: z.string().trim().min(1),
+  fullAddress: z.string().trim().min(1),
+})
+
 export const medicationFulfillmentCardSchema = flowCardBaseSchema.extend({
   kind: z.literal("medication_fulfillment"),
   medications: z.array(
@@ -126,6 +132,7 @@ export const medicationFulfillmentCardSchema = flowCardBaseSchema.extend({
   availableModes: z.array(z.enum(["pickup", "delivery"])),
   selectedMode: z.enum(["pickup", "delivery"]).optional(),
   fulfillmentStatus: z.enum(["pending", "confirmed", "completed"]),
+  deliveryAddress: deliveryAddressSummarySchema.optional(),
 })
 
 export const treatmentExecutionCardSchema = flowCardBaseSchema.extend({

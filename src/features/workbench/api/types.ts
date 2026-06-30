@@ -76,7 +76,7 @@ export type FlowCardAction =
   | { type: "skip_lab"; cardId: string }
   | { type: "submit_payment"; cardId: string; paymentMethodId: string }
   | { type: "defer_payment"; cardId: string }
-  | { type: "choose_fulfillment"; cardId: string; mode: "pickup" | "delivery" }
+  | { type: "choose_fulfillment"; cardId: string; mode: "pickup" | "delivery"; addressId?: string }
   | {
       type: "submit_treatment_execution"
       cardId: string

@@ -6,6 +6,11 @@ import type {
   VisitStatus,
 } from "@/lib/api/types"
 import type { PatientContext, PatientProfile } from "@/features/patient/api/types"
+import type {
+  Address,
+  CreateAddressInput,
+  UpdateAddressInput,
+} from "@/features/patient/api/address-types"
 import {
   parsePatientContext,
   parsePatientProfile,
@@ -97,6 +102,8 @@ interface MockDbState {
   // Auth
   users: Record<string, MockUser>
   refreshTokens: Set<string>
+  // 地址簿
+  addresses: Record<PatientId, Address[]>
   nextId: number
 }
 
@@ -150,6 +157,24 @@ function createInitialState(): MockDbState {
       },
     },
     refreshTokens: new Set<string>(),
+    addresses: {
+      [mockPatient.id]: [
+        {
+          id: "addr-seed-001",
+          patientId: mockPatient.id,
+          name: "李明",
+          phone: "13800002468",
+          province: "辽宁省",
+          city: "沈阳市",
+          district: "浑南区",
+          detail: "创新路195号东软软件园B4座3楼",
+          isDefault: true,
+          tag: "公司",
+          createdAt: "2026-06-01T00:00:00.000Z",
+          updatedAt: "2026-06-01T00:00:00.000Z",
+        },
+      ],
+    },
     nextId: 1,
   }
 }
@@ -622,6 +647,40 @@ class MockDb {
     const card = this.requireCard(input.sessionId, input.cardId)
     if (card.kind !== "medication_fulfillment") {
       return this.flowResult(input.sessionId, [], undefined, "当前卡片不是取药确认卡。")
+    }
+
+    // 配送模式需校验地址
+    if (input.mode === "delivery") {
+      if (!input.addressId) {
+        throwApiError(
+          createApiError({
+            code: "ADDRESS_REQUIRED",
+            message: "配送模式下必须选择收货地址",
+            status: 400,
+            retriable: false,
+          }),
+        )
+      }
+      // 查找关联的患者地址
+      const session = this.requireSession(input.sessionId)
+      const addresses = this.state.addresses[session.patientId] ?? []
+      const address = addresses.find((a) => a.id === input.addressId)
+      if (!address) {
+        throwApiError(
+          createApiError({
+            code: "ADDRESS_NOT_FOUND",
+            message: "收货地址不存在",
+            status: 404,
+            retriable: false,
+          }),
+        )
+      }
+      // 将地址摘要写入卡片，供只读回看展示
+      ;(card as Record<string, unknown>).deliveryAddress = {
+        name: address.name,
+        phone: address.phone,
+        fullAddress: `${address.province}${address.city}${address.district}${address.detail}`,
+      }
     }
 
     card.status = "completed"
@@ -1334,6 +1393,142 @@ class MockDb {
       return complaint || "问诊记录"
     }
     return complaint.slice(0, 13) + "…"
+  }
+
+  // ─── 地址簿 ─────────────────────────────────────────────────────────────────
+
+  listAddresses(patientId: PatientId): Address[] {
+    return clone(this.state.addresses[patientId] ?? [])
+  }
+
+  createAddress(patientId: PatientId, input: CreateAddressInput): Address {
+    const list = this.state.addresses[patientId] ?? []
+    if (list.length >= 10) {
+      throwApiError(
+        createApiError({
+          code: "ADDRESS_LIMIT_EXCEEDED",
+          message: "收货地址数量已达上限（10 条）",
+          status: 400,
+          retriable: false,
+        }),
+      )
+    }
+
+    const now = nowIso()
+    const address: Address = {
+      id: this.id("addr"),
+      patientId,
+      name: input.name,
+      phone: input.phone,
+      province: input.province,
+      city: input.city,
+      district: input.district,
+      detail: input.detail,
+      isDefault: input.isDefault ?? false,
+      tag: input.tag,
+      createdAt: now,
+      updatedAt: now,
+    }
+
+    // 如果设为默认，先取消其他默认
+    if (address.isDefault) {
+      for (const addr of list) {
+        addr.isDefault = false
+      }
+    }
+    // 如果是第一条地址，自动设为默认
+    if (list.length === 0) {
+      address.isDefault = true
+    }
+
+    list.push(address)
+    this.state.addresses[patientId] = list
+    return clone(address)
+  }
+
+  updateAddress(patientId: PatientId, input: UpdateAddressInput): Address {
+    const list = this.state.addresses[patientId] ?? []
+    const index = list.findIndex((a) => a.id === input.addressId)
+    if (index === -1) {
+      throwApiError(
+        createApiError({
+          code: "ADDRESS_NOT_FOUND",
+          message: "收货地址不存在",
+          status: 404,
+          retriable: false,
+        }),
+      )
+    }
+
+    const existing = list[index]
+    const updated: Address = {
+      ...existing,
+      name: input.name ?? existing.name,
+      phone: input.phone ?? existing.phone,
+      province: input.province ?? existing.province,
+      city: input.city ?? existing.city,
+      district: input.district ?? existing.district,
+      detail: input.detail ?? existing.detail,
+      isDefault: input.isDefault ?? existing.isDefault,
+      tag: input.tag !== undefined ? input.tag : existing.tag,
+      updatedAt: nowIso(),
+    }
+
+    // 如果设为默认，取消其他
+    if (updated.isDefault && !existing.isDefault) {
+      for (const addr of list) {
+        addr.isDefault = false
+      }
+    }
+
+    list[index] = updated
+    return clone(updated)
+  }
+
+  deleteAddress(patientId: PatientId, addressId: string): void {
+    const list = this.state.addresses[patientId] ?? []
+    const index = list.findIndex((a) => a.id === addressId)
+    if (index === -1) {
+      throwApiError(
+        createApiError({
+          code: "ADDRESS_NOT_FOUND",
+          message: "收货地址不存在",
+          status: 404,
+          retriable: false,
+        }),
+      )
+    }
+
+    const wasDefault = list[index].isDefault
+    list.splice(index, 1)
+
+    // 被删的是默认地址且列表不为空时，自动转移默认
+    if (wasDefault && list.length > 0) {
+      list[0].isDefault = true
+    }
+
+    this.state.addresses[patientId] = list
+  }
+
+  setDefaultAddress(patientId: PatientId, addressId: string): Address {
+    const list = this.state.addresses[patientId] ?? []
+    const target = list.find((a) => a.id === addressId)
+    if (!target) {
+      throwApiError(
+        createApiError({
+          code: "ADDRESS_NOT_FOUND",
+          message: "收货地址不存在",
+          status: 404,
+          retriable: false,
+        }),
+      )
+    }
+
+    for (const addr of list) {
+      addr.isDefault = addr.id === addressId
+    }
+    target.updatedAt = nowIso()
+    return clone(target)
   }
 
   // ─── Auth ───────────────────────────────────────────────────────────────────

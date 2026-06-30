@@ -1,6 +1,7 @@
 import { memo } from "react"
 
 import type { FlowCardAction, TimelineItem } from "@/features/workbench/api"
+import type { PatientId } from "@/lib/api/types"
 import { assertNever } from "@/lib/utils"
 import { MessageBubble } from "@/features/workbench/components/MessageBubble"
 import { SystemEventRow } from "@/features/workbench/components/SystemEventRow"
@@ -14,6 +15,7 @@ import { FlowCardRenderer } from "@/features/workbench/flow-cards/FlowCardRender
 
 interface TimelineRowProps {
   item: TimelineItem
+  patientId?: PatientId
   onAction?: (action: FlowCardAction) => void
   /** 只读回看：透传为流程卡的 disabled，使按钮呈禁用态。 */
   readonly?: boolean
@@ -27,6 +29,7 @@ interface TimelineRowProps {
  */
 export const TimelineRow = memo(function TimelineRow({
   item,
+  patientId,
   onAction,
   readonly,
 }: TimelineRowProps) {
@@ -37,6 +40,7 @@ export const TimelineRow = memo(function TimelineRow({
       return (
         <FlowCardRenderer
           card={item.card}
+          patientId={patientId}
           onAction={onAction}
           disabled={readonly}
         />
