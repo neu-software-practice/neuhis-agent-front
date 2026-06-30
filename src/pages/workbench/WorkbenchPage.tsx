@@ -9,6 +9,7 @@ import { ChatTimeline } from "@/features/workbench/components/ChatTimeline"
 import { ContextSummaryBar } from "@/features/workbench/components/ContextSummaryBar"
 import { ContextSummaryDrawer } from "@/features/workbench/components/ContextSummaryDrawer"
 import { EmergencyOverlay } from "@/features/workbench/components/EmergencyOverlay"
+import { CompletedExitSheet } from "@/features/workbench/components/CompletedExitSheet"
 import { ExitVisitSheet } from "@/features/workbench/components/ExitVisitSheet"
 import { PauseVisitSheet } from "@/features/workbench/components/PauseVisitSheet"
 import { InputDock } from "@/features/workbench/components/InputDock"
@@ -258,23 +259,31 @@ export default function WorkbenchPage() {
             }}
             onCancel={() => setPauseSheetOpen(false)}
           />
-          <ExitVisitSheet
-            open={exitSheetOpen && !isTerminated}
-            onOpenChange={setExitSheetOpen}
-            consequence={consequence}
-            onSuspend={() => {
-              void actions.suspendVisit().then(() => {
-                setExitSheetOpen(false)
-                navigate("/")
-              })
-            }}
-            onConfirm={() => {
-              void actions.confirmExit().then(() => {
-                setExitSheetOpen(false)
-                navigate("/")
-              })
-            }}
-          />
+          {state === "completed" ? (
+            <CompletedExitSheet
+              open={exitSheetOpen}
+              onOpenChange={setExitSheetOpen}
+              onNavigateHome={() => navigate("/")}
+            />
+          ) : (
+            <ExitVisitSheet
+              open={exitSheetOpen && !isTerminated}
+              onOpenChange={setExitSheetOpen}
+              consequence={consequence}
+              onSuspend={() => {
+                void actions.suspendVisit().then(() => {
+                  setExitSheetOpen(false)
+                  navigate("/")
+                })
+              }}
+              onConfirm={() => {
+                void actions.confirmExit().then(() => {
+                  setExitSheetOpen(false)
+                  navigate("/")
+                })
+              }}
+            />
+          )}
         </>
       }
     />

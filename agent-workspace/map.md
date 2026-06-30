@@ -1,6 +1,6 @@
 # 项目地图
 
-更新时间：2026-06-30（省市区三级联动 RegionSelector 组件）
+更新时间：2026-06-30（已完成问诊退出框修复：新增 CompletedExitSheet 组件）
 
 ## 项目定位
 
@@ -212,6 +212,7 @@ NEUHIS Agent 前端——基于 React + HeroUI 3 + Magic UI 的 AI 诊疗 Agent 
 │   │   │   │   ├── ContextSummaryDrawer.tsx # 上下文详情 Drawer
 │   │   │   │   ├── EmergencyOverlay.tsx     # 急症打断 Modal（确认/误报）
 │   │   │   │   ├── SuspendOverlay.tsx       # 空闲挂起 Modal（继续问诊）
+│   │   │   │   ├── CompletedExitSheet.tsx   # 已完成问诊退出 Drawer（仅导航，无状态转移）
 │   │   │   │   ├── ExitVisitSheet.tsx       # 退出结算 Drawer（后果文案 + 确认）
 │   │   │   │   └── PauseVisitSheet.tsx      # 暂离确认 Drawer
 │   │   │   │
@@ -294,6 +295,9 @@ loadingContext → chatting ⇄ analyzing
 
 全局打断（优先级高→低）：
   emergencyPending（急症）> exitSettlement（退出）> suspended（空闲挂起）
+
+已完成问诊（completed）的退出行为：使用 CompletedExitSheet（仅「返回首页」/「留在当前页」导航），
+不经过 ExitVisitSheet，不触发状态机事件或 API 调用。
 ```
 
 ## 数据流架构
