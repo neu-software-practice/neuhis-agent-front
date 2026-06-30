@@ -12,7 +12,6 @@ import {
 import { patientMutations } from "@/features/patient/api/queries"
 import type {
   Address,
-  AddressTag,
   CreateAddressInput,
 } from "@/features/patient/api"
 import type { PatientId } from "@/lib/api/types"
@@ -27,7 +26,11 @@ interface AddressFormModalProps {
   onSuccess?: (address: Address) => void
 }
 
-const ADDRESS_TAGS: AddressTag[] = ["家", "公司", "病房", "其他"]
+const TAG_PRESETS = [
+  { value: "家", label: "家" },
+  { value: "公司", label: "公司" },
+  { value: "病房", label: "病房" },
+] as const
 type CreateAddressFormValues = z.input<typeof createAddressInputSchema>
 
 function buildDefaultValues(
@@ -81,13 +84,29 @@ export function AddressFormModal({
 
   const selectedTag = useWatch({ control, name: "tag" })
   const isDefault = useWatch({ control, name: "isDefault" })
+  const [isCustomTag, setIsCustomTag] = useState(false)
+  const tagValue = selectedTag ?? ""
   const submitting = createMutation.isPending || updateMutation.isPending
+
+  function handleTagPreset(value: string) {
+    setIsCustomTag(false)
+    setValue("tag", value, { shouldValidate: true })
+  }
+
+  function handleTagCustom() {
+    setIsCustomTag(true)
+    setValue("tag", "", { shouldValidate: false })
+  }
 
   useEffect(() => {
     if (isOpen) {
       reset(defaultValues)
+      setIsCustomTag(
+        !!initialData?.tag &&
+          !TAG_PRESETS.some((p) => p.value === initialData.tag),
+      )
     }
-  }, [defaultValues, isOpen, reset])
+  }, [defaultValues, isOpen, reset, initialData?.tag])
 
   function handleClose() {
     setServerError(null)
@@ -208,25 +227,50 @@ export function AddressFormModal({
                 <fieldset className="space-y-2">
                   <legend className="text-sm font-medium">地址标签</legend>
                   <div className="flex flex-wrap gap-2">
-                    {ADDRESS_TAGS.map((tag) => (
+                    {TAG_PRESETS.map((preset) => (
                       <button
-                        key={tag}
+                        key={preset.value}
                         type="button"
                         className={cn(
                           "rounded-lg border px-3 py-1.5 text-sm transition-colors",
-                          selectedTag === tag
+                          !isCustomTag && tagValue === preset.value
                             ? "border-primary bg-primary/10 text-primary"
                             : "border-default-200 bg-default-100 text-foreground hover:border-primary/50",
                         )}
                         disabled={submitting}
-                        onClick={() =>
-                          setValue("tag", tag, { shouldValidate: true })
-                        }
+                        onClick={() => handleTagPreset(preset.value)}
                       >
-                        {tag}
+                        {preset.label}
                       </button>
                     ))}
+                    <button
+                      type="button"
+                      className={cn(
+                        "rounded-lg border px-3 py-1.5 text-sm transition-colors",
+                        isCustomTag
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-default-200 bg-default-100 text-foreground hover:border-primary/50",
+                      )}
+                      disabled={submitting}
+                      onClick={handleTagCustom}
+                    >
+                      其他...
+                    </button>
                   </div>
+                  {isCustomTag && (
+                    <input
+                      type="text"
+                      placeholder="请输入地址标签"
+                      className={inputClass}
+                      disabled={submitting}
+                      value={tagValue}
+                      onChange={(e) =>
+                        setValue("tag", e.target.value, {
+                          shouldValidate: true,
+                        })
+                      }
+                    />
+                  )}
                   {errors.tag?.message ? (
                     <p className="text-xs text-danger">{errors.tag.message}</p>
                   ) : null}

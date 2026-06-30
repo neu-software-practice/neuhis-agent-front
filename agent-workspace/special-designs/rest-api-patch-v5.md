@@ -55,7 +55,7 @@
 | `district` | `string` | 是 | 区县 |
 | `detail` | `string` | 是 | 详细地址，1-200 字 |
 | `isDefault` | `boolean` | 否 | 是否设为默认，默认 `false` |
-| `tag` | `"家" | "公司" | "医院" | "其他"` | 否 | 地址标签 |
+| `tag` | `string` | 否 | 地址标签，自由文本（常用预设：家、公司、病房） |
 
 响应体：`Address`。
 
