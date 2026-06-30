@@ -1,6 +1,6 @@
 # 项目地图
 
-更新时间：2026-06-30（已完成问诊退出框修复：新增 CompletedExitSheet 组件）
+更新时间：2026-06-30（管理后台 admin panel + CompletedExitSheet 修复 + rest-api-patch-v8）
 
 ## 项目定位
 
@@ -64,12 +64,19 @@ NEUHIS Agent 前端——基于 React + HeroUI 3 + Magic UI 的 AI 诊疗 Agent 
 │   │   │   ├── MedicalOrdersPage.tsx # 医嘱记录：历史医嘱/用药记录列表
 │   │   │   ├── AddressPage.tsx       # 收货地址管理：默认地址置顶 + CRUD + 空态
 │   │   │   └── ProfilePage.tsx       # 个人中心：PatientSummaryCard + 可编辑医疗信息 + 地址入口预览 + 账单入口 + 医嘱入口 + 退出登录
-│   │   └── workbench/
-│   │       ├── NewWorkbenchPage.tsx   # 自动创建会话（初诊/复诊）→ 跳转工作台
-│   │       ├── NewWorkbenchPage.test.tsx
-│   │       ├── WorkbenchPage.tsx      # 进行中工作台：总装 shell + overlays + 倒计时
-│   │       ├── ReadonlyVisitPage.tsx  # 只读回看：快照时间线，无输入，不触发主循环
-│   │       └── workbench-loaders.ts   # 路由 loader，参数解析与轻量校验
+│   │   ├── workbench/
+│   │   │   ├── NewWorkbenchPage.tsx   # 自动创建会话（初诊/复诊）→ 跳转工作台
+│   │   │   ├── NewWorkbenchPage.test.tsx
+│   │   │   ├── WorkbenchPage.tsx      # 进行中工作台：总装 shell + overlays + 倒计时
+│   │   │   ├── ReadonlyVisitPage.tsx  # 只读回看：快照时间线，无输入，不触发主循环
+│   │   │   └── workbench-loaders.ts   # 路由 loader，参数解析与轻量校验
+│   │   └── admin/
+│   │       ├── lazy.ts               # React.lazy 导入（避免 react-refresh lint）
+│   │       ├── AdminLoginPage.tsx    # 管理员登录（用户名+密码）
+│   │       ├── DashboardPage.tsx     # 仪表盘（5 项统计卡片）
+│   │       ├── PatientListPage.tsx   # 患者管理（搜索+分页表格）
+│   │       ├── SessionListPage.tsx   # 问诊记录（状态筛选+分页表格）
+│   │       └── SettingsPage.tsx      # 系统设置（表单+开关）
 │   │
 │   ├── components/ui/
 │   │   ├── button.tsx                # shadcn 风格 Button（CVA + Radix Slot）
@@ -231,6 +238,20 @@ NEUHIS Agent 前端——基于 React + HeroUI 3 + Magic UI 的 AI 诊疗 Agent 
 │   │   │       ├── CompletedVisitCard.tsx        # 完成卡（诊断/处置摘要 + 随访）
 │   │   │       └── TerminalCard.tsx              # 终止展示卡（reason + 保存摘要）
 │   │   │
+│   │   ├── admin/
+│   │   │   ├── api/
+│   │   │   │   ├── types.ts          # AdminUser, AdminTokenPair, DashboardStats 等类型
+│   │   │   │   ├── schemas.ts        # Zod v4 校验 schema + paginatedResponseSchema 工厂
+│   │   │   │   └── admin-api.ts      # adminApi facade（login/logout/refresh/CRUD）
+│   │   │   ├── store/
+│   │   │   │   └── admin-auth-store.ts # Zustand + persist, key "neuhis-admin-auth"
+│   │   │   ├── hooks/
+│   │   │   │   └── useAdminAuth.ts   # 管理员认证状态 selector hook
+│   │   │   └── components/
+│   │   │       ├── AdminGuard.tsx    # 管理员路由守卫（未认证→/admin/login）
+│   │   │       ├── AdminShell.tsx    # 管理后台布局壳（sidebar + main）
+│   │   │       └── AdminSidebar.tsx  # 管理后台左侧导航栏
+│   │   │
 │   │   └── shared/components/
 │   │       ├── PageShell.tsx          # 通用页面壳（sticky header + 滚动主区 + footer）
 │   │       ├── EmptyState.tsx         # 通用空态/占位
@@ -253,6 +274,7 @@ NEUHIS Agent 前端——基于 React + HeroUI 3 + Magic UI 的 AI 诊疗 Agent 
 │   │       ├── auth-handlers.ts     # auth 路由处理
 │   │       ├── billing-handlers.ts  # 账单记录查询处理
 │   │       ├── chat-handlers.ts     # workbench 动作处理（消息/流程卡/退出/急症…）
+│   │       ├── admin-handlers.ts   # 管理后台 10 个端点处理
 │   │       ├── patient-handlers.ts  # 患者端点处理
 │   │       └── visit-handlers.ts    # 会话 CRUD 处理
 │   │
@@ -278,6 +300,11 @@ NEUHIS Agent 前端——基于 React + HeroUI 3 + Magic UI 的 AI 诊疗 Agent 
 | `/workbench/new` | NewWorkbenchPage | AuthGuard |
 | `/workbench/:sessionId` | WorkbenchPage | AuthGuard |
 | `/history/:sessionId` | ReadonlyVisitPage | AuthGuard |
+| `/admin/login` | AdminLoginPage | 公开 |
+| `/admin/dashboard` | DashboardPage | AdminGuard + AdminShell |
+| `/admin/patients` | PatientListPage | AdminGuard + AdminShell |
+| `/admin/sessions` | SessionListPage | AdminGuard + AdminShell |
+| `/admin/settings` | SettingsPage | AdminGuard + AdminShell |
 
 ## 状态机（visitMachine）
 
@@ -366,5 +393,6 @@ API 层
 - [REST API Patch v5（地址簿与药品配送地址）](./special-designs/rest-api-patch-v5.md)
 - [REST API Patch v6（账单记录查询）](./special-designs/rest-api-patch-v6.md)
 - [REST API Patch v7（医嘱记录查询）](./special-designs/rest-api-patch-v7.md)
+- [REST API Patch v8（管理后台）](./special-designs/rest-api-patch-v8.md)
 - [QA Wave 1 走查记录](./qa/wave-1.md)
 - [medAgent 后端参考](./medagent-backend.md)

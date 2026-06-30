@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, keepPreviousData } from "@tanstack/react-query"
 import { Chip } from "@heroui/react"
 import { Loader2 } from "lucide-react"
 
@@ -55,6 +55,7 @@ export default function SessionListPage() {
         pageSize,
         status: status || undefined,
       }),
+    placeholderData: keepPreviousData,
   })
 
   const totalPages = data ? Math.ceil(data.total / pageSize) : 1
@@ -70,6 +71,7 @@ export default function SessionListPage() {
             setStatus(e.target.value)
             setPage(1)
           }}
+          aria-label="按状态筛选"
           className="rounded-lg border border-default-200 bg-default-100 px-3 py-2 text-sm text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary"
         >
           {STATUS_OPTIONS.map((opt) => (

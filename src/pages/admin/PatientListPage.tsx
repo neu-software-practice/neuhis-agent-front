@@ -54,6 +54,7 @@ export default function PatientListPage() {
           <input
             type="text"
             placeholder="搜索姓名或手机号"
+            aria-label="搜索姓名或手机号"
             value={search}
             onChange={(e) => handleSearchChange(e.target.value)}
             className="w-full rounded-lg border border-default-200 bg-default-100 py-2 pl-9 pr-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary"

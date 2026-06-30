@@ -12,7 +12,7 @@ export function AdminShell() {
   return (
     <div className="flex h-dvh overflow-hidden bg-background text-foreground">
       <AdminSidebar />
-      <main className="min-h-0 flex-1 overflow-y-auto">
+      <main className="min-h-0 flex-1 overflow-y-auto p-6">
         <Outlet />
       </main>
     </div>

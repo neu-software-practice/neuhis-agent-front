@@ -62,6 +62,8 @@ agent-workspace/
     rest-api-patch-v4.md         # REST API Patch v4：会话标题生成（后端 LLM 总结问诊标题）
     rest-api-patch-v5.md         # REST API Patch v5：地址簿与药品配送地址
     rest-api-patch-v6.md         # REST API Patch v6：账单记录查询（GET /billing/records）
+    rest-api-patch-v7.md         # REST API Patch v7：医嘱记录查询（GET /medical-orders）
+    rest-api-patch-v8.md         # REST API Patch v8：管理后台（Admin Panel）10 端点
   无人医院_患者端_交互原型.html  # 患者端交互原型
 ```
 

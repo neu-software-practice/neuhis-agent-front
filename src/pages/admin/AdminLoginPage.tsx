@@ -19,7 +19,9 @@ import logo from "@/assets/claude.webp"
 export default function AdminLoginPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const redirectTo = searchParams.get("redirectTo") || "/admin/dashboard"
+  const rawRedirect = searchParams.get("redirectTo") || "/admin/dashboard"
+  // 防止开放重定向：仅允许跳转到 /admin/ 下的路径
+  const redirectTo = rawRedirect.startsWith("/admin/") ? rawRedirect : "/admin/dashboard"
 
   const [showPassword, setShowPassword] = useState(false)
   const [serverError, setServerError] = useState<string | null>(null)

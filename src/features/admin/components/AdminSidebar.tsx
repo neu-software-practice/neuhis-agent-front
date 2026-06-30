@@ -2,6 +2,7 @@ import { LayoutDashboard, LogOut, MessageSquare, Settings, Users } from "lucide-
 import { NavLink, useNavigate } from "react-router"
 
 import claudeLogo from "@/assets/claude.webp"
+import { adminApi } from "@/features/admin/api/admin-api"
 import { useAdminAuthStore } from "@/features/admin/store/admin-auth-store"
 import { cn } from "@/lib/utils"
 
@@ -26,7 +27,11 @@ const NAV_ITEMS: readonly NavItem[] = [
 export function AdminSidebar() {
   const navigate = useNavigate()
 
-  function handleLogout() {
+  async function handleLogout() {
+    const { refreshToken } = useAdminAuthStore.getState()
+    if (refreshToken) {
+      try { await adminApi.logout(refreshToken) } catch { /* best-effort */ }
+    }
     useAdminAuthStore.getState().logout()
     navigate("/admin/login")
   }
