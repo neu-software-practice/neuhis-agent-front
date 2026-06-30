@@ -2,7 +2,7 @@ import { useState } from "react"
 import { useForm, Controller, useWatch } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Link, useNavigate } from "react-router"
-import { Eye, EyeOff, Stethoscope } from "lucide-react"
+import { Stethoscope } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { DatePicker } from "@/components/ui/date-picker"
@@ -27,8 +27,6 @@ export default function RegisterPage() {
   const navigate = useNavigate()
   const login = useAuthStore((s) => s.login)
 
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [serverError, setServerError] = useState<string | null>(null)
   /** 是否选择"其他"性别（手动输入） */
   const [isCustomGender, setIsCustomGender] = useState(false)
@@ -125,28 +123,14 @@ export default function RegisterPage() {
             <label htmlFor="password" className="text-sm font-medium">
               密码
             </label>
-            <div className="relative">
-              <input
-                id="password"
-                type={showPassword ? "text" : "password"}
-                autoComplete="new-password"
-                placeholder="至少 6 位，含字母和数字"
-                className={`${inputClass} pr-10`}
-                {...register("password")}
-              />
-              <button
-                type="button"
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground-400 hover:text-foreground-600"
-                onClick={() => setShowPassword(!showPassword)}
-                aria-label={showPassword ? "隐藏密码" : "显示密码"}
-              >
-                {showPassword ? (
-                  <EyeOff className="size-4" />
-                ) : (
-                  <Eye className="size-4" />
-                )}
-              </button>
-            </div>
+            <input
+              id="password"
+              type="password"
+              autoComplete="new-password"
+              placeholder="至少 6 位，含字母和数字"
+              className={inputClass}
+              {...register("password")}
+            />
             {errors.password && (
               <p className="text-xs text-danger">{errors.password.message}</p>
             )}
@@ -157,28 +141,14 @@ export default function RegisterPage() {
             <label htmlFor="confirmPassword" className="text-sm font-medium">
               确认密码
             </label>
-            <div className="relative">
-              <input
-                id="confirmPassword"
-                type={showConfirmPassword ? "text" : "password"}
-                autoComplete="new-password"
-                placeholder="请再次输入密码"
-                className={`${inputClass} pr-10`}
-                {...register("confirmPassword")}
-              />
-              <button
-                type="button"
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground-400 hover:text-foreground-600"
-                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                aria-label={showConfirmPassword ? "隐藏密码" : "显示密码"}
-              >
-                {showConfirmPassword ? (
-                  <EyeOff className="size-4" />
-                ) : (
-                  <Eye className="size-4" />
-                )}
-              </button>
-            </div>
+            <input
+              id="confirmPassword"
+              type="password"
+              autoComplete="new-password"
+              placeholder="请再次输入密码"
+              className={inputClass}
+              {...register("confirmPassword")}
+            />
             {errors.confirmPassword && (
               <p className="text-xs text-danger">
                 {errors.confirmPassword.message}

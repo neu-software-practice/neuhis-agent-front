@@ -146,18 +146,6 @@
     --danger-foreground: oklch(0.22 0.008 25);
 }
 
-/* 隐藏浏览器原生密码显示按钮，使用自定义图标 */
-input[type="password"]::-ms-reveal,
-input[type="password"]::-ms-clear,
-input[type="password"]::-webkit-credentials-auto-fill-button,
-input[type="password"]::-webkit-textfield-decoration-container > input::-webkit-contacts-auto-fill-button {
-  display: none;
-}
-
-input::-webkit-reveal {
-  display: none;
-}
-
 @layer base {
   * {
     @apply border-border outline-ring/50;
