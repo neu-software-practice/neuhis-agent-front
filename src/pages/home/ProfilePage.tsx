@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from "react"
 import { useNavigate } from "react-router"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Card, CardContent } from "@heroui/react"
+import { Card, CardContent, Separator } from "@heroui/react"
 import { ChevronRight, ClipboardList, FileText, LogOut, MapPin, Phone, Pill, Receipt, RefreshCw, ShieldAlert, Stethoscope, User } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -156,7 +156,7 @@ export default function ProfilePage() {
 
             {/* 既往病史 */}
             <Card>
-              <CardContent>
+              <CardContent className="p-0">
               <EditableChipList
                 label="既往病史"
                 items={context.medicalHistory}
@@ -173,9 +173,10 @@ export default function ProfilePage() {
 
             {/* 收货地址入口 */}
             <Card>
+              <CardContent>
               <button
                 type="button"
-                className="flex w-full items-start gap-3 px-4 py-3 text-left hover:bg-muted/50 transition-colors"
+                className="flex w-full items-start gap-3 text-left hover:bg-muted/50 transition-colors"
                 onClick={() => navigate("/addresses")}
               >
                 <MapPin className="mt-0.5 size-5 shrink-0 text-primary" />
@@ -211,6 +212,7 @@ export default function ProfilePage() {
                   )}
                 </div>
               </button>
+              </CardContent>
             </Card>
 
             {/* 上次就诊摘要 */}
@@ -244,23 +246,25 @@ export default function ProfilePage() {
 
             {/* 功能入口 */}
             <Card>
+              <CardContent>
               <button
-                className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm hover:bg-muted/50 transition-colors"
+                className="flex w-full items-center gap-3 py-3 text-left text-sm hover:bg-muted/50 transition-colors"
                 onClick={() => navigate("/billing")}
               >
                 <Receipt className="size-5 text-muted-foreground" />
                 <span className="flex-1 font-medium">账单记录</span>
                 <ChevronRight className="size-4 text-muted-foreground" />
               </button>
-              <div className="border-t border-border" />
+              <Separator />
               <button
-                className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm hover:bg-muted/50 transition-colors"
+                className="flex w-full items-center gap-3 py-3 text-left text-sm hover:bg-muted/50 transition-colors"
                 onClick={() => navigate("/medical-orders")}
               >
                 <FileText className="size-5 text-muted-foreground" />
                 <span className="flex-1 font-medium">医嘱记录</span>
                 <ChevronRight className="size-4 text-muted-foreground" />
               </button>
+              </CardContent>
             </Card>
 
             {/* 退出登录 */}
