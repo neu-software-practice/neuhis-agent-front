@@ -181,11 +181,11 @@ export default function ProfilePage() {
                   </div>
                   {defaultAddress ? (
                     <div className="mt-1.5 text-sm text-muted-foreground">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-foreground">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="font-medium text-foreground truncate">
                           {defaultAddress.name}
                         </span>
-                        <span className="inline-flex items-center gap-1 text-xs">
+                        <span className="inline-flex items-center gap-1 text-xs shrink-0">
                           <Phone className="size-3" />
                           {defaultAddress.phone}
                         </span>
