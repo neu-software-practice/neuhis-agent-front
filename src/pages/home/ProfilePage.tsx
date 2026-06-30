@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react"
 import { useNavigate } from "react-router"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { ClipboardList, LogOut, Pill, RefreshCw, ShieldAlert, Stethoscope, User } from "lucide-react"
+import { ChevronRight, ClipboardList, LogOut, Pill, Receipt, RefreshCw, ShieldAlert, Stethoscope, User } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/features/shared/components/EmptyState"
@@ -57,7 +57,7 @@ export default function ProfilePage() {
     (field: "allergies" | "chronicDiseases" | "longTermMedications" | "medicalHistory", items: string[]) => {
       mutate({ patientId, [field]: items })
     },
-    [mutate],
+    [mutate, patientId],
   )
 
   return (
@@ -185,6 +185,18 @@ export default function ProfilePage() {
                 </div>
               </section>
             ) : null}
+
+            {/* 功能入口 */}
+            <div className="rounded-xl border border-border bg-card">
+              <button
+                className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm hover:bg-muted/50 transition-colors rounded-xl"
+                onClick={() => navigate("/billing")}
+              >
+                <Receipt className="size-5 text-muted-foreground" />
+                <span className="flex-1 font-medium">账单记录</span>
+                <ChevronRight className="size-4 text-muted-foreground" />
+              </button>
+            </div>
 
             {/* 退出登录 */}
             <div className="pt-4">

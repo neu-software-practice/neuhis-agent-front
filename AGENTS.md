@@ -60,6 +60,7 @@ agent-workspace/
     rest-api-patch-v2.md         # REST API Patch v2：updatePatientProfile 新增 medicalHistory 字段
     rest-api-patch-v3.md         # REST API Patch v3：JWT 认证体系（accessToken + refreshToken rotation）
     rest-api-patch-v4.md         # REST API Patch v4：会话标题生成（后端 LLM 总结问诊标题）
+    rest-api-patch-v6.md         # REST API Patch v6：账单记录查询（GET /billing/records）
   无人医院_患者端_交互原型.html  # 患者端交互原型
 ```
 

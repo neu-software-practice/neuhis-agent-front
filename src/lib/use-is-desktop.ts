@@ -19,8 +19,6 @@ export function useIsDesktop(): boolean {
     const mql = window.matchMedia(MD_BREAKPOINT)
     const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches)
     mql.addEventListener("change", handler)
-    // 同步初始值（避免 SSR hydration 不匹配）
-    setIsDesktop(mql.matches)
     return () => mql.removeEventListener("change", handler)
   }, [])
 

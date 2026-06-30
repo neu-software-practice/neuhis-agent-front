@@ -46,6 +46,7 @@ import {
   handleRefresh,
   handleRegister,
 } from "@/mocks/api/handlers/auth-handlers"
+import { handleListBillingRecords } from "@/mocks/api/handlers/billing-handlers"
 import {
   simulateAssistantStream,
   simulateSimpleReplyStream,
@@ -92,6 +93,10 @@ function route(method: MockMethod, path: string, body?: unknown, options?: Reque
       ...(body as Record<string, unknown>),
       patientId: patientProfileMatch[1],
     })
+  }
+
+  if (method === "GET" && path === "/billing/records") {
+    return handleListBillingRecords()
   }
 
   if (method === "GET" && path === "/visits") {

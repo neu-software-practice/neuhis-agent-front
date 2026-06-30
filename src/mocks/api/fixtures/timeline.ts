@@ -3,6 +3,7 @@ import type { TimelineItem } from "@/features/workbench/api/timeline-types"
 import {
   createCompletedVisitCard,
   createDiagnosisCard,
+  createLabPaymentCard,
   createTreatmentPlanCard,
 } from "@/mocks/api/fixtures/flow-cards"
 
@@ -52,11 +53,25 @@ export const mockCompletedTimeline: TimelineItem[] = [
     sessionId: "visit-mock-completed",
     kind: "flow_card",
     status: "done",
+    createdAt: "2026-06-18T03:10:00.000Z",
+    card: {
+      ...createLabPaymentCard("visit-mock-completed", "card-completed-lab-pay"),
+      status: "paid",
+      paymentStatus: "paid",
+      blocking: false,
+      handledAt: "2026-06-18T03:12:00.000Z",
+    } as ReturnType<typeof createLabPaymentCard>,
+  },
+  {
+    id: "tl-completed-003",
+    sessionId: "visit-mock-completed",
+    kind: "flow_card",
+    status: "done",
     createdAt: "2026-06-18T03:20:00.000Z",
     card: createDiagnosisCard("visit-mock-completed", "card-completed-diagnosis"),
   },
   {
-    id: "tl-completed-003",
+    id: "tl-completed-004",
     sessionId: "visit-mock-completed",
     kind: "flow_card",
     status: "done",
@@ -64,7 +79,7 @@ export const mockCompletedTimeline: TimelineItem[] = [
     card: createTreatmentPlanCard("visit-mock-completed", "card-completed-plan"),
   },
   {
-    id: "tl-completed-004",
+    id: "tl-completed-005",
     sessionId: "visit-mock-completed",
     kind: "flow_card",
     status: "done",

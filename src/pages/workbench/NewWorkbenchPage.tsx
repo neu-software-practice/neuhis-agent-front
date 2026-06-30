@@ -13,7 +13,7 @@ import type { ListTimelineResult } from "@/features/workbench/api"
 import { useAuthStore } from "@/features/auth/store/auth-store"
 import type { NewWorkbenchLoaderData } from "@/pages/workbench/workbench-loaders"
 
-export function getCreateVisitTimeoutMs(): number {
+function getCreateVisitTimeoutMs(): number {
   const raw = Number(import.meta.env.VITE_CREATE_VISIT_TIMEOUT_MS ?? 10_000)
   return Number.isFinite(raw) && raw > 0 ? raw : 10_000
 }
@@ -48,7 +48,7 @@ export default function NewWorkbenchPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const hasCreated = useRef(false)
-  const patientId = useAuthStore((s) => s.user?.patientId ?? "")
+  const patientId = useAuthStore((s) => s.user?.patientId) ?? "patient-mock-001"
 
   const {
     mutate,

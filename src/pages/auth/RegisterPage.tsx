@@ -63,8 +63,13 @@ export default function RegisterPage() {
   async function onSubmit(data: RegisterFormValues) {
     setServerError(null)
     try {
-      // 剔除 confirmPassword，只提交后端需要的字段
-      const { confirmPassword: _, ...payload } = data
+      const payload = {
+        phone: data.phone,
+        password: data.password,
+        gender: data.gender,
+        birthDate: data.birthDate,
+        realName: data.realName,
+      }
       const result = await authApi.register(payload)
       login(result.tokens, result.user)
       navigate("/", { replace: true })

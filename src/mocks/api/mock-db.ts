@@ -49,6 +49,7 @@ import {
   parseSendMessageResult,
   parseExitSettlementResult,
 } from "@/features/workbench/api/schemas"
+import { parseListBillingRecordsResult } from "@/features/billing/api/schemas"
 import {
   createCompletedLabExecutionCard,
   createCompletedVisitCard,
@@ -684,6 +685,52 @@ class MockDb {
     card.blocking = false
     card.handledAt = nowIso()
     return this.completeVisit(input.sessionId)
+  }
+
+  listBillingRecords() {
+    const records: Array<{
+      paymentId: string
+      sessionId: string
+      sessionTitle: string
+      purpose: "lab" | "medication"
+      items: Array<{ name: string; amount: number; quantity?: number }>
+      totalAmount: number
+      insuranceAmount: number
+      selfPayAmount: number
+      paymentStatus: string
+      createdAt: string
+    }> = []
+
+    for (const [sessionId, timeline] of Object.entries(this.state.timelines)) {
+      const session = this.state.sessions[sessionId]
+      if (!session) continue
+      const sessionTitle =
+        session.summary.chiefComplaint ??
+        session.summary.diagnosis ??
+        "问诊记录"
+
+      for (const item of timeline) {
+        if (item.kind !== "flow_card") continue
+        const card = item.card
+        if (card.kind !== "payment") continue
+
+        records.push({
+          paymentId: card.paymentId,
+          sessionId,
+          sessionTitle,
+          purpose: card.purpose,
+          items: card.items,
+          totalAmount: card.totalAmount,
+          insuranceAmount: card.insuranceAmount,
+          selfPayAmount: card.selfPayAmount,
+          paymentStatus: card.paymentStatus,
+          createdAt: item.createdAt,
+        })
+      }
+    }
+
+    records.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    return parseListBillingRecordsResult({ items: records })
   }
 
   classifyFollowUpIntent(input: ClassifyIntentInput): ClassifyIntentResult {
