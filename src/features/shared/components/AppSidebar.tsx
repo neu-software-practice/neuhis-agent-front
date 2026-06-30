@@ -1,6 +1,7 @@
 import { History, House, User } from "lucide-react"
 import { NavLink } from "react-router"
 
+import claudeLogo from "@/assets/claude.webp"
 import { cn } from "@/lib/utils"
 
 interface NavItem {
@@ -27,9 +28,7 @@ export function AppSidebar() {
     <aside className="hidden md:flex md:w-[220px] md:shrink-0 md:flex-col md:border-r md:border-border md:bg-sidebar">
       {/* Logo / 产品名 */}
       <div className="flex h-14 items-center gap-2 px-5">
-        <div className="flex size-8 items-center justify-center rounded-lg bg-primary text-xs font-bold text-primary-foreground">
-          云
-        </div>
+        <img src={claudeLogo} alt="Logo" className="size-8 rounded-lg" />
         <span className="text-sm font-semibold text-sidebar-foreground">
           东软云脑智能医疗
         </span>
