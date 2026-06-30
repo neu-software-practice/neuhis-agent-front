@@ -62,16 +62,16 @@ export function DatePicker({
       onChange={handleChange}
     >
       {label && <Label>{label}</Label>}
-      <DateField.Group fullWidth>
-        <DateField.Input>
-          {(segment) => <DateField.Segment segment={segment} />}
-        </DateField.Input>
-        <DateField.Suffix>
-          <HeroDatePicker.Trigger>
+      <HeroDatePicker.Trigger>
+        <DateField.Group fullWidth>
+          <DateField.Input>
+            {(segment) => <DateField.Segment segment={segment} />}
+          </DateField.Input>
+          <DateField.Suffix>
             <HeroDatePicker.TriggerIndicator />
-          </HeroDatePicker.Trigger>
-        </DateField.Suffix>
-      </DateField.Group>
+          </DateField.Suffix>
+        </DateField.Group>
+      </HeroDatePicker.Trigger>
       <HeroDatePicker.Popover>
         <Calendar aria-label={label || ariaLabel || "选择日期"}>
           <Calendar.Header>
