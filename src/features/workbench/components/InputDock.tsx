@@ -70,6 +70,7 @@ export function InputDock({
         rows={1}
         onKeyDown={handleKeyDown}
         className="flex-1 min-h-[44px]"
+        style={{ resize: "none" }}
       />
 
       {/* 发送按钮 */}
