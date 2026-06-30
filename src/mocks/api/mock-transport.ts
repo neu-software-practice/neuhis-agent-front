@@ -54,6 +54,7 @@ import {
   handleRegister,
 } from "@/mocks/api/handlers/auth-handlers"
 import { handleListBillingRecords } from "@/mocks/api/handlers/billing-handlers"
+import { handleListMedicalOrders } from "@/mocks/api/handlers/medical-orders-handlers"
 import {
   simulateAssistantStream,
   simulateSimpleReplyStream,
@@ -104,6 +105,10 @@ function route(method: MockMethod, path: string, body?: unknown, options?: Reque
 
   if (method === "GET" && path === "/billing/records") {
     return handleListBillingRecords()
+  }
+
+  if (method === "GET" && path === "/medical-orders") {
+    return handleListMedicalOrders()
   }
 
   // ── 地址簿路由 ──

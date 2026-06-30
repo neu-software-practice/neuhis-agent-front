@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react"
 import { useNavigate } from "react-router"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { ChevronRight, ClipboardList, LogOut, MapPin, Pill, Plus, Receipt, RefreshCw, ShieldAlert, Stethoscope, User } from "lucide-react"
+import { ChevronRight, ClipboardList, FileText, LogOut, MapPin, Pill, Plus, Receipt, RefreshCw, ShieldAlert, Stethoscope, User } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/features/shared/components/EmptyState"
@@ -311,11 +311,20 @@ export default function ProfilePage() {
             {/* 功能入口 */}
             <div className="rounded-xl border border-border bg-card">
               <button
-                className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm hover:bg-muted/50 transition-colors rounded-xl"
+                className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm hover:bg-muted/50 transition-colors rounded-t-xl"
                 onClick={() => navigate("/billing")}
               >
                 <Receipt className="size-5 text-muted-foreground" />
                 <span className="flex-1 font-medium">账单记录</span>
+                <ChevronRight className="size-4 text-muted-foreground" />
+              </button>
+              <div className="border-t border-border" />
+              <button
+                className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm hover:bg-muted/50 transition-colors rounded-b-xl"
+                onClick={() => navigate("/medical-orders")}
+              >
+                <FileText className="size-5 text-muted-foreground" />
+                <span className="flex-1 font-medium">医嘱记录</span>
                 <ChevronRight className="size-4 text-muted-foreground" />
               </button>
             </div>

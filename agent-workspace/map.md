@@ -1,6 +1,6 @@
 # 项目地图
 
-更新时间：2026-06-30（账单记录功能 + 地址簿 v5）
+更新时间：2026-06-30（医嘱记录功能 v7）
 
 ## 项目定位
 
@@ -61,7 +61,8 @@ NEUHIS Agent 前端——基于 React + HeroUI 3 + Magic UI 的 AI 诊疗 Agent 
 │   │   │   ├── HomePage.tsx          # 首页：活跃会话 + 症状快速填充 + 创建新会话
 │   │   │   ├── HistoryPage.tsx       # 历史就诊：筛选 tab + SessionCard 列表
 │   │   │   ├── BillingPage.tsx       # 账单记录：筛选 tab + TanStack Query 列表 + 空态
-│   │   │   └── ProfilePage.tsx       # 个人中心：PatientSummaryCard + 可编辑医疗信息 + 地址簿 + 账单入口 + 退出登录
+│   │   │   ├── MedicalOrdersPage.tsx # 医嘱记录：历史医嘱/用药记录列表
+│   │   │   └── ProfilePage.tsx       # 个人中心：PatientSummaryCard + 可编辑医疗信息 + 地址簿 + 账单入口 + 医嘱入口 + 退出登录
 │   │   └── workbench/
 │   │       ├── NewWorkbenchPage.tsx   # 自动创建会话（初诊/复诊）→ 跳转工作台
 │   │       ├── NewWorkbenchPage.test.tsx
@@ -92,7 +93,7 @@ NEUHIS Agent 前端——基于 React + HeroUI 3 + Magic UI 的 AI 诊疗 Agent 
 │   │       └── index.ts              # getTransport() mock/http 选择器
 │   │
 │   ├── features/
-│   │   ├── api.ts                    # 统一 api facade：api.billing / api.patient / api.visits / api.workbench
+│   │   ├── api.ts                    # 统一 api facade：api.billing / api.medicalOrders / api.patient / api.visits / api.workbench
 │   │   │
 │   │   ├── auth/
 │   │   │   ├── api/
@@ -127,9 +128,16 @@ NEUHIS Agent 前端——基于 React + HeroUI 3 + Magic UI 的 AI 诊疗 Agent 
 │   │   │   │   ├── types.ts          # BillingRecord、ListBillingRecordsResult 类型
 │   │   │   │   ├── schemas.ts        # 账单记录 Zod schemas + parse helpers
 │   │   │   │   ├── queries.ts        # TanStack Query queryOptions
+│   │   │   │   ├── queries.ts        # TanStack Query queryOptions
 │   │   │   │   └── index.ts          # billingApi facade（listRecords）
 │   │   │   └── components/
 │   │   │       └── BillingRecordCard.tsx # 账单条目卡片
+│   │   │
+│   │   ├── medical-orders/
+│   │   │   ├── api/
+│   │   │   │   ├── types.ts          # MedicalOrderRecord、ListMedicalOrdersResult 类型
+│   │   │   │   ├── schemas.ts        # 医嘱记录 Zod schemas + parse helpers
+│   │   │   │   └── index.ts          # medicalOrdersApi facade（listRecords）
 │   │   │
 │   │   ├── visits/
 │   │   │   ├── api/
@@ -257,6 +265,7 @@ NEUHIS Agent 前端——基于 React + HeroUI 3 + Magic UI 的 AI 诊疗 Agent 
 | `/` | HomePage | AuthGuard + HomeLayout |
 | `/history` | HistoryPage | AuthGuard + HomeLayout |
 | `/billing` | BillingPage | AuthGuard + HomeLayout |
+| `/medical-orders` | MedicalOrdersPage | AuthGuard + HomeLayout |
 | `/profile` | ProfilePage | AuthGuard + HomeLayout |
 | `/workbench/new` | NewWorkbenchPage | AuthGuard |
 | `/workbench/:sessionId` | WorkbenchPage | AuthGuard |
@@ -294,7 +303,7 @@ loadingContext → chatting ⇄ analyzing
 
 API 层
   └─ features/api.ts (统一 facade)
-       ├─ billing / patient / visits / workbench API modules
+       ├─ billing / medicalOrders / patient / visits / workbench API modules
        └─ lib/api/ (transport 抽象)
             ├─ mock-transport (开发环境)
             └─ ky HTTP transport (生产环境)
@@ -345,5 +354,6 @@ API 层
 - [REST API Patch v4（会话标题生成）](./special-designs/rest-api-patch-v4.md)
 - [REST API Patch v5（地址簿与药品配送地址）](./special-designs/rest-api-patch-v5.md)
 - [REST API Patch v6（账单记录查询）](./special-designs/rest-api-patch-v6.md)
+- [REST API Patch v7（医嘱记录查询）](./special-designs/rest-api-patch-v7.md)
 - [QA Wave 1 走查记录](./qa/wave-1.md)
 - [medAgent 后端参考](./medagent-backend.md)

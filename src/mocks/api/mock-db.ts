@@ -55,6 +55,7 @@ import {
   parseExitSettlementResult,
 } from "@/features/workbench/api/schemas"
 import { parseListBillingRecordsResult } from "@/features/billing/api/schemas"
+import { parseListMedicalOrdersResult } from "@/features/medical-orders/api/schemas"
 import {
   createCompletedLabExecutionCard,
   createCompletedVisitCard,
@@ -790,6 +791,81 @@ class MockDb {
 
     records.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     return parseListBillingRecordsResult({ items: records })
+  }
+
+  listMedicalOrders() {
+    const records: Array<{
+      recordId: string
+      sessionId: string
+      sessionTitle: string
+      kind: "advice" | "medication"
+      advices?: string[]
+      watchItems?: string[]
+      followUpRecommendation?: string
+      medications?: Array<{
+        name: string
+        spec: string
+        quantity: number
+        dosage: string
+        days: number
+        price: number
+      }>
+      fulfillmentStatus?: "pending" | "confirmed" | "completed"
+      deliveryAddress?: { name: string; phone: string; fullAddress: string }
+      handledAt: string
+      createdAt: string
+    }> = []
+
+    for (const [sessionId, timeline] of Object.entries(this.state.timelines)) {
+      const session = this.state.sessions[sessionId]
+      if (!session) continue
+      const sessionTitle =
+        session.summary.chiefComplaint ??
+        session.summary.diagnosis ??
+        "问诊记录"
+
+      for (const item of timeline) {
+        if (item.kind !== "flow_card") continue
+        const card = item.card
+
+        // advice_only with status completed (acknowledged)
+        if (card.kind === "advice_only" && card.status === "completed") {
+          records.push({
+            recordId: card.id,
+            sessionId,
+            sessionTitle,
+            kind: "advice",
+            advices: card.advices,
+            watchItems: card.watchItems,
+            followUpRecommendation: card.followUpRecommendation,
+            handledAt: card.handledAt ?? item.createdAt,
+            createdAt: item.createdAt,
+          })
+        }
+
+        // medication_fulfillment with status completed or confirmed
+        if (
+          card.kind === "medication_fulfillment" &&
+          (card.fulfillmentStatus === "completed" ||
+            card.fulfillmentStatus === "confirmed")
+        ) {
+          records.push({
+            recordId: card.id,
+            sessionId,
+            sessionTitle,
+            kind: "medication",
+            medications: card.medications,
+            fulfillmentStatus: card.fulfillmentStatus,
+            deliveryAddress: card.deliveryAddress,
+            handledAt: card.handledAt ?? item.createdAt,
+            createdAt: item.createdAt,
+          })
+        }
+      }
+    }
+
+    records.sort((a, b) => b.handledAt.localeCompare(a.handledAt))
+    return parseListMedicalOrdersResult({ items: records })
   }
 
   classifyFollowUpIntent(input: ClassifyIntentInput): ClassifyIntentResult {

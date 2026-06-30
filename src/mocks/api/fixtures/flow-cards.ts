@@ -233,3 +233,26 @@ export function createCompletedVisitCard(sessionId: string, id: string): FlowCar
     completedAt: baseTime,
   }
 }
+
+export function createAdviceOnlyCard(sessionId: string, id: string): FlowCard {
+  return {
+    id,
+    sessionId,
+    kind: "advice_only",
+    status: "completed",
+    blocking: false,
+    title: "健康建议",
+    createdAt: baseTime,
+    handledAt: baseTime,
+    advices: [
+      "多休息，保证充足睡眠",
+      "多喝温水，每日饮水量建议 1500-2000ml",
+      "清淡饮食，避免辛辣刺激食物",
+    ],
+    watchItems: [
+      "如体温超过 38.5℃ 持续不退，请及时就医",
+      "如出现呼吸困难、胸痛等新症状，请立即急诊",
+    ],
+    followUpRecommendation: "建议 3 天后复诊，如症状缓解可延至一周后。",
+  }
+}
