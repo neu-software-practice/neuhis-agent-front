@@ -2,7 +2,8 @@ import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Link, useNavigate, useSearchParams } from "react-router"
-import claudeLogo from "@/assets/claude.webp"
+import { TextField, Input, Label, FieldError, Form } from "@heroui/react"
+import { Stethoscope } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { loginInputSchema } from "@/features/auth/api/schemas"
@@ -50,53 +51,44 @@ export default function LoginPage() {
         {/* Header */}
         <div className="flex flex-col items-center gap-2">
           <div className="flex size-12 items-center justify-center rounded-xl bg-primary/10">
-            <img src={claudeLogo} className="size-6" alt="东软云脑智能医疗" />
+            <Stethoscope className="size-6 text-primary" />
           </div>
           <h1 className="text-xl font-semibold">东软云脑智能医疗</h1>
           <p className="text-sm text-foreground-500">登录以继续使用</p>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
+        <Form onSubmit={handleSubmit(onSubmit)} className="space-y-4" validationBehavior="aria">
           {serverError && (
             <div className="rounded-lg bg-danger-50 px-3 py-2 text-sm text-danger">
               {serverError}
             </div>
           )}
 
-          <div className="space-y-1.5">
-            <label htmlFor="phone" className="text-sm font-medium">
-              手机号
-            </label>
-            <input
-              id="phone"
-              type="tel"
-              autoComplete="tel"
+          <TextField isInvalid={!!errors.phone} name="phone" type="tel">
+            <Label>手机号</Label>
+            <Input
               placeholder="请输入手机号"
-              className="w-full rounded-lg border border-default-200 bg-default-100 px-3 py-2.5 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary"
+              autoComplete="tel"
               {...register("phone")}
             />
             {errors.phone && (
-              <p className="text-xs text-danger">{errors.phone.message}</p>
+              <FieldError>{errors.phone.message}</FieldError>
             )}
-          </div>
+          </TextField>
 
-          <div className="space-y-1.5">
-            <label htmlFor="password" className="text-sm font-medium">
-              密码
-            </label>
-            <input
-              id="password"
-              type="password"
-              autoComplete="current-password"
+          <TextField isInvalid={!!errors.password} name="password">
+            <Label>密码</Label>
+            <Input
               placeholder="请输入密码"
-              className="w-full rounded-lg border border-default-200 bg-default-100 px-3 py-2.5 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary"
+              autoComplete="current-password"
+              type="password"
               {...register("password")}
             />
             {errors.password && (
-              <p className="text-xs text-danger">{errors.password.message}</p>
+              <FieldError>{errors.password.message}</FieldError>
             )}
-          </div>
+          </TextField>
 
           <Button
             type="submit"
@@ -105,7 +97,7 @@ export default function LoginPage() {
           >
             {isSubmitting ? "登录中..." : "登录"}
           </Button>
-        </form>
+        </Form>
 
         {/* Footer */}
         <p className="text-center text-sm text-foreground-500">

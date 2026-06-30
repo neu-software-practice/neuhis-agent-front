@@ -2,7 +2,8 @@ import { useState } from "react"
 import { useForm, Controller, useWatch } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Link, useNavigate } from "react-router"
-import claudeLogo from "@/assets/claude.webp"
+import { TextField, Input, Label, FieldError, Form } from "@heroui/react"
+import { Stethoscope } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { DatePicker } from "@/components/ui/date-picker"
@@ -77,23 +78,20 @@ export default function RegisterPage() {
     }
   }
 
-  const inputClass =
-    "w-full rounded-lg border border-default-200 bg-default-100 px-3 py-2.5 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary"
-
   return (
     <div className="flex min-h-dvh items-center justify-center bg-background px-4">
       <div className="w-full max-w-sm space-y-8">
         {/* Header */}
         <div className="flex flex-col items-center gap-2">
           <div className="flex size-12 items-center justify-center rounded-xl bg-primary/10">
-            <img src={claudeLogo} className="size-6" alt="东软云脑智能医疗" />
+            <Stethoscope className="size-6 text-primary" />
           </div>
           <h1 className="text-xl font-semibold">东软云脑智能医疗</h1>
           <p className="text-sm text-foreground-500">注册新账号</p>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
+        <Form onSubmit={handleSubmit(onSubmit)} className="space-y-4" validationBehavior="aria">
           {serverError && (
             <div className="rounded-lg bg-danger-50 px-3 py-2 text-sm text-danger">
               {serverError}
@@ -101,78 +99,60 @@ export default function RegisterPage() {
           )}
 
           {/* 手机号 */}
-          <div className="space-y-1.5">
-            <label htmlFor="phone" className="text-sm font-medium">
-              手机号
-            </label>
-            <input
-              id="phone"
-              type="tel"
-              autoComplete="tel"
+          <TextField isInvalid={!!errors.phone} name="phone" type="tel">
+            <Label>手机号</Label>
+            <Input
               placeholder="请输入手机号"
-              className={inputClass}
+              autoComplete="tel"
               {...register("phone")}
             />
             {errors.phone && (
-              <p className="text-xs text-danger">{errors.phone.message}</p>
+              <FieldError>{errors.phone.message}</FieldError>
             )}
-          </div>
+          </TextField>
 
           {/* 密码 */}
-          <div className="space-y-1.5">
-            <label htmlFor="password" className="text-sm font-medium">
-              密码
-            </label>
-            <input
-              id="password"
-              type="password"
-              autoComplete="new-password"
+          <TextField isInvalid={!!errors.password} name="password">
+            <Label>密码</Label>
+            <Input
               placeholder="至少 6 位，含字母和数字"
-              className={inputClass}
+              autoComplete="new-password"
+              type="password"
               {...register("password")}
             />
             {errors.password && (
-              <p className="text-xs text-danger">{errors.password.message}</p>
+              <FieldError>{errors.password.message}</FieldError>
             )}
-          </div>
+          </TextField>
 
           {/* 确认密码 */}
-          <div className="space-y-1.5">
-            <label htmlFor="confirmPassword" className="text-sm font-medium">
-              确认密码
-            </label>
-            <input
-              id="confirmPassword"
-              type="password"
-              autoComplete="new-password"
+          <TextField isInvalid={!!errors.confirmPassword} name="confirmPassword">
+            <Label>确认密码</Label>
+            <Input
               placeholder="请再次输入密码"
-              className={inputClass}
+              autoComplete="new-password"
+              type="password"
               {...register("confirmPassword")}
             />
             {errors.confirmPassword && (
-              <p className="text-xs text-danger">
-                {errors.confirmPassword.message}
-              </p>
+              <FieldError>{errors.confirmPassword.message}</FieldError>
             )}
-          </div>
+          </TextField>
 
           {/* 姓名（选填） */}
-          <div className="space-y-1.5">
-            <label htmlFor="realName" className="text-sm font-medium">
+          <TextField isInvalid={!!errors.realName} name="realName" type="text">
+            <Label>
               姓名 <span className="text-foreground-400">（选填）</span>
-            </label>
-            <input
-              id="realName"
-              type="text"
-              autoComplete="name"
+            </Label>
+            <Input
               placeholder="真实姓名，用于就诊记录"
-              className={inputClass}
+              autoComplete="name"
               {...register("realName")}
             />
             {errors.realName && (
-              <p className="text-xs text-danger">{errors.realName.message}</p>
+              <FieldError>{errors.realName.message}</FieldError>
             )}
-          </div>
+          </TextField>
 
           {/* 性别 */}
           <fieldset className="space-y-1.5">
@@ -205,17 +185,20 @@ export default function RegisterPage() {
               </button>
             </div>
             {isCustomGender && (
-              <input
-                type="text"
-                placeholder="请输入性别"
-                className={inputClass}
-                value={genderValue}
-                onChange={(e) =>
-                  setValue("gender", e.target.value, { shouldValidate: true })
-                }
-              />
+              <TextField isInvalid={!!errors.gender} name="gender" type="text">
+                <Input
+                  placeholder="请输入性别"
+                  value={genderValue}
+                  onChange={(e) =>
+                    setValue("gender", e.target.value, { shouldValidate: true })
+                  }
+                />
+                {errors.gender && (
+                  <FieldError>{errors.gender.message}</FieldError>
+                )}
+              </TextField>
             )}
-            {errors.gender && (
+            {!isCustomGender && errors.gender && (
               <p className="text-xs text-danger">{errors.gender.message}</p>
             )}
           </fieldset>
@@ -245,7 +228,7 @@ export default function RegisterPage() {
           >
             {isSubmitting ? "注册中..." : "注册"}
           </Button>
-        </form>
+        </Form>
 
         {/* Footer */}
         <p className="text-center text-sm text-foreground-500">
