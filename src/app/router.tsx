@@ -8,6 +8,7 @@ import LoginPage from "@/pages/auth/LoginPage"
 import RegisterPage from "@/pages/auth/RegisterPage"
 import HistoryPage from "@/pages/home/HistoryPage"
 import HomePage from "@/pages/home/HomePage"
+import AddressPage from "@/pages/home/AddressPage"
 import BillingPage from "@/pages/home/BillingPage"
 import MedicalOrdersPage from "@/pages/home/MedicalOrdersPage"
 import ProfilePage from "@/pages/home/ProfilePage"
@@ -54,6 +55,7 @@ export const router = createBrowserRouter([
               { path: "history", Component: HistoryPage },
               { path: "billing", Component: BillingPage },
               { path: "medical-orders", Component: MedicalOrdersPage },
+              { path: "addresses", Component: AddressPage },
               { path: "profile", Component: ProfilePage },
             ],
           },

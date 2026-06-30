@@ -1,6 +1,6 @@
 # 项目地图
 
-更新时间：2026-06-30（医嘱记录 v7 + 输入框文字可见性修复 + billing quantity display fix）
+更新时间：2026-06-30（医嘱记录 v7 + 地址独立页面拆分）
 
 ## 项目定位
 
@@ -62,7 +62,8 @@ NEUHIS Agent 前端——基于 React + HeroUI 3 + Magic UI 的 AI 诊疗 Agent 
 │   │   │   ├── HistoryPage.tsx       # 历史就诊：筛选 tab + SessionCard 列表
 │   │   │   ├── BillingPage.tsx       # 账单记录：筛选 tab + TanStack Query 列表 + 空态
 │   │   │   ├── MedicalOrdersPage.tsx # 医嘱记录：历史医嘱/用药记录列表
-│   │   │   └── ProfilePage.tsx       # 个人中心：PatientSummaryCard + 可编辑医疗信息 + 地址簿 + 账单入口 + 医嘱入口 + 退出登录
+│   │   │   ├── AddressPage.tsx       # 收货地址管理：默认地址置顶 + CRUD + 空态
+│   │   │   └── ProfilePage.tsx       # 个人中心：PatientSummaryCard + 可编辑医疗信息 + 地址入口预览 + 账单入口 + 医嘱入口 + 退出登录
 │   │   └── workbench/
 │   │       ├── NewWorkbenchPage.tsx   # 自动创建会话（初诊/复诊）→ 跳转工作台
 │   │       ├── NewWorkbenchPage.test.tsx
@@ -266,6 +267,7 @@ NEUHIS Agent 前端——基于 React + HeroUI 3 + Magic UI 的 AI 诊疗 Agent 
 | `/history` | HistoryPage | AuthGuard + HomeLayout |
 | `/billing` | BillingPage | AuthGuard + HomeLayout |
 | `/medical-orders` | MedicalOrdersPage | AuthGuard + HomeLayout |
+| `/addresses` | AddressPage | AuthGuard + HomeLayout |
 | `/profile` | ProfilePage | AuthGuard + HomeLayout |
 | `/workbench/new` | NewWorkbenchPage | AuthGuard |
 | `/workbench/:sessionId` | WorkbenchPage | AuthGuard |
