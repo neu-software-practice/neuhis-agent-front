@@ -61,7 +61,7 @@ export function BillingRecordCard({ record }: BillingRecordCardProps) {
           <div key={idx} className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground">
               {item.name}
-              {item.quantity && item.quantity > 1 ? ` ×${item.quantity}` : ""}
+              {item.quantity != null ? ` ×${item.quantity}` : ""}
             </span>
             <span>¥{item.amount.toFixed(2)}</span>
           </div>

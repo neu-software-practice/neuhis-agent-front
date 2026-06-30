@@ -81,7 +81,10 @@ export const PaymentCard = memo(function PaymentCard({
           <ul className="mt-1 space-y-1">
             {card.items.map((item, idx) => (
               <li key={idx} className="flex items-center justify-between text-sm">
-                <span className="text-foreground/80">{item.name}</span>
+                <span className="text-foreground/80">
+                  {item.name}
+                  {item.quantity != null ? ` ×${item.quantity}` : ""}
+                </span>
                 <span className="font-medium">¥{item.amount.toFixed(2)}</span>
               </li>
             ))}
