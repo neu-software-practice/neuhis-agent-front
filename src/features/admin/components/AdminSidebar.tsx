@@ -1,3 +1,4 @@
+import { Button } from "@heroui/react"
 import { LayoutDashboard, LogOut, MessageSquare, Settings, Users } from "lucide-react"
 import { NavLink, useNavigate } from "react-router"
 
@@ -71,15 +72,10 @@ export function AdminSidebar() {
       <div className="border-t border-sidebar-border px-3 py-3">
         <div className="flex items-center justify-between rounded-lg px-3 py-2 text-xs text-sidebar-foreground/50">
           <span>管理后台</span>
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="flex items-center gap-1 rounded px-1.5 py-1 text-sidebar-foreground/50 transition-colors hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-            aria-label="退出登录"
-          >
-            <LogOut className="size-3.5" aria-hidden="true" />
-            <span>退出</span>
-          </button>
+          <Button variant="ghost" size="sm" onPress={handleLogout}>
+            <LogOut className="size-3.5" />
+            退出
+          </Button>
         </div>
       </div>
     </aside>

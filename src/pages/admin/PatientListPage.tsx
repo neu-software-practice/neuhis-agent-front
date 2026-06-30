@@ -1,6 +1,13 @@
 import { useState, useMemo, useCallback } from "react"
 import { useQuery, keepPreviousData } from "@tanstack/react-query"
-import { Search, Loader2 } from "lucide-react"
+import {
+  SearchField,
+  Label,
+  Table,
+  Chip,
+  Spinner,
+  Pagination,
+} from "@heroui/react"
 
 import { adminApi } from "@/features/admin/api/admin-api"
 import { useDebounce } from "@/hooks/useDebounce"
@@ -49,33 +56,20 @@ export default function PatientListPage() {
       {/* 页面标题与搜索 */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-semibold">患者管理</h1>
-        <div className="relative w-full sm:max-w-xs">
-          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-foreground-400" />
-          <input
-            type="text"
-            placeholder="搜索姓名或手机号"
-            aria-label="搜索姓名或手机号"
-            value={search}
-            onChange={(e) => handleSearchChange(e.target.value)}
-            className="w-full rounded-lg border border-default-200 bg-default-100 py-2 pl-9 pr-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary"
-          />
-          {search && (
-            <button
-              type="button"
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground-400 hover:text-foreground-600"
-              onClick={() => handleSearchChange("")}
-              aria-label="清除搜索"
-            >
-              ×
-            </button>
-          )}
-        </div>
+        <SearchField value={search} onChange={(value: string) => handleSearchChange(value)}>
+          <Label>搜索姓名或手机号</Label>
+          <SearchField.Group>
+            <SearchField.SearchIcon />
+            <SearchField.Input placeholder="搜索姓名或手机号" className="w-full sm:max-w-xs" />
+            <SearchField.ClearButton />
+          </SearchField.Group>
+        </SearchField>
       </div>
 
       {/* 表格 */}
       {isLoading ? (
         <div className="flex items-center justify-center py-20">
-          <Loader2 className="size-8 animate-spin text-primary" />
+          <Spinner size="lg" />
         </div>
       ) : !data || data.items.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-foreground-400">
@@ -86,61 +80,65 @@ export default function PatientListPage() {
         </div>
       ) : (
         <>
-          <div className="overflow-x-auto rounded-lg border border-divider">
-            <table className="w-full text-left text-sm">
-              <thead className="border-b border-divider bg-default-100">
-                <tr>
-                  <th className="px-4 py-3 font-medium">姓名</th>
-                  <th className="px-4 py-3 font-medium">手机号</th>
-                  <th className="px-4 py-3 font-medium">性别</th>
-                  <th className="px-4 py-3 font-medium">出生日期</th>
-                  <th className="px-4 py-3 font-medium">注册时间</th>
-                  <th className="px-4 py-3 font-medium">问诊次数</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-divider">
-                {data.items.map((patient) => (
-                  <tr key={patient.id} className="hover:bg-default-50">
-                    <td className="px-4 py-3">{patient.realName || "—"}</td>
-                    <td className="px-4 py-3">{patient.phone}</td>
-                    <td className="px-4 py-3">
-                      <span className="inline-block rounded-full bg-default-100 px-2 py-0.5 text-xs">
-                        {GENDER_MAP[patient.gender] ?? "未知"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">{patient.birthDate || "—"}</td>
-                    <td className="px-4 py-3">
-                      {new Date(patient.createdAt).toLocaleDateString("zh-CN")}
-                    </td>
-                    <td className="px-4 py-3">{patient.sessionCount}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Table aria-label="患者列表" className="w-full">
+            <Table.Header>
+              <Table.Column isRowHeader>姓名</Table.Column>
+              <Table.Column>手机号</Table.Column>
+              <Table.Column>性别</Table.Column>
+              <Table.Column>出生日期</Table.Column>
+              <Table.Column>注册时间</Table.Column>
+              <Table.Column>问诊次数</Table.Column>
+            </Table.Header>
+            <Table.Body>
+              {data.items.map((patient) => (
+                <Table.Row key={patient.id}>
+                  <Table.Cell>{patient.realName || "—"}</Table.Cell>
+                  <Table.Cell>{patient.phone}</Table.Cell>
+                  <Table.Cell>
+                    <Chip size="sm" color="default" variant="secondary">
+                      {GENDER_MAP[patient.gender] ?? "未知"}
+                    </Chip>
+                  </Table.Cell>
+                  <Table.Cell>{patient.birthDate || "—"}</Table.Cell>
+                  <Table.Cell>
+                    {new Date(patient.createdAt).toLocaleDateString("zh-CN")}
+                  </Table.Cell>
+                  <Table.Cell>{patient.sessionCount}</Table.Cell>
+                </Table.Row>
+              ))}
+            </Table.Body>
+          </Table>
 
           {/* 分页 */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2">
-              <button
-                type="button"
-                disabled={page <= 1}
-                onClick={() => setPage((p) => p - 1)}
-                className="rounded-lg border border-default-200 px-3 py-1.5 text-sm disabled:opacity-50"
-              >
-                上一页
-              </button>
-              <span className="text-sm text-foreground-500">
-                {page} / {totalPages}
-              </span>
-              <button
-                type="button"
-                disabled={page >= totalPages}
-                onClick={() => setPage((p) => p + 1)}
-                className="rounded-lg border border-default-200 px-3 py-1.5 text-sm disabled:opacity-50"
-              >
-                下一页
-              </button>
+            <div className="flex items-center justify-center">
+              <Pagination>
+                <Pagination.Content>
+                  <Pagination.Item>
+                    <Pagination.Previous
+                      onPress={() => setPage((p) => Math.max(1, p - 1))}
+                      isDisabled={page <= 1}
+                    >
+                      <Pagination.PreviousIcon />
+                    </Pagination.Previous>
+                  </Pagination.Item>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                    <Pagination.Item key={p}>
+                      <Pagination.Link isActive={page === p} onPress={() => setPage(p)}>
+                        {p}
+                      </Pagination.Link>
+                    </Pagination.Item>
+                  ))}
+                  <Pagination.Item>
+                    <Pagination.Next
+                      onPress={() => setPage((p) => p + 1)}
+                      isDisabled={page >= totalPages}
+                    >
+                      <Pagination.NextIcon />
+                    </Pagination.Next>
+                  </Pagination.Item>
+                </Pagination.Content>
+              </Pagination>
             </div>
           )}
         </>

@@ -1,6 +1,6 @@
 # 项目地图
 
-更新时间：2026-06-30（管理后台 admin panel + CompletedExitSheet 修复 + rest-api-patch-v8）
+更新时间：2026-06-30（管理后台 HeroUI v3 全面翻新 + 管理后台 admin panel + CompletedExitSheet 修复 + rest-api-patch-v8）
 
 ## 项目定位
 
@@ -305,6 +305,8 @@ NEUHIS Agent 前端——基于 React + HeroUI 3 + Magic UI 的 AI 诊疗 Agent 
 | `/admin/patients` | PatientListPage | AdminGuard + AdminShell |
 | `/admin/sessions` | SessionListPage | AdminGuard + AdminShell |
 | `/admin/settings` | SettingsPage | AdminGuard + AdminShell |
+
+> 2026-06-30：管理后台 6 个文件全面翻新为 HeroUI v3 复合组件模式（Form/TextField/Card/Table/Select/Pagination/SearchField/Spinner/Switch），替换原始 HTML+Tailwind，净减 35 行。
 
 ## 状态机（visitMachine）
 

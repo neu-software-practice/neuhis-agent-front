@@ -1,12 +1,11 @@
 import { useQuery } from "@tanstack/react-query"
-import { Button } from "@heroui/react"
+import { Button, Card, Spinner } from "@heroui/react"
 import {
   Users,
   MessageSquare,
   Activity,
   UserPlus,
   CalendarPlus,
-  Loader2,
 } from "lucide-react"
 
 import { adminApi } from "@/features/admin/api/admin-api"
@@ -20,7 +19,7 @@ interface StatCardProps {
 
 function StatCard({ title, value, icon }: StatCardProps) {
   return (
-    <div className="rounded-xl border border-divider bg-content1 p-5">
+    <Card className="p-5">
       <div className="flex items-center gap-4">
         <div className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
           {icon}
@@ -30,7 +29,7 @@ function StatCard({ title, value, icon }: StatCardProps) {
           <span className="text-2xl font-semibold">{value.toLocaleString()}</span>
         </div>
       </div>
-    </div>
+    </Card>
   )
 }
 
@@ -48,7 +47,7 @@ export default function DashboardPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="size-8 animate-spin text-primary" />
+        <Spinner size="lg" />
       </div>
     )
   }

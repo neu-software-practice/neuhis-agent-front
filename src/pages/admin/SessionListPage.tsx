@@ -1,12 +1,20 @@
 import { useState } from "react"
 import { useQuery, keepPreviousData } from "@tanstack/react-query"
-import { Chip } from "@heroui/react"
-import { Loader2 } from "lucide-react"
+import {
+  Chip,
+  Select,
+  Label,
+  ListBox,
+  ListBoxItem,
+  Table,
+  Spinner,
+  Pagination,
+} from "@heroui/react"
 
 import { adminApi } from "@/features/admin/api/admin-api"
 
 const STATUS_OPTIONS = [
-  { key: "", label: "全部" },
+  { key: "all", label: "全部" },
   { key: "active", label: "进行中" },
   { key: "paused", label: "已暂停" },
   { key: "completed", label: "已完成" },
@@ -65,26 +73,35 @@ export default function SessionListPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">问诊记录</h1>
 
-        <select
-          value={status}
-          onChange={(e) => {
-            setStatus(e.target.value)
+        <Select
+          selectedKey={status || "all"}
+          onSelectionChange={(key) => {
+            setStatus(key === "all" ? "" : String(key))
             setPage(1)
           }}
+          className="w-36"
           aria-label="按状态筛选"
-          className="rounded-lg border border-default-200 bg-default-100 px-3 py-2 text-sm text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary"
         >
-          {STATUS_OPTIONS.map((opt) => (
-            <option key={opt.key} value={opt.key}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
+          <Label>状态筛选</Label>
+          <Select.Trigger>
+            <Select.Value />
+            <Select.Indicator />
+          </Select.Trigger>
+          <Select.Popover>
+            <ListBox>
+              {STATUS_OPTIONS.map((opt) => (
+                <ListBoxItem key={opt.key} id={opt.key}>
+                  {opt.label}
+                </ListBoxItem>
+              ))}
+            </ListBox>
+          </Select.Popover>
+        </Select>
       </div>
 
       {isLoading ? (
         <div className="flex items-center justify-center py-20">
-          <Loader2 className="size-8 animate-spin text-primary" />
+          <Spinner size="lg" />
         </div>
       ) : !data || data.items.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-foreground-400">
@@ -92,59 +109,60 @@ export default function SessionListPage() {
         </div>
       ) : (
         <>
-          <div className="overflow-x-auto rounded-lg border border-divider">
-            <table className="w-full text-left text-sm">
-              <thead className="border-b border-divider bg-default-100">
-                <tr>
-                  <th className="px-4 py-3 font-medium">患者姓名</th>
-                  <th className="px-4 py-3 font-medium">主诉</th>
-                  <th className="px-4 py-3 font-medium">状态</th>
-                  <th className="px-4 py-3 font-medium">创建时间</th>
-                  <th className="px-4 py-3 font-medium">更新时间</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-divider">
-                {data.items.map((item) => (
-                  <tr key={item.id} className="hover:bg-default-50">
-                    <td className="px-4 py-3">{item.patientName || "—"}</td>
-                    <td className="px-4 py-3">{item.title || "—"}</td>
-                    <td className="px-4 py-3">
-                      <Chip
-                        size="sm"
-                        color={STATUS_COLOR_MAP[item.status] ?? "default"}
-                      >
-                        {STATUS_LABEL_MAP[item.status] ?? item.status}
-                      </Chip>
-                    </td>
-                    <td className="px-4 py-3">{formatDateTime(item.createdAt)}</td>
-                    <td className="px-4 py-3">{formatDateTime(item.updatedAt)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Table aria-label="问诊记录列表">
+            <Table.Header>
+              <Table.Column isRowHeader>患者姓名</Table.Column>
+              <Table.Column>主诉</Table.Column>
+              <Table.Column>状态</Table.Column>
+              <Table.Column>创建时间</Table.Column>
+              <Table.Column>更新时间</Table.Column>
+            </Table.Header>
+            <Table.Body>
+              {data.items.map((item) => (
+                <Table.Row key={item.id}>
+                  <Table.Cell>{item.patientName || "—"}</Table.Cell>
+                  <Table.Cell>{item.title || "—"}</Table.Cell>
+                  <Table.Cell>
+                    <Chip size="sm" color={STATUS_COLOR_MAP[item.status] ?? "default"}>
+                      {STATUS_LABEL_MAP[item.status] ?? item.status}
+                    </Chip>
+                  </Table.Cell>
+                  <Table.Cell>{formatDateTime(item.createdAt)}</Table.Cell>
+                  <Table.Cell>{formatDateTime(item.updatedAt)}</Table.Cell>
+                </Table.Row>
+              ))}
+            </Table.Body>
+          </Table>
 
           {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2">
-              <button
-                type="button"
-                disabled={page <= 1}
-                onClick={() => setPage((p) => p - 1)}
-                className="rounded-lg border border-default-200 px-3 py-1.5 text-sm disabled:opacity-50"
-              >
-                上一页
-              </button>
-              <span className="text-sm text-foreground-500">
-                {page} / {totalPages}
-              </span>
-              <button
-                type="button"
-                disabled={page >= totalPages}
-                onClick={() => setPage((p) => p + 1)}
-                className="rounded-lg border border-default-200 px-3 py-1.5 text-sm disabled:opacity-50"
-              >
-                下一页
-              </button>
+            <div className="flex items-center justify-center">
+              <Pagination>
+                <Pagination.Content>
+                  <Pagination.Item>
+                    <Pagination.Previous
+                      onPress={() => setPage((p) => Math.max(1, p - 1))}
+                      isDisabled={page <= 1}
+                    >
+                      <Pagination.PreviousIcon />
+                    </Pagination.Previous>
+                  </Pagination.Item>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                    <Pagination.Item key={p}>
+                      <Pagination.Link isActive={page === p} onPress={() => setPage(p)}>
+                        {p}
+                      </Pagination.Link>
+                    </Pagination.Item>
+                  ))}
+                  <Pagination.Item>
+                    <Pagination.Next
+                      onPress={() => setPage((p) => p + 1)}
+                      isDisabled={page >= totalPages}
+                    >
+                      <Pagination.NextIcon />
+                    </Pagination.Next>
+                  </Pagination.Item>
+                </Pagination.Content>
+              </Pagination>
             </div>
           )}
         </>

@@ -1,11 +1,12 @@
 import { useEffect } from "react"
 import { useForm, Controller } from "react-hook-form"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { Button } from "@heroui/react"
+import { Button, Card, Input, Label, TextField, FieldError } from "@heroui/react"
 import { Save } from "lucide-react"
 
 import { adminApi } from "@/features/admin/api/admin-api"
 import type { SystemSettings } from "@/features/admin/api/types"
+import { SwitchField } from "@/components/ui/switch-field"
 
 /**
  * 管理后台 — 系统设置页。
@@ -63,102 +64,63 @@ export default function SettingsPage() {
       <h1 className="text-2xl font-semibold">系统设置</h1>
 
       <form onSubmit={handleSubmit(onSubmit)} className="max-w-2xl">
-        <div className="rounded-xl border border-divider bg-content1 p-6 shadow-sm">
+        <Card className="p-6">
           <h2 className="mb-5 text-lg font-medium">基本配置</h2>
 
           <div className="space-y-5">
             {/* 站点名称 */}
-            <div className="space-y-1.5">
-              <label htmlFor="siteName" className="text-sm font-medium">
-                站点名称
-              </label>
-              <input
-                id="siteName"
-                type="text"
+            <TextField isInvalid={!!errors.siteName} name="siteName" type="text">
+              <Label>站点名称</Label>
+              <Input
                 placeholder="请输入站点名称"
-                className="w-full rounded-lg border border-default-200 bg-default-100 px-3 py-2.5 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary"
                 {...register("siteName", { required: "站点名称不能为空" })}
               />
-              {errors.siteName && (
-                <p className="text-xs text-danger">{errors.siteName.message}</p>
-              )}
-            </div>
+              <FieldError>{errors.siteName?.message}</FieldError>
+            </TextField>
 
             {/* 最大并发问诊数 */}
-            <div className="space-y-1.5">
-              <label htmlFor="maxConcurrentSessions" className="text-sm font-medium">
-                最大并发问诊数
-              </label>
-              <input
-                id="maxConcurrentSessions"
-                type="number"
+            <TextField isInvalid={!!errors.maxConcurrentSessions} name="maxConcurrentSessions" type="number">
+              <Label>最大并发问诊数</Label>
+              <Input
                 placeholder="例如 50"
-                className="w-full rounded-lg border border-default-200 bg-default-100 px-3 py-2.5 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary"
                 {...register("maxConcurrentSessions", {
                   required: "此项为必填",
                   valueAsNumber: true,
                   min: { value: 1, message: "至少为 1" },
                 })}
               />
-              {errors.maxConcurrentSessions && (
-                <p className="text-xs text-danger">
-                  {errors.maxConcurrentSessions.message}
-                </p>
-              )}
-            </div>
+              <FieldError>{errors.maxConcurrentSessions?.message}</FieldError>
+            </TextField>
 
             {/* 问诊超时时间 */}
-            <div className="space-y-1.5">
-              <label htmlFor="sessionTimeoutMinutes" className="text-sm font-medium">
-                问诊超时时间(分钟)
-              </label>
-              <input
-                id="sessionTimeoutMinutes"
-                type="number"
+            <TextField isInvalid={!!errors.sessionTimeoutMinutes} name="sessionTimeoutMinutes" type="number">
+              <Label>问诊超时时间(分钟)</Label>
+              <Input
                 placeholder="例如 30"
-                className="w-full rounded-lg border border-default-200 bg-default-100 px-3 py-2.5 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary"
                 {...register("sessionTimeoutMinutes", {
                   required: "此项为必填",
                   valueAsNumber: true,
                   min: { value: 1, message: "至少为 1 分钟" },
                 })}
               />
-              {errors.sessionTimeoutMinutes && (
-                <p className="text-xs text-danger">
-                  {errors.sessionTimeoutMinutes.message}
-                </p>
-              )}
-            </div>
+              <FieldError>{errors.sessionTimeoutMinutes?.message}</FieldError>
+            </TextField>
 
             {/* 开放注册 */}
             <Controller
               name="enableRegistration"
               control={control}
               render={({ field }) => (
-                <div className="flex items-center justify-between rounded-lg border border-default-200 px-4 py-3">
-                  <div>
-                    <p className="text-sm font-medium">开放注册</p>
-                    <p className="text-xs text-foreground-500">
-                      允许新用户自行注册账号
-                    </p>
+                <SwitchField isSelected={field.value} onChange={field.onChange}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium">开放注册</p>
+                      <p className="text-xs text-foreground-500">
+                        允许新用户自行注册账号
+                      </p>
+                    </div>
                   </div>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={field.value}
-                    aria-label="开放注册"
-                    onClick={() => field.onChange(!field.value)}
-                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
-                      field.value ? "bg-primary" : "bg-default-200"
-                    }`}
-                  >
-                    <span
-                      className={`pointer-events-none inline-block size-5 rounded-full bg-white shadow-sm ring-0 transition-transform ${
-                        field.value ? "translate-x-5" : "translate-x-0"
-                      }`}
-                    />
-                  </button>
-                </div>
+                </SwitchField>
               )}
             />
 
@@ -188,7 +150,7 @@ export default function SettingsPage() {
               </Button>
             </div>
           </div>
-        </div>
+        </Card>
       </form>
     </div>
   )
