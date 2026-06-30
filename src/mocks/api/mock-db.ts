@@ -765,6 +765,7 @@ class MockDb {
       const session = this.state.sessions[sessionId]
       if (!session) continue
       const sessionTitle =
+        session.summary.title ??
         session.summary.chiefComplaint ??
         session.summary.diagnosis ??
         "问诊记录"
@@ -820,6 +821,7 @@ class MockDb {
       const session = this.state.sessions[sessionId]
       if (!session) continue
       const sessionTitle =
+        session.summary.title ??
         session.summary.chiefComplaint ??
         session.summary.diagnosis ??
         "问诊记录"
