@@ -1,6 +1,6 @@
 # 项目地图
 
-更新时间：2026-06-30（全局 Zod 中文错误映射）
+更新时间：2026-06-30（省市区三级联动 RegionSelector 组件）
 
 ## 项目定位
 
@@ -74,7 +74,11 @@ NEUHIS Agent 前端——基于 React + HeroUI 3 + Magic UI 的 AI 诊疗 Agent 
 │   ├── components/ui/
 │   │   ├── button.tsx                # shadcn 风格 Button（CVA + Radix Slot）
 │   │   ├── button-variants.ts        # 6 variant × 8 size CVA 定义
-│   │   └── date-picker.tsx           # HeroUI DatePicker 封装，接收/发射 YYYY-MM-DD 字符串
+│   │   ├── date-picker.tsx           # HeroUI DatePicker 封装，接收/发射 YYYY-MM-DD 字符串
+│   │   └── region-selector.tsx       # 省市区三级联动 Select（china-area-data + HeroUI Select/ListBox）
+│   │
+│   ├── types/
+│   │   └── china-area-data.d.ts      # china-area-data 包类型声明
 │   │
 │   ├── lib/
 │   │   ├── utils.ts                  # cn（clsx + tw-merge）+ assertNever 穷尽检查

@@ -15,6 +15,7 @@ import type {
   CreateAddressInput,
 } from "@/features/patient/api"
 import type { PatientId } from "@/lib/api/types"
+import { RegionSelector } from "@/components/ui/region-selector"
 import { cn } from "@/lib/utils"
 
 interface AddressFormModalProps {
@@ -84,6 +85,9 @@ export function AddressFormModal({
 
   const selectedTag = useWatch({ control, name: "tag" })
   const isDefault = useWatch({ control, name: "isDefault" })
+  const province = useWatch({ control, name: "province" }) ?? ""
+  const city = useWatch({ control, name: "city" }) ?? ""
+  const district = useWatch({ control, name: "district" }) ?? ""
   const [isCustomTag, setIsCustomTag] = useState(false)
   const tagValue = selectedTag ?? ""
   const submitting = createMutation.isPending || updateMutation.isPending
@@ -184,35 +188,25 @@ export function AddressFormModal({
                   </FormField>
                 </div>
 
-                <div className="grid gap-4 sm:grid-cols-3">
-                  <FormField label="省份" error={errors.province?.message}>
-                    <input
-                      type="text"
-                      placeholder="省"
-                      className={inputClass}
-                      disabled={submitting}
-                      {...register("province")}
-                    />
-                  </FormField>
-                  <FormField label="城市" error={errors.city?.message}>
-                    <input
-                      type="text"
-                      placeholder="市"
-                      className={inputClass}
-                      disabled={submitting}
-                      {...register("city")}
-                    />
-                  </FormField>
-                  <FormField label="区县" error={errors.district?.message}>
-                    <input
-                      type="text"
-                      placeholder="区/县"
-                      className={inputClass}
-                      disabled={submitting}
-                      {...register("district")}
-                    />
-                  </FormField>
-                </div>
+                <RegionSelector
+                  value={{ province, city, district }}
+                  onChange={(v) => {
+                    setValue("province", v.province, { shouldValidate: true })
+                    setValue("city", v.city, { shouldValidate: true })
+                    setValue("district", v.district, { shouldValidate: true })
+                  }}
+                  isInvalid={{
+                    province: !!errors.province,
+                    city: !!errors.city,
+                    district: !!errors.district,
+                  }}
+                  errorMessage={{
+                    province: errors.province?.message,
+                    city: errors.city?.message,
+                    district: errors.district?.message,
+                  }}
+                  isDisabled={submitting}
+                />
 
                 <FormField label="详细地址" error={errors.detail?.message}>
                   <textarea
