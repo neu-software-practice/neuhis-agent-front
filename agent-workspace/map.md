@@ -1,6 +1,6 @@
 # 项目地图
 
-更新时间：2026-06-30（医嘱记录 v7 + 地址独立页面拆分）
+更新时间：2026-06-30（全局 Zod 中文错误映射）
 
 ## 项目定位
 
@@ -78,6 +78,7 @@ NEUHIS Agent 前端——基于 React + HeroUI 3 + Magic UI 的 AI 诊疗 Agent 
 │   │
 │   ├── lib/
 │   │   ├── utils.ts                  # cn（clsx + tw-merge）+ assertNever 穷尽检查
+│   │   ├── zod-error-map.ts          # Zod 全局中文错误映射（覆盖 too_small 等默认英文提示）
 │   │   ├── query-client.ts           # 全局 QueryClient 单例
 │   │   ├── ids.ts                    # createLocalId(prefix) 纯前端 ID 生成
 │   │   ├── time.ts                   # zh-CN 时间格式化（formatDateTime/Date/Time/Duration）
