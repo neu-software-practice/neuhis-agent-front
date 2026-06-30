@@ -133,7 +133,7 @@ export function AddressFormModal({
                 {mode === "create" ? "新增收货地址" : "编辑收货地址"}
               </Modal.Heading>
             </Modal.Header>
-            <form onSubmit={handleSubmit(onSubmit)}>
+            <form onSubmit={handleSubmit(onSubmit)} noValidate>
               <Modal.Body className="flex max-h-[70vh] flex-col gap-4 overflow-y-auto">
                 {serverError ? (
                   <div className="rounded-lg bg-danger-50 px-3 py-2 text-sm text-danger">

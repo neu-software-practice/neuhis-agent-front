@@ -67,7 +67,7 @@ export default function RegisterPage() {
         password: data.password,
         gender: data.gender,
         birthDate: data.birthDate,
-        realName: data.realName,
+        realName: data.realName?.trim() || undefined,
       }
       const result = await authApi.register(payload)
       login(result.tokens, result.user)
@@ -95,7 +95,7 @@ export default function RegisterPage() {
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
           {serverError && (
             <div className="rounded-lg bg-danger-50 px-3 py-2 text-sm text-danger">
               {serverError}

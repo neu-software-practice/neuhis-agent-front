@@ -31,7 +31,7 @@ export const registerFormSchema = z
     confirmPassword: z.string().min(1, "请再次输入密码"),
     gender: z.string().min(1, "请选择或输入性别"),
     birthDate: z.string().min(1, "请选择出生日期"),
-    realName: z.string().trim().min(1).max(32).optional(),
+    realName: z.string().trim().max(32).optional(),
   })
   .refine((data) => data.confirmPassword === data.password, {
     message: "两次输入的密码不一致",
