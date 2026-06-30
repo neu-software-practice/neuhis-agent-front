@@ -2,7 +2,7 @@ import { useState } from "react"
 import { useForm, Controller, useWatch } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Link, useNavigate } from "react-router"
-import { Stethoscope } from "lucide-react"
+import claudeLogo from "@/assets/claude.webp"
 
 import { Button } from "@/components/ui/button"
 import { DatePicker } from "@/components/ui/date-picker"
@@ -86,7 +86,7 @@ export default function RegisterPage() {
         {/* Header */}
         <div className="flex flex-col items-center gap-2">
           <div className="flex size-12 items-center justify-center rounded-xl bg-primary/10">
-            <Stethoscope className="size-6 text-primary" />
+            <img src={claudeLogo} className="size-6" alt="东软云脑智能医疗" />
           </div>
           <h1 className="text-xl font-semibold">东软云脑智能医疗</h1>
           <p className="text-sm text-foreground-500">注册新账号</p>

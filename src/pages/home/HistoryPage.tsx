@@ -1,7 +1,8 @@
 import { useState, useMemo } from "react"
 import { useNavigate } from "react-router"
 import { useQuery } from "@tanstack/react-query"
-import { SearchX, Stethoscope } from "lucide-react"
+import { SearchX } from "lucide-react"
+import claudeLogo from "@/assets/claude.webp"
 
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/features/shared/components/EmptyState"
@@ -149,12 +150,12 @@ export default function HistoryPage() {
           (data?.items.length ?? 0) === 0 ? (
             // 首用空态：从未有任何就诊记录，引导新建问诊。
             <EmptyState
-              icon={<Stethoscope className="size-10" />}
+              icon={<img src={claudeLogo} className="size-10" alt="东软云脑智能医疗" />}
               title="还没有就诊记录，开始你的第一次问诊吧"
               description="完成一次问诊后，可在这里继续就诊、发起复诊或回看记录。"
               action={
                 <Button size="sm" onClick={() => navigate("/workbench/new")}>
-                  <Stethoscope className="size-4" />
+                  <img src={claudeLogo} className="size-4" alt="" />
                   新建问诊
                 </Button>
               }

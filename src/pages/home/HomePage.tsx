@@ -1,7 +1,8 @@
 import { useState, useMemo } from "react"
 import { useNavigate } from "react-router"
 import { useQuery, useMutation } from "@tanstack/react-query"
-import { HeartPulse, Stethoscope } from "lucide-react"
+import { HeartPulse } from "lucide-react"
+import claudeLogo from "@/assets/claude.webp"
 
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/features/shared/components/EmptyState"
@@ -144,7 +145,7 @@ export default function HomePage() {
               </>
             ) : (
               <>
-                <Stethoscope className="size-5" />
+                <img src={claudeLogo} className="size-5" alt="" />
                 开始问诊
               </>
             )}

@@ -2,7 +2,7 @@ import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Link, useNavigate, useSearchParams } from "react-router"
-import { Stethoscope } from "lucide-react"
+import claudeLogo from "@/assets/claude.webp"
 
 import { Button } from "@/components/ui/button"
 import { loginInputSchema } from "@/features/auth/api/schemas"
@@ -50,7 +50,7 @@ export default function LoginPage() {
         {/* Header */}
         <div className="flex flex-col items-center gap-2">
           <div className="flex size-12 items-center justify-center rounded-xl bg-primary/10">
-            <Stethoscope className="size-6 text-primary" />
+            <img src={claudeLogo} className="size-6" alt="东软云脑智能医疗" />
           </div>
           <h1 className="text-xl font-semibold">东软云脑智能医疗</h1>
           <p className="text-sm text-foreground-500">登录以继续使用</p>
