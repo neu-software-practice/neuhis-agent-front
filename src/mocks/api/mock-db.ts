@@ -130,6 +130,75 @@ function seedActiveSession(): VisitSession {
   return session
 }
 
+/**
+ * 从父会话时间线提取诊疗上下文，生成系统事件列表。
+ *
+ * 复诊时需携带上次完整诊断记录，包括诊断结论、处置方案和问诊摘要。
+ * 只提取已完成（status === "completed" / "done"）的卡片，过滤阻塞中卡片。
+ */
+function buildFollowUpContext(
+  sessionId: string,
+  parentTimeline: TimelineItem[],
+  createdAt: string,
+): TimelineItem[] {
+  const events: TimelineItem[] = []
+  let nextId = 1
+  const id = () => `${sessionId}-ctx-${String(nextId++).padStart(3, "0")}`
+
+  for (const item of parentTimeline) {
+    if (item.kind !== "flow_card") continue
+    const card = item.card
+
+    // 诊断卡片
+    if (card.kind === "diagnosis" && card.status === "completed" && item.status === "done") {
+      events.push({
+        id: id(),
+        sessionId,
+        kind: "system_event",
+        status: "done",
+        createdAt,
+        eventType: "context_loaded",
+        title: `上次诊断：${card.diagnosis}`,
+        description: card.evidence?.length
+          ? `诊断依据：${card.evidence.join("、")}`
+          : undefined,
+      })
+    }
+
+    // 处置方案卡片
+    if (card.kind === "treatment_plan" && card.status === "completed" && item.status === "done") {
+      events.push({
+        id: id(),
+        sessionId,
+        kind: "system_event",
+        status: "done",
+        createdAt,
+        eventType: "context_loaded",
+        title: `上次处置方案：${card.summary}`,
+        description: card.actions?.length
+          ? `处置措施：${card.actions.join("、")}`
+          : undefined,
+      })
+    }
+
+    // 问诊完成卡片
+    if (card.kind === "completed_visit" && card.status === "completed" && item.status === "done") {
+      events.push({
+        id: id(),
+        sessionId,
+        kind: "system_event",
+        status: "done",
+        createdAt,
+        eventType: "context_loaded",
+        title: card.treatmentSummary ?? "上次问诊已完成",
+        description: card.followUpSuggestion ?? undefined,
+      })
+    }
+  }
+
+  return events
+}
+
 function createInitialState(): MockDbState {
   return {
     patients: {
@@ -336,6 +405,7 @@ class MockDb {
 
   createFollowUp(input: CreateFollowUpInput): CreateSessionResult {
     this.requireSession(input.parentSessionId)
+    const parentTimeline = this.state.timelines[input.parentSessionId] ?? []
     const sessionId = this.id("visit")
     const createdAt = nowIso()
     const session: VisitSession = {
@@ -358,7 +428,21 @@ class MockDb {
       },
     }
 
+    // 从父会话时间线中提取诊疗上下文
+    const contextEvents = buildFollowUpContext(sessionId, parentTimeline, createdAt)
+
     const initialTimeline: TimelineItem[] = [
+      {
+        id: this.id("tl"),
+        sessionId,
+        kind: "system_event",
+        status: "done",
+        createdAt,
+        eventType: "context_loaded",
+        title: "已读取患者上下文",
+        description: "包含过敏史、长期用药和上次就诊完整记录。",
+      },
+      ...contextEvents,
       {
         id: this.id("tl"),
         sessionId,
@@ -367,7 +451,7 @@ class MockDb {
         createdAt,
         eventType: "follow_up_started",
         title: "已创建复诊",
-        description: `已引用上次会话 ${input.parentSessionId} 的诊疗摘要。`,
+        description: `基于上次会话 ${input.parentSessionId} 的诊疗记录，开始新的复诊。`,
       },
     ]
 
