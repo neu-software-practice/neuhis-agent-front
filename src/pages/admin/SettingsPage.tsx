@@ -1,12 +1,11 @@
 import { useEffect } from "react"
 import { useForm, Controller } from "react-hook-form"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { Button, Card, Input, Label, TextField, FieldError } from "@heroui/react"
+import { Button, Card, Input, Label, Switch, TextField, FieldError } from "@heroui/react"
 import { Save } from "lucide-react"
 
 import { adminApi } from "@/features/admin/api/admin-api"
 import type { SystemSettings } from "@/features/admin/api/types"
-import { SwitchField } from "@/components/ui/switch-field"
 
 /**
  * 管理后台 — 系统设置页。
@@ -111,16 +110,19 @@ export default function SettingsPage() {
               name="enableRegistration"
               control={control}
               render={({ field }) => (
-                <SwitchField isSelected={field.value} onChange={field.onChange}>
-                  <div className="flex items-center justify-between">
-                    <div>
+                <Switch isSelected={field.value} onChange={field.onChange}>
+                  <Switch.Content>
+                    <Switch.Control>
+                      <Switch.Thumb />
+                    </Switch.Control>
+                    <div className="ml-3">
                       <p className="text-sm font-medium">开放注册</p>
                       <p className="text-xs text-foreground-500">
                         允许新用户自行注册账号
                       </p>
                     </div>
-                  </div>
-                </SwitchField>
+                  </Switch.Content>
+                </Switch>
               )}
             />
 
