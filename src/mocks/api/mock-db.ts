@@ -92,6 +92,24 @@ export interface MockUser {
   createdAt: string
 }
 
+/** Mock 管理员用户。 */
+export interface MockAdminUser {
+  id: string
+  username: string
+  password: string
+  role: "super_admin" | "operator"
+  displayName: string
+  createdAt: string
+}
+
+/** 系统全局设置。 */
+export interface SystemSettings {
+  siteName: string
+  maxConcurrentSessions: number
+  sessionTimeoutMinutes: number
+  enableRegistration: boolean
+}
+
 interface MockDbState {
   patients: Record<PatientId, PatientProfile>
   contexts: Record<PatientId, PatientContext>
@@ -105,6 +123,10 @@ interface MockDbState {
   refreshTokens: Set<string>
   // 地址簿
   addresses: Record<PatientId, Address[]>
+  // Admin
+  adminUsers: Record<string, MockAdminUser>
+  adminRefreshTokens: Set<string>
+  systemSettings: SystemSettings
   nextId: number
 }
 
@@ -244,6 +266,23 @@ function createInitialState(): MockDbState {
           updatedAt: "2026-06-01T00:00:00.000Z",
         },
       ],
+    },
+    adminUsers: {
+      admin: {
+        id: "admin-001",
+        username: "admin",
+        password: "admin123",
+        role: "super_admin",
+        displayName: "系统管理员",
+        createdAt: "2025-01-01T00:00:00Z",
+      },
+    },
+    adminRefreshTokens: new Set<string>(),
+    systemSettings: {
+      siteName: "东软云脑智能医疗",
+      maxConcurrentSessions: 10,
+      sessionTimeoutMinutes: 30,
+      enableRegistration: true,
     },
     nextId: 1,
   }
@@ -1795,6 +1834,254 @@ class MockDb {
 
   logout(token: string) {
     this.state.refreshTokens.delete(token)
+  }
+
+  // ─── Admin Auth ───────────────────────────────────────────────────────
+
+  adminLogin(input: { username: string; password: string }): {
+    tokens: { accessToken: string; refreshToken: string; expiresIn: number }
+    user: { id: string; username: string; role: string; displayName: string; createdAt: string }
+  } {
+    const admin = this.state.adminUsers[input.username]
+    if (!admin || admin.password !== input.password) {
+      throwApiError(
+        createApiError({
+          code: "INVALID_CREDENTIALS",
+          message: "用户名或密码错误",
+          status: 401,
+          retriable: false,
+        }),
+      )
+    }
+
+    const tokens = this.issueAdminTokens(admin.id)
+    return {
+      tokens,
+      user: {
+        id: admin.id,
+        username: admin.username,
+        role: admin.role,
+        displayName: admin.displayName,
+        createdAt: admin.createdAt,
+      },
+    }
+  }
+
+  adminRefreshToken(token: string): {
+    tokens: { accessToken: string; refreshToken: string; expiresIn: number }
+  } {
+    if (!this.state.adminRefreshTokens.has(token)) {
+      throwApiError(
+        createApiError({
+          code: "INVALID_REFRESH_TOKEN",
+          message: "管理员刷新令牌无效或已过期",
+          status: 401,
+          retriable: false,
+        }),
+      )
+    }
+    this.state.adminRefreshTokens.delete(token)
+    const parts = token.split("-")
+    const adminId = parts.slice(3, -1).join("-")
+    return { tokens: this.issueAdminTokens(adminId) }
+  }
+
+  adminLogout(refreshToken: string): void {
+    this.state.adminRefreshTokens.delete(refreshToken)
+  }
+
+  // ─── Admin Dashboard ──────────────────────────────────────────────────
+
+  getAdminDashboardStats(): {
+    totalPatients: number
+    totalSessions: number
+    activeSessions: number
+    todayNewPatients: number
+    todayNewSessions: number
+  } {
+    const patients = Object.values(this.state.patients)
+    const sessions = Object.values(this.state.sessions)
+    const today = new Date().toISOString().slice(0, 10)
+
+    const activeSessions = sessions.filter(
+      (s) => s.status !== "completed" && s.status !== "emergency_terminated",
+    )
+    const todayNewPatients = Object.values(this.state.users).filter(
+      (u) => u.createdAt?.slice(0, 10) === today,
+    ).length
+    const todayNewSessions = sessions.filter(
+      (s) => s.startedAt.slice(0, 10) === today,
+    ).length
+
+    return {
+      totalPatients: patients.length,
+      totalSessions: sessions.length,
+      activeSessions: activeSessions.length,
+      todayNewPatients,
+      todayNewSessions,
+    }
+  }
+
+  // ─── Admin Patient Management ─────────────────────────────────────────
+
+  listAdminPatients(params: { page?: number; pageSize?: number; search?: string }): {
+    items: Array<{
+      id: string
+      realName: string
+      phone: string
+      gender: string
+      birthDate: string
+      createdAt: string
+      sessionCount: number
+    }>
+    total: number
+    page: number
+    pageSize: number
+  } {
+    const page = params.page ?? 1
+    const pageSize = params.pageSize ?? 20
+    const search = params.search?.toLowerCase()
+
+    let patients = Object.values(this.state.patients).map((p) => {
+      const user = Object.values(this.state.users).find((u) => u.patientId === p.id)
+      const sessionCount = Object.values(this.state.sessions).filter(
+        (s) => s.patientId === p.id,
+      ).length
+      return {
+        id: p.id,
+        realName: user?.realName ?? p.name ?? "未知",
+        phone: user?.phone ?? "(mocked)",
+        gender: p.gender ?? "unknown",
+        birthDate: p.age != null ? `${new Date().getFullYear() - p.age}-01-01` : "",
+        createdAt: user?.createdAt ?? "2025-06-01",
+        sessionCount,
+      }
+    })
+
+    if (search) {
+      patients = patients.filter(
+        (p) =>
+          p.realName.toLowerCase().includes(search) ||
+          p.phone.includes(search),
+      )
+    }
+
+    const total = patients.length
+    const start = (page - 1) * pageSize
+    const items = patients.slice(start, start + pageSize)
+
+    return { items, total, page, pageSize }
+  }
+
+  getAdminPatient(id: string): PatientProfile {
+    const patient = this.state.patients[id]
+    if (!patient) {
+      throwApiError(
+        createApiError({
+          code: "PATIENT_NOT_FOUND",
+          message: "未找到患者信息",
+          status: 404,
+          retriable: false,
+        }),
+      )
+    }
+    return clone(patient)
+  }
+
+  // ─── Admin Session Management ─────────────────────────────────────────
+
+  listAdminSessions(params: {
+    page?: number
+    pageSize?: number
+    status?: string
+    patientId?: string
+  }): {
+    items: Array<{
+      id: string
+      patientId: string
+      patientName: string
+      title: string
+      status: string
+      createdAt: string
+      updatedAt: string
+    }>
+    total: number
+    page: number
+    pageSize: number
+  } {
+    const page = params.page ?? 1
+    const pageSize = params.pageSize ?? 20
+
+    let sessions = Object.values(this.state.sessions).map((s) => {
+      const patient = this.state.patients[s.patientId]
+      return {
+        id: s.id,
+        patientId: s.patientId,
+        patientName: patient?.name ?? "未知患者",
+        title: s.summary?.chiefComplaint ?? "无主诉",
+        status: s.status,
+        createdAt: s.startedAt,
+        updatedAt: s.updatedAt,
+      }
+    })
+
+    if (params.status) {
+      sessions = sessions.filter((s) => s.status === params.status)
+    }
+    if (params.patientId) {
+      sessions = sessions.filter((s) => s.patientId === params.patientId)
+    }
+
+    sessions.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+
+    const total = sessions.length
+    const start = (page - 1) * pageSize
+    const items = sessions.slice(start, start + pageSize)
+
+    return { items, total, page, pageSize }
+  }
+
+  getAdminSession(id: string): VisitSession {
+    const session = this.state.sessions[id]
+    if (!session) {
+      throwApiError(
+        createApiError({
+          code: "SESSION_NOT_FOUND",
+          message: "未找到会话",
+          status: 404,
+          retriable: false,
+        }),
+      )
+    }
+    return clone(session)
+  }
+
+  // ─── Admin System Settings ────────────────────────────────────────────
+
+  getSystemSettings(): SystemSettings {
+    return clone(this.state.systemSettings)
+  }
+
+  updateSystemSettings(input: Partial<SystemSettings>): SystemSettings {
+    this.state.systemSettings = {
+      ...this.state.systemSettings,
+      ...input,
+    }
+    return clone(this.state.systemSettings)
+  }
+
+  // ─── Private Helpers ──────────────────────────────────────────────────
+
+  private issueAdminTokens(adminId: string): {
+    accessToken: string
+    refreshToken: string
+    expiresIn: number
+  } {
+    const ts = Date.now()
+    const accessToken = `mock-admin-access-${adminId}-${ts}`
+    const refreshToken = `mock-admin-refresh-${adminId}-${ts}`
+    this.state.adminRefreshTokens.add(refreshToken)
+    return { accessToken, refreshToken, expiresIn: 3600 }
   }
 
   private issueTokens(userId: string): {

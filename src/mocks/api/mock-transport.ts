@@ -54,6 +54,18 @@ import {
   handleRegister,
 } from "@/mocks/api/handlers/auth-handlers"
 import { handleListBillingRecords } from "@/mocks/api/handlers/billing-handlers"
+import {
+  handleAdminLogin,
+  handleAdminLogout,
+  handleAdminRefresh,
+  handleGetAdminPatient,
+  handleGetAdminSession,
+  handleGetDashboardStats,
+  handleGetSystemSettings,
+  handleListAdminPatients,
+  handleListAdminSessions,
+  handleUpdateSystemSettings,
+} from "@/mocks/api/handlers/admin-handlers"
 import { handleListMedicalOrders } from "@/mocks/api/handlers/medical-orders-handlers"
 import {
   simulateAssistantStream,
@@ -269,6 +281,43 @@ function route(method: MockMethod, path: string, body?: unknown, options?: Reque
   const visitMatch = match(path, /^\/visits\/([^/]+)$/)
   if (method === "GET" && visitMatch) {
     return handleGetSession(visitMatch[1])
+  }
+
+  // ── Admin 路由 ──
+  if (method === "POST" && path === "/admin/auth/login") {
+    return handleAdminLogin(body)
+  }
+  if (method === "POST" && path === "/admin/auth/logout") {
+    return handleAdminLogout(body)
+  }
+  if (method === "POST" && path === "/admin/auth/refresh") {
+    return handleAdminRefresh(body)
+  }
+  if (method === "GET" && path === "/admin/dashboard/stats") {
+    return handleGetDashboardStats()
+  }
+
+  const adminPatientDetailMatch = match(path, /^\/admin\/patients\/([^/]+)$/)
+  if (method === "GET" && adminPatientDetailMatch) {
+    return handleGetAdminPatient(adminPatientDetailMatch[1])
+  }
+  if (method === "GET" && path === "/admin/patients") {
+    return handleListAdminPatients(options?.searchParams as Record<string, string> | undefined)
+  }
+
+  const adminSessionDetailMatch = match(path, /^\/admin\/sessions\/([^/]+)$/)
+  if (method === "GET" && adminSessionDetailMatch) {
+    return handleGetAdminSession(adminSessionDetailMatch[1])
+  }
+  if (method === "GET" && path === "/admin/sessions") {
+    return handleListAdminSessions(options?.searchParams as Record<string, string> | undefined)
+  }
+
+  if (method === "GET" && path === "/admin/settings") {
+    return handleGetSystemSettings()
+  }
+  if (method === "PUT" && path === "/admin/settings") {
+    return handleUpdateSystemSettings(body)
   }
 
   throwApiError(

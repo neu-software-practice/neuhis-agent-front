@@ -1,4 +1,4 @@
-import { createBrowserRouter } from "react-router"
+import { createBrowserRouter, Navigate } from "react-router"
 
 import App from "@/app/App"
 import { AppErrorBoundary } from "@/app/error-boundary"
@@ -20,6 +20,17 @@ import {
   readonlyVisitLoader,
   workbenchLoader,
 } from "@/pages/workbench/workbench-loaders"
+
+// ── 管理后台（lazy-loaded，不影响患者端 bundle） ──
+import {
+  AdminGuard as AdminGuardLazy,
+  AdminLoginPage,
+  AdminShell,
+  DashboardPage,
+  PatientListPage,
+  SessionListPage,
+  SettingsPage,
+} from "@/pages/admin/lazy"
 
 /**
  * 应用路由表。
@@ -73,6 +84,33 @@ export const router = createBrowserRouter([
             path: "history/:sessionId",
             loader: readonlyVisitLoader,
             Component: ReadonlyVisitPage,
+          },
+        ],
+      },
+
+      // ── 管理后台路由（独立认证体系） ──
+      {
+        path: "admin",
+        children: [
+          // 管理员登录（公开）
+          { path: "login", Component: AdminLoginPage },
+
+          // 管理员受保护路由
+          {
+            Component: AdminGuardLazy,
+            children: [
+              {
+                Component: AdminShell,
+                children: [
+                  { path: "dashboard", Component: DashboardPage },
+                  { path: "patients", Component: PatientListPage },
+                  { path: "sessions", Component: SessionListPage },
+                  { path: "settings", Component: SettingsPage },
+                  // /admin 默认重定向到 dashboard
+                  { index: true, Component: () => <Navigate to="/admin/dashboard" replace /> },
+                ],
+              },
+            ],
           },
         ],
       },
