@@ -1,6 +1,6 @@
 # 项目地图
 
-更新时间：2026-06-30（登录/注册页 HeroUI TextField 替换 + 管理后台 HeroUI v3 全面翻新 + 管理后台 admin panel + CompletedExitSheet 修复 + rest-api-patch-v8）
+更新时间：2026-06-30（个人中心 HeroUI Card 统一 + 登录/注册页 HeroUI TextField 替换 + 管理后台 HeroUI v3 全面翻新 + 管理后台 admin panel + CompletedExitSheet 修复 + rest-api-patch-v8）
 
 ## 项目定位
 
@@ -63,7 +63,7 @@ NEUHIS Agent 前端——基于 React + HeroUI 3 + Magic UI 的 AI 诊疗 Agent 
 │   │   │   ├── BillingPage.tsx       # 账单记录：筛选 tab + TanStack Query 列表 + 空态
 │   │   │   ├── MedicalOrdersPage.tsx # 医嘱记录：历史医嘱/用药记录列表
 │   │   │   ├── AddressPage.tsx       # 收货地址管理：默认地址置顶 + CRUD + 空态
-│   │   │   └── ProfilePage.tsx       # 个人中心：PatientSummaryCard + 可编辑医疗信息 + 地址入口预览 + 账单入口 + 医嘱入口 + 退出登录
+│   │   │   └── ProfilePage.tsx       # 个人中心：HeroUI Card 统一包装，PatientSummaryCard + 可编辑医疗信息 + 地址入口 + 账单/医嘱入口 + 退出登录
 │   │   ├── workbench/
 │   │   │   ├── NewWorkbenchPage.tsx   # 自动创建会话（初诊/复诊）→ 跳转工作台
 │   │   │   ├── NewWorkbenchPage.test.tsx
