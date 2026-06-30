@@ -8,7 +8,7 @@
  * 这里的提示主要影响前端表单直接显示的 react-hook-form + zodResolver 场景。
  */
 import { core } from "zod"
-import type { $ZodErrorMap, $ZodRawIssue, $ZodIssueTooSmall, $ZodIssueTooBig } from "zod"
+import type { ZodErrorMap, IssueData } from "zod"
 
 const SIZABLE_LABELS: Record<string, { unit: string }> = {
   string: { unit: "个字符" },
@@ -64,7 +64,7 @@ const TYPE_LABELS: Record<string, string> = {
   function: "函数",
 }
 
-const customErrorMap: $ZodErrorMap = (issue: $ZodRawIssue) => {
+const customErrorMap: ZodErrorMap = (issue: IssueData) => {
   switch (issue.code) {
     // ── 类型错误 ──────────────────────────────────
     case "invalid_type": {
@@ -78,7 +78,7 @@ const customErrorMap: $ZodErrorMap = (issue: $ZodRawIssue) => {
     // ── 太小 ─────────────────────────────────────
     case "too_small": {
       const sizing = SIZABLE_LABELS[issue.origin]
-      const min = (issue as $ZodIssueTooSmall).minimum
+      const min = (issue as core.$ZodIssueTooSmall).minimum
 
       if (sizing) {
         // string / array / set / file
@@ -95,7 +95,6 @@ const customErrorMap: $ZodErrorMap = (issue: $ZodRawIssue) => {
       }
 
       // number / int / bigint / date
-      const adj = (issue as $ZodIssueTooSmall).inclusive ? "不小于" : "大于"
       if (issue.origin === "date")
         return { message: `日期不能早于指定时间` }
       return { message: `最小值为 ${min}` }
@@ -104,7 +103,7 @@ const customErrorMap: $ZodErrorMap = (issue: $ZodRawIssue) => {
     // ── 太大 ─────────────────────────────────────
     case "too_big": {
       const sizing = SIZABLE_LABELS[issue.origin]
-      const max = (issue as $ZodIssueTooBig).maximum
+      const max = (issue as core.$ZodIssueTooBig).maximum
 
       if (sizing) {
         if (issue.origin === "string")
@@ -120,11 +119,11 @@ const customErrorMap: $ZodErrorMap = (issue: $ZodRawIssue) => {
     // ── 格式错误 ─────────────────────────────────
     case "invalid_format": {
       if (issue.format === "starts_with")
-        return { message: `必须以 "${(issue as { prefix: string }).prefix}" 开头` }
+        return { message: `必须以 "${(issue as unknown as { prefix: string }).prefix}" 开头` }
       if (issue.format === "ends_with")
-        return { message: `必须以 "${(issue as { suffix: string }).suffix}" 结尾` }
+        return { message: `必须以 "${(issue as unknown as { suffix: string }).suffix}" 结尾` }
       if (issue.format === "includes")
-        return { message: `必须包含 "${(issue as { includes: string }).includes}"` }
+        return { message: `必须包含 "${(issue as unknown as { includes: string }).includes}"` }
       if (issue.format === "regex")
         return { message: "格式不正确" }
       const label = FORMAT_LABELS[issue.format]

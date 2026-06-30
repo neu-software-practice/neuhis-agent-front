@@ -6,6 +6,7 @@
  */
 import { useMemo } from "react"
 import {
+  FieldError,
   Label,
   ListBox,
   Select,
@@ -253,7 +254,6 @@ function RegionSelect({
       }}
       placeholder={placeholder}
       isInvalid={isInvalid}
-      errorMessage={errorMessage}
       isDisabled={isDisabled}
       className="w-full [&_[data-slot=select-trigger]]:bg-[#f3f3f3] [&_[data-placeholder=true]]:text-[#999] [&_[data-slot=select-popover]]:shadow-2xl [&_[data-slot=label]]:text-foreground"
     >
@@ -272,6 +272,7 @@ function RegionSelect({
           )}
         </ListBox>
       </Select.Popover>
+      {errorMessage && <FieldError>{errorMessage}</FieldError>}
     </Select>
   )
 }

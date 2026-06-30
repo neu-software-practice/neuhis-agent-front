@@ -22,7 +22,7 @@ export const SwitchField = (({ children, ...props }: SwitchRootProps) => {
         "--accent": "var(--primary-foreground)",
         "--switch-control-bg-checked": "var(--switch-control-bg)",
         ...props.style,
-      } as React.CSSProperties}
+      } as unknown as React.CSSProperties}
     >
       {children}
     </Switch>
