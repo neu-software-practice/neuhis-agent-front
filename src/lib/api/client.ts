@@ -4,6 +4,7 @@ import ky from "ky"
 import { apiConfig } from "@/lib/api/config"
 import { getTransport } from "@/lib/api"
 import { createApiError, toApiError, throwApiError } from "@/lib/api/errors"
+import { extractAllJson, parseFirstJson } from "@/lib/api/parse-json"
 import type {
   ApiTransport,
   RequestOptions,
@@ -58,6 +59,44 @@ async function tryRefreshToken(): Promise<boolean> {
   return refreshPromise
 }
 
+// ── Envelope handling ──
+
+interface ApiEnvelope<T = unknown> {
+  success: boolean
+  data: T | null
+  error: { code: string; message: string } | null
+  meta: unknown
+}
+
+/** 检测是否为信封格式：必须同时存在 success 和 data 两个顶层 key。 */
+function isEnvelope(raw: unknown): raw is ApiEnvelope {
+  return (
+    raw !== null &&
+    typeof raw === "object" &&
+    "success" in raw &&
+    "data" in raw
+  )
+}
+
+/**
+ * 按需解包后端响应。
+ * - 信封格式 → 抽取 data，若 success=false 或 error 非空则抛 ApiError
+ * - 非信封格式（扁平响应）→ 原样透传，保持向后兼容
+ */
+function unwrapEnvelope<T>(raw: unknown): T {
+  if (!isEnvelope(raw)) return raw as T // 透传：非信封格式原样返回
+  if (!raw.success || raw.error) {
+    throwApiError(
+      createApiError({
+        code: raw.error?.code ?? "UNKNOWN_ERROR",
+        message: raw.error?.message ?? "服务端返回错误",
+        details: raw,
+      }),
+    )
+  }
+  return raw.data as T
+}
+
 // ── Transport utilities ──
 
 function normalizeSearchParams(options?: RequestOptions) {
@@ -79,7 +118,24 @@ async function normalizeHttpError(error: unknown): Promise<ApiError> {
     "response" in error &&
     error.response instanceof Response
   ) {
-    const details = await error.response.json().catch(() => undefined)
+    // ky v2 在抛出 HTTPError 前已通过内部的 #getResponseData 读取响应体，
+    // error.data 即预解析的结果；非 ky 错误则回退到自行读取。
+    const details =
+      "data" in error
+        ? (error as { data?: unknown }).data
+        : await error.response.json().catch(() => undefined)
+
+    // 若响应体是信封格式且包含 error 字段，优先使用后端返回的错误码和消息
+    if (isEnvelope(details) && details.error) {
+      return createApiError({
+        code: details.error.code,
+        message: details.error.message,
+        status: error.response.status,
+        details,
+        retriable: error.response.status >= 500,
+      })
+    }
+
     return createApiError({
       code: `HTTP_${error.response.status}`,
       message: "请求失败，请稍后重试",
@@ -95,6 +151,7 @@ async function normalizeHttpError(error: unknown): Promise<ApiError> {
 const httpClient = ky.create({
   prefix: apiConfig.baseUrl.replace(/^\//, ""),
   timeout: 30_000,
+  parseJson: (text: string) => parseFirstJson(text),
 })
 
 async function request<T>(
@@ -112,13 +169,17 @@ async function request<T>(
   }
 
   try {
-    return await httpClient(path.replace(/^\//, ""), {
-      method,
-      json: body,
-      searchParams: normalizeSearchParams(options),
-      headers: { ...authHeaders, ...options?.headers },
-      signal: options?.signal,
-    }).json<T>()
+    return unwrapEnvelope<T>(
+      parseFirstJson<T>(
+        await httpClient(path.replace(/^\//, ""), {
+          method,
+          json: body,
+          searchParams: normalizeSearchParams(options),
+          headers: { ...authHeaders, ...options?.headers },
+          signal: options?.signal,
+        }).text(),
+      ),
+    )
   } catch (error) {
     // 401 自动 refresh + retry（仅非公开路径）
     if (
@@ -130,16 +191,20 @@ async function request<T>(
       const refreshed = await tryRefreshToken()
       if (refreshed) {
         const retryToken = getAccessToken()
-        return await httpClient(path.replace(/^\//, ""), {
-          method,
-          json: body,
-          searchParams: normalizeSearchParams(options),
-          headers: {
-            ...options?.headers,
-            ...(retryToken ? { Authorization: `Bearer ${retryToken}` } : {}),
-          },
-          signal: options?.signal,
-        }).json<T>()
+        return unwrapEnvelope<T>(
+          parseFirstJson<T>(
+            await httpClient(path.replace(/^\//, ""), {
+              method,
+              json: body,
+              searchParams: normalizeSearchParams(options),
+              headers: {
+                ...options?.headers,
+                ...(retryToken ? { Authorization: `Bearer ${retryToken}` } : {}),
+              },
+              signal: options?.signal,
+            }).text(),
+          ),
+        )
       }
     }
     throwApiError(await normalizeHttpError(error))
@@ -179,7 +244,10 @@ export function createHttpTransport(): ApiTransport {
             if (!message.data) {
               return
             }
-            handlers.onEvent?.(JSON.parse(message.data) as TEvent)
+            const events = extractAllJson<TEvent>(message.data)
+            for (const event of events) {
+              handlers.onEvent?.(event)
+            }
           },
           onerror: (error) => {
             handlers.onError?.(toApiError(error))

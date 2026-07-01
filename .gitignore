@@ -26,3 +26,5 @@ dist-ssr
 references/
 .agents/worktrees
 .agents/plans
+
+.env

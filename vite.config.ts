@@ -18,5 +18,11 @@ export default defineConfig({
     fs: {
       allow: [".", "node_modules"],
     },
+    proxy: {
+      "/api": {
+        target: "http://***REMOVED***:8080",
+        changeOrigin: true,
+      },
+    },
   },
 })

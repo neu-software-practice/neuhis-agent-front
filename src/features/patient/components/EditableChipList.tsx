@@ -83,8 +83,17 @@ export function EditableChipList({
   )
 
   const handleSave = useCallback(() => {
-    onSave(localItems)
-  }, [localItems, onSave])
+    // 保存前先把输入框里的内容加进去（补齐"输入后直接点保存"的交互）
+    const trimmed = inputValue.trim()
+    const finalItems = trimmed && !localItems.includes(trimmed)
+      ? [...localItems, trimmed]
+      : localItems
+    onSave(finalItems)
+    // 如果自动补齐了输入框内容，清除输入框
+    if (finalItems !== localItems) {
+      setInputValue("")
+    }
+  }, [localItems, onSave, inputValue])
 
   const handleCancel = useCallback(() => {
     setLocalItems(items)

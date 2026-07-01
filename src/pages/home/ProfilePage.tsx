@@ -60,6 +60,9 @@ export default function ProfilePage() {
         queryKey: patientQueryKeys.context(patientId),
       })
     },
+    onError: (err) => {
+      console.error("更新个人资料失败:", err)
+    },
   })
   const handleSave = useCallback(
     (field: "allergies" | "chronicDiseases" | "longTermMedications" | "medicalHistory", items: string[]) => {

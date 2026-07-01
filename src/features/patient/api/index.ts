@@ -39,10 +39,10 @@ export const patientApi = {
   },
 
   async updatePatientProfile(input: UpdatePatientProfileInput) {
-    const body = updatePatientProfileInputSchema.parse(input)
+    const { patientId, ...patchData } = updatePatientProfileInputSchema.parse(input)
     const result = await getTransport().patch(
-      `/patients/${body.patientId}/profile`,
-      body,
+      `/patients/${patientId}/profile`,
+      patchData,
     )
     return patientProfileSchema.parse(result)
   },
