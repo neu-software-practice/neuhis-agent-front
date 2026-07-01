@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { Receipt, RefreshCw, SearchX } from "lucide-react"
+import { ArrowLeft, Receipt, RefreshCw, SearchX } from "lucide-react"
+import { useNavigate } from "react-router"
 
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/features/shared/components/EmptyState"
@@ -39,6 +40,7 @@ const FILTER_STATUSES: Record<Exclude<BillingFilter, "all">, ReadonlySet<string>
  * - 空态提示。
  */
 export default function BillingPage() {
+  const navigate = useNavigate()
   const [activeFilter, setActiveFilter] = useState<BillingFilter>("all")
 
   const { data, isLoading, isError, error, refetch } = useQuery(billingQueries.list())
@@ -54,7 +56,10 @@ export default function BillingPage() {
   return (
     <PageShell
       header={
-        <div className="mx-auto w-full max-w-md px-4 py-3 md:max-w-2xl">
+        <div className="mx-auto flex w-full max-w-md items-center gap-2 px-4 py-3 md:max-w-2xl">
+          <Button size="icon" variant="ghost" onClick={() => navigate("/profile")} aria-label="返回个人中心">
+            <ArrowLeft className="size-5" />
+          </Button>
           <h1 className="text-lg font-semibold">账单记录</h1>
         </div>
       }

@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { MapPin, Plus, RefreshCw } from "lucide-react"
+import { ArrowLeft, MapPin, Plus, RefreshCw } from "lucide-react"
+import { useNavigate } from "react-router"
 
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/features/shared/components/EmptyState"
@@ -20,6 +21,7 @@ import { useAuthStore } from "@/features/auth/store/auth-store"
  * - 加载/错误/空态均有覆盖。
  */
 export default function AddressPage() {
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const user = useAuthStore((s) => s.user)
   const patientId = user?.patientId ?? ""
@@ -92,7 +94,12 @@ export default function AddressPage() {
     <PageShell
       header={
         <div className="mx-auto flex w-full max-w-md items-center justify-between px-4 py-3 md:max-w-2xl">
-          <h1 className="text-lg font-semibold">收货地址</h1>
+          <div className="flex items-center gap-2">
+            <Button size="icon" variant="ghost" onClick={() => navigate("/profile")} aria-label="返回个人中心">
+              <ArrowLeft className="size-5" />
+            </Button>
+            <h1 className="text-lg font-semibold">收货地址</h1>
+          </div>
           <Button
             size="sm"
             variant="outline"
