@@ -45,7 +45,9 @@ export function EmergencyOverlay({
 }: EmergencyOverlayProps) {
   // 任何非「确认前往急诊」的关闭意图（ESC 等）都按安全路径处理：继续问诊。
   const handleOpenChange = (next: boolean) => {
+    console.log("[emergency] Modal.Backdrop onOpenChange called, next:", next)
     if (!next) {
+      console.log("[emergency] Modal.Backdrop closing, calling onDismiss")
       onDismiss()
     }
   }
@@ -81,7 +83,10 @@ export function EmergencyOverlay({
               <Button
                 variant="primary"
                 size="lg"
-                onPress={onConfirmEmergency}
+                onPress={() => {
+                  console.log("[emergency] '前往急诊' button pressed, calling onConfirmEmergency")
+                  onConfirmEmergency()
+                }}
                 className="w-full"
               >
                 前往急诊
@@ -89,7 +94,10 @@ export function EmergencyOverlay({
               <Button
                 variant="outline"
                 size="md"
-                onPress={onDismiss}
+                onPress={() => {
+                  console.log("[emergency] '误报，继续问诊' button pressed, calling onDismiss")
+                  onDismiss()
+                }}
                 className="w-full"
               >
                 误报，继续问诊

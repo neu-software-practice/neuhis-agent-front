@@ -31,6 +31,8 @@ export interface UseAssistantStreamOptions {
     itemId: string,
     updater: (item: TimelineItem) => TimelineItem,
   ) => void
+  /** 按 id 或 card.id 去重插入 timeline items 的回调 */
+  upsertTimelineItems: (items: TimelineItem[]) => void
 }
 
 export interface UseAssistantStreamResult {
@@ -108,7 +110,7 @@ function markInterrupted(
 export function useAssistantStream(
   options: UseAssistantStreamOptions,
 ): UseAssistantStreamResult {
-  const { sessionId, sendMachineEvent, appendTimelineItem, updateTimelineItem } =
+  const { sessionId, sendMachineEvent, appendTimelineItem, updateTimelineItem, upsertTimelineItems } =
     options
 
   const [isStreaming, setIsStreaming] = useState(false)
@@ -240,8 +242,11 @@ export function useAssistantStream(
 
             // ---- card：流程卡 ----
             case "card": {
+              // 后端可能对同一张卡先后推送两次 SSE 事件（先不带
+              // timelineItem、再带 timelineItem）。直接用 upsert（按
+              // item.id 或 card.id 去重替换）避免产生重复的时间线项。
               if (event.timelineItem) {
-                appendTimelineItem(event.timelineItem)
+                upsertTimelineItems([event.timelineItem])
               } else {
                 const cardItem: FlowCardTimelineItem = {
                   kind: "flow_card",
@@ -251,7 +256,7 @@ export function useAssistantStream(
                   status: "done",
                   card: event.card,
                 }
-                appendTimelineItem(cardItem)
+                upsertTimelineItems([cardItem])
               }
               sendMachineEvent(mapCardToMachineEvent(event.card))
               break
@@ -268,6 +273,7 @@ export function useAssistantStream(
 
             // ---- emergency：急症信号 ----
             case "emergency": {
+              console.log("[emergency] SSE emergency event received:", event)
               markCurrentStreamInterrupted("emergency")
               appendTimelineItem(
                 createSystemEventItem(
@@ -280,6 +286,7 @@ export function useAssistantStream(
                 type: "EMERGENCY_DETECTED",
                 source: event.severity,
               })
+              console.log("[emergency] EMERGENCY_DETECTED sent to state machine, severity:", event.severity)
               setIsStreaming(false)
               break
             }

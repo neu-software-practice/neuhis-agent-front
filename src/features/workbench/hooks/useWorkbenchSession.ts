@@ -26,6 +26,7 @@ import {
   createOptimisticPatientMessage,
   createStreamingAssistantMessage,
   createSystemEventItem,
+  createTerminalItem,
   generateClientMessageId,
 } from "@/features/workbench/utils/timeline-merge"
 import { useFlowCardAction } from "@/features/workbench/hooks/useFlowCardAction"
@@ -406,6 +407,18 @@ export function useWorkbenchSession(
               ),
             }))
             return { ...old, pages }
+          },
+        )
+      },
+      [queryClient, sessionId],
+    ),
+    upsertTimelineItems: useCallback(
+      (newItems: TimelineItem[]) => {
+        queryClient.setQueryData<InfiniteData<ListTimelineResult>>(
+          workbenchQueryKeys.timeline(sessionId),
+          (old) => {
+            if (!old) return old
+            return upsertItemsInPages(old, newItems)
           },
         )
       },
@@ -792,42 +805,77 @@ export function useWorkbenchSession(
   /** 上报急症体征 */
   const reportVitals = useCallback(
     async (input: ReportVitalsInput) => {
-      const result = await workbenchApi.reportVitals(input)
-      if (result.emergency) {
-        abortStream("emergency")
-        actorRef.send({
-          type: "EMERGENCY_DETECTED",
-          source: input.source,
-        })
-        return
+      try {
+        console.log("[emergency] reportVitals called with:", input)
+        const result = await workbenchApi.reportVitals(input)
+        console.log("[emergency] reportVitals result:", result)
+        if (result.emergency) {
+          abortStream("emergency")
+          actorRef.send({
+            type: "EMERGENCY_DETECTED",
+            source: input.source,
+          })
+          return
+        }
+        appendTimelineItem(
+          createSystemEventItem(
+            sessionId,
+            "agent_thinking",
+            "已收到急症求助",
+            result.message,
+          ),
+        )
+      } catch (e) {
+        console.error("[emergency] reportVitals failed:", e)
       }
-      appendTimelineItem(
-        createSystemEventItem(
-          sessionId,
-          "agent_thinking",
-          "已收到急症求助",
-          result.message,
-        ),
-      )
     },
     [abortStream, actorRef, appendTimelineItem, sessionId],
   )
 
   /** 急症误报恢复：还原会话 cache + 追加系统事件 + EMERGENCY_DISMISSED。 */
   const dismissEmergency = useCallback(async () => {
-    const result = await workbenchApi.dismissEmergency({ sessionId })
-    queryClient.setQueryData(
-      visitsQueryKeys.session(sessionId),
-      result.session,
-    )
-    appendTimelineItem(result.timelineItem)
-    actorRef.send({ type: "EMERGENCY_DISMISSED" })
+    try {
+      console.log("[emergency] dismissEmergency called, sessionId:", sessionId)
+      const result = await workbenchApi.dismissEmergency({ sessionId })
+      console.log("[emergency] dismissEmergency result:", result)
+      queryClient.setQueryData(
+        visitsQueryKeys.session(sessionId),
+        result.session,
+      )
+      appendTimelineItem(result.timelineItem)
+      actorRef.send({ type: "EMERGENCY_DISMISSED" })
+      console.log("[emergency] EMERGENCY_DISMISSED sent to state machine")
+    } catch (e) {
+      console.error("[emergency] dismissEmergency failed:", e)
+      // 即使 API 失败，仍尝试本地恢复状态机（以降级模式继续问诊）
+      // 真实后端可能不支持该端点，此时走前端本地恢复路径
+      console.warn("[emergency] dismissEmergency API failed, falling back to local dismiss")
+      appendTimelineItem(
+        createSystemEventItem(
+          sessionId,
+          "emergency_dismissed",
+          "抱歉打扰了，系统已记录这次反馈以改善判断。你可以继续刚才的问诊。",
+        ),
+      )
+      actorRef.send({ type: "EMERGENCY_DISMISSED" })
+    }
   }, [sessionId, queryClient, appendTimelineItem, actorRef])
 
-  /** 确认急症（前往急诊）：EMERGENCY_CONFIRMED → terminated。 */
+  /** 确认急症（前往急诊）：EMERGENCY_CONFIRMED → terminated + 急症终止留痕。 */
   const confirmEmergency = useCallback(() => {
+    console.log("[emergency] confirmEmergency called, sending EMERGENCY_CONFIRMED")
+    // 追加急症终止卡到时间线
+    appendTimelineItem(
+      createTerminalItem(
+        sessionId,
+        "emergency",
+        "本次问诊已结束",
+        "建议立即前往急诊就医，请优先保障您的安全。",
+      ),
+    )
     actorRef.send({ type: "EMERGENCY_CONFIRMED" })
-  }, [actorRef])
+    console.log("[emergency] EMERGENCY_CONFIRMED sent, state should now be 'terminated'")
+  }, [actorRef, appendTimelineItem, sessionId])
 
   /** 到期触发超时终止：abort 流 + VISIT_TIMEOUT → terminated(timeout)。 */
   const triggerTimeout = useCallback(() => {

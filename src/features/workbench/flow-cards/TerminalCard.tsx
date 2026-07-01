@@ -40,6 +40,7 @@ const reasonIconMap: Record<
     bg: "bg-warning-foreground",
   },
   exited: { icon: LogOut, color: "text-muted-foreground", bg: "bg-muted/20" },
+  patient_request: { icon: LogOut, color: "text-muted-foreground", bg: "bg-muted/20" },
 }
 
 /**

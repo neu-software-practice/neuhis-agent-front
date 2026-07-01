@@ -19,6 +19,7 @@ import {
   pauseVisitTimerInputSchema,
   reportVitalsInputSchema,
   resumeVisitTimerInputSchema,
+  normalizeSendMessageResult,
   sendMessageInputSchema,
   sendMessageResultSchema,
   streamAssistantInputSchema,
@@ -29,7 +30,7 @@ import {
   suspendVisitInputSchema,
   suspendVisitResultSchema,
 } from "@/features/workbench/api/schemas"
-import { assistantStreamEventSchema } from "@/features/workbench/api/timeline-schemas"
+import { assistantStreamEventSchema, timelineItemSchema } from "@/features/workbench/api/timeline-schemas"
 import type {
   AckAdviceInput,
   AskLockedQuestionInput,
@@ -63,7 +64,13 @@ function streamHandlers(
 export const workbenchApi = {
   async getSession(sessionId: SessionId) {
     const result = await getTransport().get(`/visits/${sessionId}`)
-    return visitSessionSchema.parse(result)
+    console.log("[api] getSession raw result:", JSON.stringify(result, null, 2))
+    try {
+      return visitSessionSchema.parse(result)
+    } catch (e) {
+      console.error("[api] getSession zod parse failed:", e)
+      throw e
+    }
   },
 
   async listTimeline(input: ListTimelineInput) {
@@ -71,7 +78,28 @@ export const workbenchApi = {
     const result = await getTransport().get(`/visits/${query.sessionId}/timeline`, {
       searchParams: query,
     })
-    return listTimelineResultSchema.parse(result)
+    console.log("[api] listTimeline raw result type:", typeof result, "items count:", (result as any)?.items?.length)
+    try {
+      const parsed = listTimelineResultSchema.parse(result)
+      console.log("[api] listTimeline parsed OK, items:", parsed.items.length)
+      return parsed
+    } catch (e) {
+      console.error("[api] listTimeline zod parse failed:", e)
+      // 逐条解析定位问题 item
+      if (result && typeof result === "object" && Array.isArray((result as any).items)) {
+        const arr = result as any
+        console.log("[api] listTimeline: trying per-item parse, total:", arr.items.length)
+        for (let i = 0; i < arr.items.length; i++) {
+          try {
+            timelineItemSchema.parse(arr.items[i])
+          } catch (itemErr) {
+            console.error(`[api] listTimeline: item[${i}] parse failed:`, itemErr)
+            console.log(`[api] listTimeline: item[${i}] raw:`, JSON.stringify(arr.items[i], null, 2))
+          }
+        }
+      }
+      throw e
+    }
   },
 
   async sendMessage(input: SendMessageInput) {
@@ -82,7 +110,9 @@ export const workbenchApi = {
     )
     console.log("[api] sendMessage raw result:", result)
     try {
-      const parsed = sendMessageResultSchema.parse(result)
+      const parsed = sendMessageResultSchema.parse(
+        normalizeSendMessageResult(result),
+      )
       return parsed
     } catch (e) {
       console.error("[api] sendMessage zod parse failed:", e)
@@ -108,7 +138,13 @@ export const workbenchApi = {
       `/visits/${body.sessionId}/lab-decision`,
       body,
     )
-    return flowActionResultSchema.parse(result)
+    console.log("[api] submitLabDecision raw result:", JSON.stringify(result, null, 2))
+    try {
+      return flowActionResultSchema.parse(result)
+    } catch (e) {
+      console.error("[api] submitLabDecision zod parse failed:", e)
+      throw e
+    }
   },
 
   async submitPayment(input: SubmitPaymentInput) {
@@ -117,7 +153,13 @@ export const workbenchApi = {
       `/visits/${body.sessionId}/payments`,
       body,
     )
-    return flowActionResultSchema.parse(result)
+    console.log("[api] submitPayment raw result:", JSON.stringify(result, null, 2))
+    try {
+      return flowActionResultSchema.parse(result)
+    } catch (e) {
+      console.error("[api] submitPayment zod parse failed:", e)
+      throw e
+    }
   },
 
   async submitFulfillment(input: SubmitFulfillmentInput) {
@@ -126,7 +168,13 @@ export const workbenchApi = {
       `/visits/${body.sessionId}/fulfillment`,
       body,
     )
-    return flowActionResultSchema.parse(result)
+    console.log("[api] submitFulfillment raw result:", JSON.stringify(result, null, 2))
+    try {
+      return flowActionResultSchema.parse(result)
+    } catch (e) {
+      console.error("[api] submitFulfillment zod parse failed:", e)
+      throw e
+    }
   },
 
   async submitTreatmentExecution(input: SubmitTreatmentExecutionInput) {
@@ -135,7 +183,13 @@ export const workbenchApi = {
       `/visits/${body.sessionId}/treatment-execution`,
       body,
     )
-    return flowActionResultSchema.parse(result)
+    console.log("[api] submitTreatmentExecution raw result:", JSON.stringify(result, null, 2))
+    try {
+      return flowActionResultSchema.parse(result)
+    } catch (e) {
+      console.error("[api] submitTreatmentExecution zod parse failed:", e)
+      throw e
+    }
   },
 
   async ackAdvice(input: AckAdviceInput) {
@@ -144,7 +198,13 @@ export const workbenchApi = {
       `/visits/${body.sessionId}/advice-ack`,
       body,
     )
-    return flowActionResultSchema.parse(result)
+    console.log("[api] ackAdvice raw result:", JSON.stringify(result, null, 2))
+    try {
+      return flowActionResultSchema.parse(result)
+    } catch (e) {
+      console.error("[api] ackAdvice zod parse failed:", e)
+      throw e
+    }
   },
 
   async askLockedQuestion(

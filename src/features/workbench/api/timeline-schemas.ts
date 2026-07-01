@@ -57,14 +57,15 @@ export const labDecisionCardSchema = flowCardBaseSchema.extend({
       sampleType: z.string().optional(),
     }),
   ),
-  reason: z.string().trim().min(1),
-  differentialTargets: z.array(z.string().trim().min(1)),
+  reason: z.string().trim().min(1).optional(),
+  differentialTargets: z.array(z.string().trim().min(1)).optional(),
   estimatedFee: moneySchema,
 })
 
 export const paymentCardSchema = flowCardBaseSchema.extend({
   kind: z.literal("payment"),
-  paymentId: z.string().trim().min(1),
+  // 后端在 payment 卡创建初期可能尚未分配 paymentId（读回历史记录时会出现）
+  paymentId: z.string().trim().min(1).optional(),
   purpose: z.enum(["lab", "medication"]),
   items: z.array(
     z.object({
@@ -124,8 +125,8 @@ export const medicationFulfillmentCardSchema = flowCardBaseSchema.extend({
       name: z.string().trim().min(1),
       spec: z.string().trim().min(1),
       quantity: z.number().int().positive(),
-      dosage: z.string().trim().min(1),
-      days: z.number().int().positive(),
+      dosage: z.string().trim().optional().default(""),
+      days: z.number().int().min(0).optional().default(0),
       price: moneySchema,
     }),
   ),
@@ -216,6 +217,8 @@ export const systemEventTimelineItemSchema = timelineItemBaseSchema.extend({
     "context_loaded",
     "agent_thinking",
     "lab_result_received",
+    // 患者选择暂不决定是否检验
+    "lab_vetoed",
     "payment_succeeded",
     "drug_purchased",
     "follow_up_started",

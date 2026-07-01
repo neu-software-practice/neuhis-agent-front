@@ -258,11 +258,17 @@ export default function WorkbenchPage() {
             }}
             onCancel={() => setPauseSheetOpen(false)}
           />
-          {state === "completed" ? (
+          {state === "completed" || state === "terminated" ? (
             <CompletedExitSheet
               open={exitSheetOpen}
               onOpenChange={setExitSheetOpen}
               onNavigateHome={() => navigate("/")}
+              title={state === "terminated" ? "问诊已结束" : "问诊已完成"}
+              description={
+                state === "terminated"
+                  ? "本次问诊已终止，您可以返回首页查看历史记录或发起新的问诊。"
+                  : "本次问诊已正常完成，您可以返回首页查看历史记录或发起新的问诊。"
+              }
             />
           ) : (
             <ExitVisitSheet

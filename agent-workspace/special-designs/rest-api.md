@@ -122,7 +122,7 @@ UI 文案命中的 HTTP 状态（`MESSAGE_BY_HTTP_STATUS`）：`401`（登录失
 
 ### 3.3 `TerminalReason`（`terminalReasonSchema`）
 
-终止原因（7 值）：`emergency`、`timeout`、`ask_limit_reached`、`lab_limit_reached`、`referral`、`capability_insufficient`、`exited`。
+终止原因（8 值）：`emergency`、`timeout`、`ask_limit_reached`、`lab_limit_reached`、`referral`、`capability_insufficient`、`exited`、`patient_request`。
 
 ### 3.4 `PaymentStatus`（`paymentStatusSchema`）
 

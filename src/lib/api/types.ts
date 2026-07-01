@@ -66,6 +66,8 @@ export const terminalReasonSchema = z.enum([
   "referral",
   "capability_insufficient",
   "exited",
+  // 患者主动退出（POST /visits/:id/exit reason=patient_request）
+  "patient_request",
 ])
 
 export const paymentStatusSchema = z.enum([
@@ -78,7 +80,7 @@ export const paymentStatusSchema = z.enum([
 
 export const pageResultSchema = <TItem extends z.ZodType>(itemSchema: TItem) =>
   z.object({
-    items: z.array(itemSchema),
+    items: z.array(itemSchema).nullable().default([]).transform((val) => (Array.isArray(val) ? val : [])),
     nextCursor: z.string().optional(),
     hasMore: z.boolean(),
   })

@@ -91,9 +91,9 @@ export const MedicationFulfillmentCard = memo(
                   </div>
                   <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
                     <span>规格：{med.spec}</span>
-                    <span>用量：{med.dosage}</span>
+                    {med.dosage ? <span>用量：{med.dosage}</span> : null}
                     <span>数量：{med.quantity}</span>
-                    <span>天数：{med.days}天</span>
+                    {med.days ? <span>天数：{med.days}天</span> : null}
                   </div>
                 </div>
               ))}

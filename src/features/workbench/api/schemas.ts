@@ -211,12 +211,38 @@ export function safeParseListTimelineResult(value: unknown) {
   return listTimelineResultSchema.safeParse(value)
 }
 
+/**
+ * 规范化 sendMessage 返回值，修复后端可能返回的非标准字段。
+ *
+ * 后端可能返回 assistantPlaceholder.content 为非字符串（如 null），
+ * 而 messageTimelineItemSchema 要求 content 为 string。
+ * 此处将非字符串 content 统一修正为空字符串，
+ * 若整个 assistantPlaceholder 无法修复则移除，由调用方自行创建占位消息。
+ */
+export function normalizeSendMessageResult(raw: unknown): unknown {
+  if (!raw || typeof raw !== "object") return raw
+  const obj = raw as Record<string, unknown>
+  const ap = obj.assistantPlaceholder
+  if (ap && typeof ap === "object") {
+    const placeholder = ap as Record<string, unknown>
+    // 仅处理 kind === "message" 的占位项（streaming 中的 assistant 消息）
+    if (placeholder.kind === "message") {
+      if (placeholder.content === undefined || placeholder.content === null) {
+        placeholder.content = ""
+      } else if (typeof placeholder.content !== "string") {
+        placeholder.content = String(placeholder.content)
+      }
+    }
+  }
+  return obj
+}
+
 export function parseSendMessageResult(value: unknown) {
-  return sendMessageResultSchema.parse(value)
+  return sendMessageResultSchema.parse(normalizeSendMessageResult(value))
 }
 
 export function safeParseSendMessageResult(value: unknown) {
-  return sendMessageResultSchema.safeParse(value)
+  return sendMessageResultSchema.safeParse(normalizeSendMessageResult(value))
 }
 
 export function parseFlowActionResult(value: unknown) {

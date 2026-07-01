@@ -20,6 +20,7 @@ const reasonIconMap: Record<
   referral: { icon: ArrowRight, color: "text-blue-500" },
   capability_insufficient: { icon: AlertTriangle, color: "text-amber-500" },
   exited: { icon: LogOut, color: "text-muted-foreground" },
+  patient_request: { icon: LogOut, color: "text-muted-foreground" },
 }
 
 interface TerminalEventRowProps {

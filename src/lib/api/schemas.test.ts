@@ -101,10 +101,11 @@ describe("flowCardSchema (discriminated union on kind)", () => {
     ).toBe(false)
   })
 
-  it("fails when a required field is missing", () => {
+  it("succeeds when optional fields (reason, differentialTargets) are missing", () => {
     const card = createLabDecisionCard("sess-1", "card-1") as Record<string, unknown>
     delete card.reason
-    expect(flowCardSchema.safeParse(card).success).toBe(false)
+    delete (card as Record<string, unknown>).differentialTargets
+    expect(flowCardSchema.safeParse(card).success).toBe(true)
   })
 })
 

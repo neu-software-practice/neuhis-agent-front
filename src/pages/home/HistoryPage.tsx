@@ -56,10 +56,13 @@ export default function HistoryPage() {
 
   const filteredSessions: VisitSessionSummary[] = useMemo(() => {
     if (!data) return []
-    if (activeFilter === "all") return data.items
-
-    const statuses = FILTER_STATUSES[activeFilter]
-    return data.items.filter((s) => statuses.has(s.status))
+    const items = activeFilter === "all"
+      ? data.items
+      : data.items.filter((s) => FILTER_STATUSES[activeFilter].has(s.status))
+    // 按 updatedAt 降序排列（最新在前），确保不依赖服务端返回顺序
+    return [...items].sort(
+      (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+    )
   }, [data, activeFilter])
 
   function handleContinue(session: VisitSessionSummary) {

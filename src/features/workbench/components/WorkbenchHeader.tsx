@@ -68,8 +68,8 @@ export function WorkbenchHeader({
         <span className="truncate text-sm font-medium">{aiName}</span>
       </div>
 
-      {/* 右侧：操作区（终止态隐藏所有操作按钮） */}
-      {!isTerminated && (
+      {/* 右侧：操作区 */}
+      {!isTerminated ? (
         <div className="flex items-center gap-1">
           {/* 超时警告：移动端在有警告文字时优先显示，允许收缩但保留可读最小宽度 */}
           {timeoutWarning ? (
@@ -126,6 +126,20 @@ export function WorkbenchHeader({
           >
             <X className="h-4 w-4" />
             <span className="hidden text-xs font-medium md:inline">退出</span>
+          </button>
+        </div>
+      ) : (
+        <div className="flex items-center gap-1">
+          {/* 终止态：仅保留关闭按钮，用于打开返回首页弹窗 */}
+          <button
+            type="button"
+            aria-label="关闭"
+            title="关闭"
+            className="flex h-9 items-center justify-center gap-1 rounded-full px-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            onClick={onExit}
+          >
+            <X className="h-4 w-4" />
+            <span className="hidden text-xs font-medium md:inline">关闭</span>
           </button>
         </div>
       )}

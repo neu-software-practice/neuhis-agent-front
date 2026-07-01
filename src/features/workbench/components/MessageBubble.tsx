@@ -32,6 +32,11 @@ export const MessageBubble = memo(function MessageBubble({
   const isPatient = item.role === "patient"
   const isAssistant = item.role === "assistant"
 
+  // 空内容且非 streaming 状态的气泡不渲染（后端可能返回空 content 的消息）
+  if (!item.content && item.status !== "streaming") {
+    return null
+  }
+
   return (
     <div
       className={cn(

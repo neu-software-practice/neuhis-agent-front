@@ -80,13 +80,15 @@ export const LabDecisionCard = memo(function LabDecisionCard({
         </div>
 
         {/* 检验原因 */}
-        <div>
-          <span className="text-xs font-medium text-foreground/70">检验原因</span>
-          <p className="mt-0.5 text-sm text-foreground/80">{card.reason}</p>
-        </div>
+        {card.reason ? (
+          <div>
+            <span className="text-xs font-medium text-foreground/70">检验原因</span>
+            <p className="mt-0.5 text-sm text-foreground/80">{card.reason}</p>
+          </div>
+        ) : null}
 
         {/* 鉴别诊断目标 */}
-        {card.differentialTargets.length > 0 ? (
+        {card.differentialTargets && card.differentialTargets.length > 0 ? (
           <div>
             <span className="text-xs font-medium text-foreground/70">
               鉴别目标

@@ -45,6 +45,23 @@ describe("useAssistantStream", () => {
             item.id === itemId ? updater(item) : item,
           )
         },
+        upsertTimelineItems: (newItems) => {
+          for (const incoming of newItems) {
+            const idx = items.findIndex((item) => {
+              if (item.id === incoming.id) return true
+              return (
+                item.kind === "flow_card" &&
+                incoming.kind === "flow_card" &&
+                item.card.id === incoming.card.id
+              )
+            })
+            if (idx >= 0) {
+              items[idx] = incoming
+            } else {
+              items = [...items, incoming]
+            }
+          }
+        },
       }),
     )
 

@@ -58,6 +58,7 @@ export function toApiError(value: unknown): ApiError {
   }
 
   if (value instanceof ZodError) {
+    console.error("[api] toApiError: ZodError caught:", value.issues)
     return createValidationApiError(value)
   }
 
