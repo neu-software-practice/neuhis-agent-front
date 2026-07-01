@@ -1,14 +1,10 @@
 import { mockDb } from "@/mocks/api/mock-db"
-import type { AuthUser, TokenPair } from "@/features/auth/api/types"
-
-/** 手机号脱敏：保留前 3 后 4。 */
-function maskPhone(phone: string): string {
-  if (phone.length < 7) return phone
-  return `${phone.slice(0, 3)}****${phone.slice(-4)}`
-}
+import type { AuthUser } from "@/features/auth/api/types"
 
 /**
  * POST /auth/register
+ *
+ * 返回扁平结构：{ accessToken, refreshToken, expiresIn, user }
  */
 export function handleRegister(body: unknown) {
   const { phone, password, realName } = body as {
@@ -19,70 +15,74 @@ export function handleRegister(body: unknown) {
 
   const result = mockDb.register({ phone, password, realName })
 
-  const tokens: TokenPair = {
+  const authUser: AuthUser = {
+    userId: result.user.id,
+    phone: result.user.phone,
+    realName: result.user.realName,
+    patientId: result.user.patientId,
+    createdAt: result.user.createdAt,
+  }
+
+  return {
     accessToken: result.accessToken,
     refreshToken: result.refreshToken,
     expiresIn: 900,
+    user: authUser,
   }
-
-  const authUser: AuthUser = {
-    id: result.user.id,
-    phoneMasked: maskPhone(result.user.phone),
-    realName: result.user.realName,
-    patientId: result.user.patientId,
-  }
-
-  return { tokens, user: authUser }
 }
 
 /**
  * POST /auth/login
+ *
+ * 返回扁平结构：{ accessToken, refreshToken, expiresIn, user }
  */
 export function handleLogin(body: unknown) {
   const { phone, password } = body as { phone: string; password: string }
 
   const result = mockDb.login({ phone, password })
 
-  const tokens: TokenPair = {
+  const authUser: AuthUser = {
+    userId: result.user.id,
+    phone: result.user.phone,
+    realName: result.user.realName,
+    patientId: result.user.patientId,
+    createdAt: result.user.createdAt,
+  }
+
+  return {
     accessToken: result.accessToken,
     refreshToken: result.refreshToken,
     expiresIn: 900,
+    user: authUser,
   }
-
-  const authUser: AuthUser = {
-    id: result.user.id,
-    phoneMasked: maskPhone(result.user.phone),
-    realName: result.user.realName,
-    patientId: result.user.patientId,
-  }
-
-  return { tokens, user: authUser }
 }
 
 /**
  * POST /auth/refresh
+ *
+ * 返回扁平结构：{ accessToken, refreshToken, expiresIn }
  */
 export function handleRefresh(body: unknown) {
   const { refreshToken } = body as { refreshToken: string }
 
   const result = mockDb.refreshToken(refreshToken)
 
-  const tokens: TokenPair = {
+  return {
     accessToken: result.accessToken,
     refreshToken: result.refreshToken,
     expiresIn: 900,
   }
-
-  return { tokens }
 }
 
 /**
  * POST /auth/logout
+ *
+ * 返回 204 No Content（空响应体）。
  */
 export function handleLogout(body: unknown) {
   const { refreshToken } = body as { refreshToken?: string }
   if (refreshToken) {
     mockDb.logout(refreshToken)
   }
-  return { success: true }
+  // 204 No Content: 返回 undefined，由 mock-transport 转换为空响应
 }

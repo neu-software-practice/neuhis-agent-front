@@ -36,7 +36,7 @@ export default function LoginPage() {
     setServerError(null)
     try {
       const result = await authApi.login(data)
-      login(result.tokens, result.user)
+      login(result, result.user)
       navigate(redirectTo, { replace: true })
     } catch (error) {
       const message =

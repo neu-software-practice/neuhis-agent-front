@@ -3,6 +3,18 @@ import { ZodError } from "zod"
 import type { ApiError } from "@/lib/api/types"
 import { apiErrorSchema } from "@/lib/api/types"
 
+/**
+ * Internal shape used to construct an ApiError from flat params.
+ * The ApiError type itself is flat, matching the wire format directly.
+ */
+interface ApiErrorParams {
+  code: string
+  message: string
+  status?: number
+  details?: unknown
+  retriable?: boolean
+}
+
 export class ApiException extends Error {
   readonly error: ApiError
 
@@ -13,8 +25,18 @@ export class ApiException extends Error {
   }
 }
 
-export function createApiError(error: ApiError): ApiError {
-  return apiErrorSchema.parse(error)
+/**
+ * Create an ApiError from flat params (code, message, ...).
+ * Returns `{ code, message, status?, details?, retriable? }` directly.
+ */
+export function createApiError(params: ApiErrorParams): ApiError {
+  return apiErrorSchema.parse({
+    code: params.code,
+    message: params.message,
+    status: params.status,
+    details: params.details,
+    retriable: params.retriable,
+  })
 }
 
 export function createValidationApiError(error: ZodError): ApiError {

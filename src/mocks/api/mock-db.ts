@@ -1,6 +1,7 @@
 import { createApiError, throwApiError } from "@/lib/api/errors"
 import type {
   PatientId,
+  PaymentStatus,
   SessionId,
   TerminalReason,
   VisitStatus,
@@ -56,6 +57,7 @@ import {
 } from "@/features/workbench/api/schemas"
 import { parseListBillingRecordsResult } from "@/features/billing/api/schemas"
 import { parseListMedicalOrdersResult } from "@/features/medical-orders/api/schemas"
+import { updateSystemSettingsInputSchema } from "@/features/admin/api/schemas"
 import {
   createCompletedLabExecutionCard,
   createCompletedVisitCard,
@@ -97,7 +99,7 @@ export interface MockAdminUser {
   id: string
   username: string
   password: string
-  role: "super_admin" | "operator"
+  role: "super_admin" | "admin" | "operator"
   displayName: string
   createdAt: string
 }
@@ -121,11 +123,13 @@ interface MockDbState {
   // Auth
   users: Record<string, MockUser>
   refreshTokens: Set<string>
+  previouslyUsedRefreshTokens: Set<string> // 已轮换的刷新令牌，用于 token theft 检测
   // 地址簿
   addresses: Record<PatientId, Address[]>
   // Admin
   adminUsers: Record<string, MockAdminUser>
   adminRefreshTokens: Set<string>
+  adminPreviouslyUsedRefreshTokens: Set<string>
   systemSettings: SystemSettings
   nextId: number
 }
@@ -242,13 +246,14 @@ function createInitialState(): MockDbState {
       "user-seed-001": {
         id: "user-seed-001",
         phone: "13800002468",
-        password: "123456",
+        password: "12345678",
         realName: "李明",
         patientId: mockPatient.id,
         createdAt: "2026-06-01T00:00:00.000Z",
       },
     },
     refreshTokens: new Set<string>(),
+    previouslyUsedRefreshTokens: new Set<string>(),
     addresses: {
       [mockPatient.id]: [
         {
@@ -276,8 +281,17 @@ function createInitialState(): MockDbState {
         displayName: "系统管理员",
         createdAt: "2025-01-01T00:00:00Z",
       },
+      admin2: {
+        id: "admin-003",
+        username: "admin2",
+        password: "admin456",
+        role: "admin",
+        displayName: "高级管理员",
+        createdAt: "2025-06-01T00:00:00Z",
+      },
     },
     adminRefreshTokens: new Set<string>(),
+    adminPreviouslyUsedRefreshTokens: new Set<string>(),
     systemSettings: {
       siteName: "东软云脑智能医疗",
       maxConcurrentSessions: 10,
@@ -290,9 +304,36 @@ function createInitialState(): MockDbState {
 
 class MockDb {
   private state = createInitialState()
+  /** 简易内存速率限制器：key → 请求时间戳列表。用于 login / register 端点。 */
+  private rateLimitStore = new Map<string, number[]>()
 
   reset() {
     this.state = createInitialState()
+    this.rateLimitStore.clear()
+  }
+
+  /** 简易速率限制：同一 key 最多 5 次/分钟。 */
+  private checkRateLimit(key: string): void {
+    const now = Date.now()
+    const windowMs = 60_000
+    const maxAttempts = 5
+
+    const attempts = this.rateLimitStore.get(key) ?? []
+    const recentAttempts = attempts.filter((ts) => now - ts < windowMs)
+
+    if (recentAttempts.length >= maxAttempts) {
+      throwApiError(
+        createApiError({
+          code: "RATE_LIMITED",
+          message: "请求频率超限，请稍后重试",
+          status: 429,
+          retriable: true,
+        }),
+      )
+    }
+
+    recentAttempts.push(now)
+    this.rateLimitStore.set(key, recentAttempts)
   }
 
   verifyIdentity() {
@@ -406,6 +447,9 @@ class MockDb {
       labRound: 0,
       labRoundLimit: 2,
       timerPaused: false,
+      timeoutAt: new Date(
+        new Date(createdAt).getTime() + this.state.systemSettings.sessionTimeoutMinutes * 60_000,
+      ).toISOString(),
       summary: {
         chiefComplaint: input.chiefComplaint,
         lastMessage: input.chiefComplaint ?? "已创建新问诊。",
@@ -461,6 +505,9 @@ class MockDb {
       labRoundLimit: 2,
       parentSessionId: input.parentSessionId,
       timerPaused: false,
+      timeoutAt: new Date(
+        new Date(createdAt).getTime() + this.state.systemSettings.sessionTimeoutMinutes * 60_000,
+      ).toISOString(),
       summary: {
         chiefComplaint: input.chiefComplaint,
         lastMessage: input.chiefComplaint ?? "已基于上次记录创建复诊。",
@@ -811,7 +858,7 @@ class MockDb {
     card.blocking = false
     card.handledAt = nowIso()
     card.selectedMode = input.mode
-    card.fulfillmentStatus = "completed"
+    card.fulfillmentStatus = input.mode === "delivery" ? "confirmed" : "completed"
     return this.completeVisit(input.sessionId)
   }
 
@@ -870,7 +917,7 @@ class MockDb {
     return this.completeVisit(input.sessionId)
   }
 
-  listBillingRecords() {
+  listBillingRecords(patientId: PatientId) {
     const records: Array<{
       paymentId: string
       sessionId: string
@@ -880,18 +927,18 @@ class MockDb {
       totalAmount: number
       insuranceAmount: number
       selfPayAmount: number
-      paymentStatus: string
+      paymentStatus: PaymentStatus
       createdAt: string
     }> = []
 
     for (const [sessionId, timeline] of Object.entries(this.state.timelines)) {
       const session = this.state.sessions[sessionId]
       if (!session) continue
+      if (session.patientId !== patientId) continue
       const sessionTitle =
         session.summary.title ??
         session.summary.chiefComplaint ??
-        session.summary.diagnosis ??
-        "问诊记录"
+        "未命名问诊"
 
       for (const item of timeline) {
         if (item.kind !== "flow_card") continue
@@ -917,7 +964,7 @@ class MockDb {
     return parseListBillingRecordsResult({ items: records })
   }
 
-  listMedicalOrders() {
+  listMedicalOrders(patientId: PatientId) {
     const records: Array<{
       recordId: string
       sessionId: string
@@ -943,11 +990,11 @@ class MockDb {
     for (const [sessionId, timeline] of Object.entries(this.state.timelines)) {
       const session = this.state.sessions[sessionId]
       if (!session) continue
+      if (session.patientId !== patientId) continue
       const sessionTitle =
         session.summary.title ??
         session.summary.chiefComplaint ??
-        session.summary.diagnosis ??
-        "问诊记录"
+        "未命名问诊"
 
       for (const item of timeline) {
         if (item.kind !== "flow_card") continue
@@ -1738,14 +1785,16 @@ class MockDb {
     user: MockUser
     accessToken: string
     refreshToken: string
+    expiresIn: number
   } {
+    this.checkRateLimit("mock-ip")
     const existing = Object.values(this.state.users).find(
       (u) => u.phone === input.phone,
     )
     if (existing) {
       throwApiError(
         createApiError({
-          code: "PHONE_ALREADY_REGISTERED",
+          code: "AUTH_PHONE_EXISTS",
           message: "该手机号已注册",
           status: 409,
           retriable: false,
@@ -1794,14 +1843,16 @@ class MockDb {
     user: MockUser
     accessToken: string
     refreshToken: string
+    expiresIn: number
   } {
+    this.checkRateLimit("mock-ip")
     const user = Object.values(this.state.users).find(
       (u) => u.phone === input.phone,
     )
     if (!user || user.password !== input.password) {
       throwApiError(
         createApiError({
-          code: "INVALID_CREDENTIALS",
+          code: "AUTH_INVALID_CREDENTIALS",
           message: "手机号或密码错误",
           status: 401,
           retriable: false,
@@ -1813,20 +1864,48 @@ class MockDb {
     return { user, ...tokens }
   }
 
-  refreshToken(token: string): { accessToken: string; refreshToken: string } {
-    if (!this.state.refreshTokens.has(token)) {
+  refreshToken(token: string): {
+    accessToken: string
+    refreshToken: string
+    expiresIn: number
+  } {
+    // Token theft detection: check if this token was already rotated
+    if (this.state.previouslyUsedRefreshTokens.has(token)) {
+      const parts = token.split("-")
+      const userId = parts.slice(2, -1).join("-")
+      const ts = Number(parts[parts.length - 1])
+      const isExpired = Number.isNaN(ts) ? false : Date.now() - ts > 7 * 24 * 60 * 60 * 1000
+
+      // Revoke ALL refresh tokens for this user (token theft)
+      this.revokeAllUserTokens(userId)
+
       throwApiError(
         createApiError({
-          code: "INVALID_REFRESH_TOKEN",
-          message: "刷新令牌无效或已过期",
+          code: isExpired ? "AUTH_REFRESH_EXPIRED" : "AUTH_REFRESH_INVALID",
+          message: isExpired
+            ? "刷新令牌已过期，请重新登录"
+            : "刷新令牌已被使用，可能存在令牌盗用，请重新登录",
           status: 401,
           retriable: false,
         }),
       )
     }
-    // Rotation: invalidate old token
+
+    if (!this.state.refreshTokens.has(token)) {
+      throwApiError(
+        createApiError({
+          code: "AUTH_REFRESH_INVALID",
+          message: "刷新令牌无效",
+          status: 401,
+          retriable: false,
+        }),
+      )
+    }
+
+    // Rotation: invalidate old token, move to previously-used tracking
     this.state.refreshTokens.delete(token)
-    // Extract userId from token (mock format: "mock-refresh-<userId>-<ts>")
+    this.state.previouslyUsedRefreshTokens.add(token)
+
     const parts = token.split("-")
     const userId = parts.slice(2, -1).join("-")
     return this.issueTokens(userId)
@@ -1846,7 +1925,7 @@ class MockDb {
     if (!admin || admin.password !== input.password) {
       throwApiError(
         createApiError({
-          code: "INVALID_CREDENTIALS",
+          code: "AUTH_INVALID_CREDENTIALS",
           message: "用户名或密码错误",
           status: 401,
           retriable: false,
@@ -1870,17 +1949,40 @@ class MockDb {
   adminRefreshToken(token: string): {
     tokens: { accessToken: string; refreshToken: string; expiresIn: number }
   } {
-    if (!this.state.adminRefreshTokens.has(token)) {
+    // Token theft detection
+    if (this.state.adminPreviouslyUsedRefreshTokens.has(token)) {
+      const parts = token.split("-")
+      const adminId = parts.slice(3, -1).join("-")
+      const ts = Number(parts[parts.length - 1])
+      const isExpired = Number.isNaN(ts) ? false : Date.now() - ts > 7 * 24 * 60 * 60 * 1000
+
+      this.revokeAllAdminTokens(adminId)
+
       throwApiError(
         createApiError({
-          code: "INVALID_REFRESH_TOKEN",
-          message: "管理员刷新令牌无效或已过期",
+          code: isExpired ? "AUTH_REFRESH_EXPIRED" : "AUTH_REFRESH_INVALID",
+          message: isExpired
+            ? "管理员刷新令牌已过期，请重新登录"
+            : "管理员刷新令牌已被使用，可能存在令牌盗用，请重新登录",
           status: 401,
           retriable: false,
         }),
       )
     }
+
+    if (!this.state.adminRefreshTokens.has(token)) {
+      throwApiError(
+        createApiError({
+          code: "AUTH_REFRESH_INVALID",
+          message: "管理员刷新令牌无效",
+          status: 401,
+          retriable: false,
+        }),
+      )
+    }
+
     this.state.adminRefreshTokens.delete(token)
+    this.state.adminPreviouslyUsedRefreshTokens.add(token)
     const parts = token.split("-")
     const adminId = parts.slice(3, -1).join("-")
     return { tokens: this.issueAdminTokens(adminId) }
@@ -2018,7 +2120,7 @@ class MockDb {
         id: s.id,
         patientId: s.patientId,
         patientName: patient?.name ?? "未知患者",
-        title: s.summary?.chiefComplaint ?? "无主诉",
+        title: s.summary?.title ?? s.summary?.chiefComplaint ?? "未命名问诊",
         status: s.status,
         createdAt: s.startedAt,
         updatedAt: s.updatedAt,
@@ -2063,6 +2165,18 @@ class MockDb {
   }
 
   updateSystemSettings(input: Partial<SystemSettings>): SystemSettings {
+    // 校验输入值有效性
+    const parsed = updateSystemSettingsInputSchema.safeParse(input)
+    if (!parsed.success) {
+      throwApiError(
+        createApiError({
+          code: "INVALID_SETTINGS",
+          message: "设置值无效（如负数、空字符串等）",
+          status: 400,
+          retriable: false,
+        }),
+      )
+    }
     this.state.systemSettings = {
       ...this.state.systemSettings,
       ...input,
@@ -2087,12 +2201,35 @@ class MockDb {
   private issueTokens(userId: string): {
     accessToken: string
     refreshToken: string
+    expiresIn: number
   } {
     const ts = Date.now()
     const accessToken = `mock-access-${userId}-${ts}`
     const refreshToken = `mock-refresh-${userId}-${ts}`
     this.state.refreshTokens.add(refreshToken)
-    return { accessToken, refreshToken }
+    return { accessToken, refreshToken, expiresIn: 900 }
+  }
+
+  /** 撤销指定用户的所有刷新令牌（token theft 响应）。 */
+  private revokeAllUserTokens(userId: string): void {
+    const userPrefix = `-${userId}-`
+    this.state.refreshTokens = new Set(
+      Array.from(this.state.refreshTokens).filter((t) => !t.includes(userPrefix)),
+    )
+    this.state.previouslyUsedRefreshTokens = new Set(
+      Array.from(this.state.previouslyUsedRefreshTokens).filter((t) => !t.includes(userPrefix)),
+    )
+  }
+
+  /** 撤销指定管理员的所有刷新令牌。 */
+  private revokeAllAdminTokens(adminId: string): void {
+    const adminPrefix = `-${adminId}-`
+    this.state.adminRefreshTokens = new Set(
+      Array.from(this.state.adminRefreshTokens).filter((t) => !t.includes(adminPrefix)),
+    )
+    this.state.adminPreviouslyUsedRefreshTokens = new Set(
+      Array.from(this.state.adminPreviouslyUsedRefreshTokens).filter((t) => !t.includes(adminPrefix)),
+    )
   }
 
   private updateSession(sessionId: SessionId, patch: Partial<VisitSession>) {

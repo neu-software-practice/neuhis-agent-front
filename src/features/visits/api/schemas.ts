@@ -27,6 +27,9 @@ const visitSessionBaseSchema = z.object({
   startedAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
   endedAt: z.string().datetime().optional(),
+  // 总计时截止时间（ISO8601）。整次导诊超时上限，耗尽后前端发起 exitVisit(reason:timeout)。
+  // 参考系统设置中的 sessionTimeoutMinutes。计时暂停期间冻结，恢复时顺延。
+  timeoutAt: z.string().datetime().optional(),
   // 最后一次操作时间：发消息 / 提交流程卡 / 恢复计时都会刷新。
   // 空闲计时以此为基准（lastActivityAt + 空闲阈值），有新操作即自动重置。
   lastActivityAt: z.string().datetime().optional(),

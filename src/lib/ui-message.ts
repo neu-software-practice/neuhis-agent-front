@@ -63,6 +63,38 @@ const MESSAGE_BY_CODE: Record<
     description: "请检查网络后重试。",
     retriable: true,
   },
+
+  // Auth errors
+  AUTH_PHONE_EXISTS: {
+    title: "该手机号已注册",
+    description: "请使用其他手机号注册，或直接登录。",
+    retriable: false,
+  },
+  AUTH_INVALID_CREDENTIALS: {
+    title: "手机号或密码错误",
+    description: "请检查后重新输入。",
+    retriable: true,
+  },
+  AUTH_TOKEN_EXPIRED: {
+    title: "登录已过期",
+    description: "请重新登录后再试。",
+    retriable: false,
+  },
+  AUTH_REFRESH_INVALID: {
+    title: "登录状态已失效",
+    description: "您的登录信息可能已被其他设备使用，请重新登录。",
+    retriable: false,
+  },
+  AUTH_REFRESH_EXPIRED: {
+    title: "登录已过期",
+    description: "请重新登录后再试。",
+    retriable: false,
+  },
+  RATE_LIMITED: {
+    title: "操作过于频繁",
+    description: "请稍后重试。",
+    retriable: true,
+  },
 }
 
 /** 部分 HTTP 状态的患者文案（按 `HTTP_<status>` code 命中）。 */

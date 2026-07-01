@@ -69,7 +69,7 @@ export default function RegisterPage() {
         realName: data.realName?.trim() || undefined,
       }
       const result = await authApi.register(payload)
-      login(result.tokens, result.user)
+      login(result, result.user)
       navigate("/", { replace: true })
     } catch (error) {
       const message =

@@ -239,11 +239,10 @@ export function createAdviceOnlyCard(sessionId: string, id: string): FlowCard {
     id,
     sessionId,
     kind: "advice_only",
-    status: "completed",
-    blocking: false,
+    status: "pending",
+    blocking: true,
     title: "健康建议",
     createdAt: baseTime,
-    handledAt: baseTime,
     advices: [
       "多休息，保证充足睡眠",
       "多喝温水，每日饮水量建议 1500-2000ml",

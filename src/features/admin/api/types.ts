@@ -1,6 +1,6 @@
 /** Admin 模块类型定义 */
 
-export type AdminRole = "super_admin" | "operator"
+export type AdminRole = "super_admin" | "admin" | "operator"
 
 export interface AdminUser {
   id: string
@@ -38,7 +38,7 @@ export interface AdminPatientItem {
   id: string
   realName: string
   phone: string
-  gender: string
+  gender: "male" | "female" | "unknown"
   birthDate: string
   createdAt: string
   sessionCount: number

@@ -1,4 +1,5 @@
 import type { PatientId } from "@/lib/api/types"
+import { createApiError, throwApiError } from "@/lib/api/errors"
 import {
   createAddressInputSchema,
   deleteAddressInputSchema,
@@ -23,8 +24,18 @@ export function handleListAddresses(patientId: PatientId) {
 }
 
 export function handleCreateAddress(patientId: PatientId, body: unknown) {
+  const bodyRecord = body as Record<string, unknown>
+  if (bodyRecord.patientId !== undefined && bodyRecord.patientId !== patientId) {
+    throwApiError(
+      createApiError({
+        code: "VALIDATION_ERROR",
+        message: `patientId mismatch: path "${patientId}" !== body "${bodyRecord.patientId}"`,
+        status: 422,
+      }),
+    )
+  }
   const input = createAddressInputSchema.parse({
-    ...(body as Record<string, unknown>),
+    ...bodyRecord,
     patientId,
   })
   return mockDb.createAddress(patientId, input)
@@ -35,8 +46,18 @@ export function handleUpdateAddress(
   addressId: string,
   body: unknown,
 ) {
+  const bodyRecord = body as Record<string, unknown>
+  if (bodyRecord.patientId !== undefined && bodyRecord.patientId !== patientId) {
+    throwApiError(
+      createApiError({
+        code: "VALIDATION_ERROR",
+        message: `patientId mismatch: path "${patientId}" !== body "${bodyRecord.patientId}"`,
+        status: 422,
+      }),
+    )
+  }
   const input = updateAddressInputSchema.parse({
-    ...(body as Record<string, unknown>),
+    ...bodyRecord,
     patientId,
     addressId,
   })
@@ -52,7 +73,20 @@ export function handleDeleteAddress(patientId: PatientId, addressId: string) {
 export function handleSetDefaultAddress(
   patientId: PatientId,
   addressId: string,
+  body?: unknown,
 ) {
+  if (body) {
+    const bodyRecord = body as Record<string, unknown>
+    if (bodyRecord.patientId !== undefined && bodyRecord.patientId !== patientId) {
+      throwApiError(
+        createApiError({
+          code: "VALIDATION_ERROR",
+          message: `patientId mismatch: path "${patientId}" !== body "${bodyRecord.patientId}"`,
+          status: 422,
+        }),
+      )
+    }
+  }
   const input = setDefaultAddressInputSchema.parse({ patientId, addressId })
   return mockDb.setDefaultAddress(input.patientId, input.addressId)
 }

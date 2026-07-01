@@ -1,9 +1,12 @@
 import type { TimelineItem } from "@/features/workbench/api/timeline-types"
 
 import {
+  createAdviceOnlyCard,
   createCompletedVisitCard,
   createDiagnosisCard,
   createLabPaymentCard,
+  createMedicationFulfillmentCard,
+  createMedicationPaymentCard,
   createTreatmentPlanCard,
 } from "@/mocks/api/fixtures/flow-cards"
 
@@ -79,11 +82,61 @@ export const mockCompletedTimeline: TimelineItem[] = [
     card: createTreatmentPlanCard("visit-mock-completed", "card-completed-plan"),
   },
   {
-    id: "tl-completed-005",
+    id: "tl-completed-006",
+    sessionId: "visit-mock-completed",
+    kind: "flow_card",
+    status: "done",
+    createdAt: "2026-06-18T03:28:00.000Z",
+    card: {
+      ...createMedicationPaymentCard(
+        "visit-mock-completed",
+        "card-completed-med-pay",
+      ),
+      status: "paid",
+      paymentStatus: "paid",
+      blocking: false,
+      handledAt: "2026-06-18T03:29:00.000Z",
+    } as ReturnType<typeof createMedicationPaymentCard>,
+  },
+  {
+    id: "tl-completed-007",
     sessionId: "visit-mock-completed",
     kind: "flow_card",
     status: "done",
     createdAt: "2026-06-18T03:30:00.000Z",
+    card: {
+      ...createMedicationFulfillmentCard(
+        "visit-mock-completed",
+        "card-completed-fulfillment",
+      ),
+      status: "completed",
+      blocking: false,
+      fulfillmentStatus: "completed",
+      handledAt: "2026-06-18T03:30:00.000Z",
+    } as ReturnType<typeof createMedicationFulfillmentCard>,
+  },
+  {
+    id: "tl-completed-008",
+    sessionId: "visit-mock-completed",
+    kind: "flow_card",
+    status: "done",
+    createdAt: "2026-06-18T03:31:00.000Z",
+    card: {
+      ...createAdviceOnlyCard(
+        "visit-mock-completed",
+        "card-completed-advice",
+      ),
+      status: "completed",
+      blocking: false,
+      handledAt: "2026-06-18T03:31:00.000Z",
+    } as ReturnType<typeof createAdviceOnlyCard>,
+  },
+  {
+    id: "tl-completed-005",
+    sessionId: "visit-mock-completed",
+    kind: "flow_card",
+    status: "done",
+    createdAt: "2026-06-18T03:32:00.000Z",
     card: createCompletedVisitCard(
       "visit-mock-completed",
       "card-completed-finished",

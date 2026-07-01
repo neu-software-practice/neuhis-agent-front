@@ -2,6 +2,7 @@ import { fetchEventSource } from "@microsoft/fetch-event-source"
 import ky from "ky"
 
 import { apiConfig } from "@/lib/api/config"
+import { getTransport } from "@/lib/api"
 import { createApiError, toApiError, throwApiError } from "@/lib/api/errors"
 import type {
   ApiTransport,
@@ -43,13 +44,7 @@ async function tryRefreshToken(): Promise<boolean> {
     }
 
     try {
-      const res = await ky
-        .post(`${apiConfig.baseUrl.replace(/^\//, "")}auth/refresh`, {
-          json: { refreshToken },
-          timeout: 10_000,
-        })
-        .json<TokenPair>()
-
+      const res = await getTransport().post<TokenPair>("/auth/refresh", { refreshToken })
       updateTokens(res)
       return true
     } catch {

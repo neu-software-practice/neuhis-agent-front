@@ -5,6 +5,8 @@
  */
 import { getTransport } from "@/lib/api"
 
+import type { PatientProfile } from "@/features/patient/api/types"
+import type { VisitSession } from "@/features/visits/api/types"
 import type {
   AdminAuthResponse,
   AdminLoginInput,
@@ -25,8 +27,8 @@ export const adminApi = {
   },
 
   /** 退出登录，服务端撤销 refreshToken。 */
-  logout(refreshToken: string): Promise<void> {
-    return getTransport().post<void>("/admin/auth/logout", { refreshToken })
+  logout(refreshToken: string): Promise<{ success: boolean }> {
+    return getTransport().post<{ success: boolean }>("/admin/auth/logout", { refreshToken })
   },
 
   /** 使用 refreshToken 获取新 token 对。 */
@@ -56,9 +58,9 @@ export const adminApi = {
     )
   },
 
-  /** 获取单个患者详情。 */
-  getPatient(id: string): Promise<AdminPatientItem> {
-    return getTransport().get<AdminPatientItem>(`/admin/patients/${id}`)
+  /** 获取单个患者详情（返回完整 PatientProfile）。 */
+  getPatient(id: string): Promise<PatientProfile> {
+    return getTransport().get<PatientProfile>(`/admin/patients/${id}`)
   },
 
   // ─── Sessions ───────────────────────────────────────────────────────
@@ -78,9 +80,9 @@ export const adminApi = {
     )
   },
 
-  /** 获取单个会话详情。 */
-  getSession(id: string): Promise<AdminSessionItem> {
-    return getTransport().get<AdminSessionItem>(`/admin/sessions/${id}`)
+  /** 获取单个会话详情（返回完整 VisitSession）。 */
+  getSession(id: string): Promise<VisitSession> {
+    return getTransport().get<VisitSession>(`/admin/sessions/${id}`)
   },
 
   // ─── Settings ───────────────────────────────────────────────────────

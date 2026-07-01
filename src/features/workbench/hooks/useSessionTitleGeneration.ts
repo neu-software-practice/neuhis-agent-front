@@ -2,7 +2,6 @@ import { useEffect, useRef } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 
 import { visitsApi } from "@/features/visits/api"
-import { visitsQueryKeys } from "@/features/visits/api/queries"
 import type { VisitSession } from "@/features/visits/api/types"
 
 /**
@@ -38,8 +37,9 @@ export function useSessionTitleGeneration(
           }
         },
       )
-      // 刷新列表缓存（历史页会用到 title）
-      queryClient.invalidateQueries({ queryKey: visitsQueryKeys.list() })
+      // 刷新列表缓存（历史页会用到 title）。
+      // 使用 ["visits", "list"] 前缀匹配而非精确 key，确保无论带什么 filter params 的列表查询都被刷新。
+      queryClient.invalidateQueries({ queryKey: ["visits", "list"] })
     },
   })
 

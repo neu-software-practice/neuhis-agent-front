@@ -1,5 +1,6 @@
 import { apiConfig } from "@/lib/api/config"
 import { createApiError, toApiError, throwApiError } from "@/lib/api/errors"
+import { useAdminAuthStore } from "@/features/admin/store/admin-auth-store"
 import type {
   ApiTransport,
   RequestOptions,
@@ -83,6 +84,24 @@ async function delayed<T>(value: T): Promise<T> {
   return value
 }
 
+/** 管理员 Bearer token 鉴权（Mock 模式）。除登录端点外，所有 /admin/* 端点需有效 admin token。 */
+function requireAdminAuth(path: string) {
+  // 登录端点不校验
+  if (path === "/admin/auth/login") return
+
+  const token = useAdminAuthStore.getState().accessToken
+  if (!token || !token.startsWith("mock-admin-access-")) {
+    throwApiError(
+      createApiError({
+        code: "UNAUTHORIZED",
+        message: "未提供有效管理员 token",
+        status: 401,
+        retriable: false,
+      }),
+    )
+  }
+}
+
 function route(method: MockMethod, path: string, body?: unknown, options?: RequestOptions) {
   // ── Auth 路由（公开，不需 token） ──
   if (method === "POST" && path === "/auth/login") {
@@ -126,7 +145,7 @@ function route(method: MockMethod, path: string, body?: unknown, options?: Reque
   // ── 地址簿路由 ──
   const addressDefaultMatch = match(path, /^\/patients\/([^/]+)\/addresses\/([^/]+)\/default$/)
   if (method === "PUT" && addressDefaultMatch) {
-    return handleSetDefaultAddress(addressDefaultMatch[1], addressDefaultMatch[2])
+    return handleSetDefaultAddress(addressDefaultMatch[1], addressDefaultMatch[2], body)
   }
 
   const addressDetailMatch = match(path, /^\/patients\/([^/]+)\/addresses\/([^/]+)$/)
@@ -284,6 +303,10 @@ function route(method: MockMethod, path: string, body?: unknown, options?: Reque
   }
 
   // ── Admin 路由 ──
+  // 除登录外，所有 admin 端点需 Bearer token 鉴权
+  if (path.startsWith("/admin/")) {
+    requireAdminAuth(path)
+  }
   if (method === "POST" && path === "/admin/auth/login") {
     return handleAdminLogin(body)
   }

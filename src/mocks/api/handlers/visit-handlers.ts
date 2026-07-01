@@ -3,6 +3,7 @@ import {
   createFollowUpInputSchema,
   createSessionInputSchema,
   generateTitleInputSchema,
+  generateTitleResultSchema,
   listSessionsInputSchema,
 } from "@/features/visits/api/schemas"
 import { mockDb } from "@/mocks/api/mock-db"
@@ -36,5 +37,7 @@ export function handleGetReadonlySnapshot(sessionId: string) {
 }
 
 export function handleGenerateTitle(body: unknown) {
-  return mockDb.generateTitle(generateTitleInputSchema.parse(body))
+  return generateTitleResultSchema.parse(
+    mockDb.generateTitle(generateTitleInputSchema.parse(body)),
+  )
 }
