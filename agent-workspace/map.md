@@ -1,6 +1,6 @@
 # 项目地图
 
-更新时间：2026-07-01（VisitSession 新增 patientName 字段，避免前端退化展示 patientId + rest-api-patch-v9/v10/v11）
+更新时间：2026-07-01（页面过渡动画 + VisitSession 新增 patientName 字段 + 个人中心 HeroUI Card 统一 + 登录/注册页 HeroUI TextField 替换 + 管理后台 HeroUI v3 全面翻新 + 管理后台 admin panel + CompletedExitSheet 修复 + rest-api-patch-v8/v9/v10/v11）
 
 ## 项目定位
 
@@ -45,13 +45,13 @@ NEUHIS Agent 前端——基于 React + HeroUI 3 + Magic UI 的 AI 诊疗 Agent 
 │   ├── globals.css                   # Tailwind 4 + HeroUI + oklch 主题变量 + 基线样式
 │   │
 │   ├── app/
-│   │   ├── App.tsx                   # Data Router 根布局，AppProviders + <Outlet>
+│   │   ├── App.tsx                   # Data Router 根布局，AppProviders + AnimatedOutlet（顶层路由过渡动画）
 │   │   ├── providers.tsx             # QueryClientProvider + 开发态 devtools
 │   │   ├── router.tsx                # createBrowserRouter 路由表（公开/守卫/工作台）
 │   │   └── error-boundary.tsx        # 路由级错误边界，404 + 通用兜底
 │   │
 │   ├── layouts/
-│   │   └── HomeLayout.tsx            # 首页系列 Layout Route，包裹 DesktopShell + Outlet
+│   │   └── HomeLayout.tsx            # 首页系列 Layout Route，包裹 DesktopShell + AnimatedOutlet（页面过渡动画）
 │   │
 │   ├── pages/
 │   │   ├── auth/
@@ -82,7 +82,11 @@ NEUHIS Agent 前端——基于 React + HeroUI 3 + Magic UI 的 AI 诊疗 Agent 
 │   │   ├── button.tsx                # shadcn 风格 Button（CVA + Radix Slot）
 │   │   ├── button-variants.ts        # 6 variant × 8 size CVA 定义
 │   │   ├── date-picker.tsx           # HeroUI DatePicker 封装，接收/发射 YYYY-MM-DD 字符串
-│   │   └── region-selector.tsx       # 省市区三级联动 Select（china-area-data + HeroUI Select/ListBox）
+│   │   ├── input.tsx                 # 通用 Input 组件
+│   │   ├── page-transition.tsx       # 页面过渡动画：AnimatedOutlet（AnimatePresence + motion）替换 Outlet
+│   │   ├── region-selector.tsx       # 省市区三级联动 Select（china-area-data + HeroUI Select/ListBox）
+│   │   ├── switch-field.tsx          # Switch 表单字段
+│   │   └── textarea.tsx              # 通用 Textarea 组件
 │   │
 │   ├── types/
 │   │   └── china-area-data.d.ts      # china-area-data 包类型声明
@@ -249,7 +253,7 @@ NEUHIS Agent 前端——基于 React + HeroUI 3 + Magic UI 的 AI 诊疗 Agent 
 │   │   │   │   └── useAdminAuth.ts   # 管理员认证状态 selector hook
 │   │   │   └── components/
 │   │   │       ├── AdminGuard.tsx    # 管理员路由守卫（未认证→/admin/login）
-│   │   │       ├── AdminShell.tsx    # 管理后台布局壳（sidebar + main）
+│   │   │       ├── AdminShell.tsx    # 管理后台布局壳（sidebar + main + AnimatedOutlet 页面过渡动画）
 │   │   │       └── AdminSidebar.tsx  # 管理后台左侧导航栏
 │   │   │
 │   │   └── shared/components/
