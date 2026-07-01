@@ -17,12 +17,17 @@ export const patientProfileSchema = z.object({
   updatedAt: z.string().datetime(),
 })
 
+const optionalNonEmptyString = z.preprocess(
+  (v) => (v === "" ? undefined : v),
+  z.string().trim().min(1).optional(),
+)
+
 export const patientPriorVisitSchema = z.object({
   sessionId: z.string().trim().min(1),
   completedAt: z.string().datetime(),
-  diagnosis: z.string().trim().min(1),
+  diagnosis: optionalNonEmptyString,
   labResultSummary: z.string().optional(),
-  treatmentSummary: z.string().trim().min(1),
+  treatmentSummary: optionalNonEmptyString,
 })
 
 export const patientContextSchema = z.object({

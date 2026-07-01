@@ -59,6 +59,31 @@ async function tryRefreshToken(): Promise<boolean> {
   return refreshPromise
 }
 
+// ── Key casing ──
+
+/**
+ * 将 PascalCase 字符串转换为 camelCase。
+ * 仅将首字符小写；若首字符已小写则原样返回（幂等）。
+ */
+function pascalToCamel(key: string): string {
+  if (key.length === 0) return key
+  return key[0].toLowerCase() + key.slice(1)
+}
+
+/** 递归将对象/数组中所有 key 从 PascalCase 转换为 camelCase。 */
+function camelizeKeys<T>(value: T): T {
+  if (value === null || value === undefined) return value
+  if (Array.isArray(value)) return value.map(camelizeKeys) as unknown as T
+  if (typeof value === "object") {
+    const result: Record<string, unknown> = {}
+    for (const [key, val] of Object.entries(value as Record<string, unknown>)) {
+      result[pascalToCamel(key)] = camelizeKeys(val)
+    }
+    return result as unknown as T
+  }
+  return value
+}
+
 // ── Envelope handling ──
 
 interface ApiEnvelope<T = unknown> {
@@ -82,6 +107,9 @@ function isEnvelope(raw: unknown): raw is ApiEnvelope {
  * 按需解包后端响应。
  * - 信封格式 → 抽取 data，若 success=false 或 error 非空则抛 ApiError
  * - 非信封格式（扁平响应）→ 原样透传，保持向后兼容
+ *
+ * 信封内 data 的 key 自动 PascalCase → camelCase 转换，
+ * 以弥合后端 PascalCase 与前端 zod schema camelCase 之间的命名差异。
  */
 function unwrapEnvelope<T>(raw: unknown): T {
   if (!isEnvelope(raw)) return raw as T // 透传：非信封格式原样返回
@@ -94,7 +122,7 @@ function unwrapEnvelope<T>(raw: unknown): T {
       }),
     )
   }
-  return raw.data as T
+  return camelizeKeys(raw.data) as T
 }
 
 // ── Transport utilities ──
