@@ -1,6 +1,6 @@
 # 项目地图
 
-更新时间：2026-06-30（个人中心 HeroUI Card 统一 + 登录/注册页 HeroUI TextField 替换 + 管理后台 HeroUI v3 全面翻新 + 管理后台 admin panel + CompletedExitSheet 修复 + rest-api-patch-v8）
+更新时间：2026-07-01（VisitSession 新增 patientName 字段，避免前端退化展示 patientId + rest-api-patch-v9/v10/v11）
 
 ## 项目定位
 
@@ -396,5 +396,8 @@ API 层
 - [REST API Patch v6（账单记录查询）](./special-designs/rest-api-patch-v6.md)
 - [REST API Patch v7（医嘱记录查询）](./special-designs/rest-api-patch-v7.md)
 - [REST API Patch v8（管理后台）](./special-designs/rest-api-patch-v8.md)
+- [REST API Patch v9（空闲挂起、传输层补充与字段补遗）](./special-designs/rest-api-patch-v9.md)
+- [REST API Patch v10（注册接口 gender / birthDate 透传）](./special-designs/rest-api-patch-v10.md)
+- [REST API Patch v11（VisitSession 新增 patientName 字段）](./special-designs/rest-api-patch-v11.md)
 - [QA Wave 1 走查记录](./qa/wave-1.md)
 - [medAgent 后端参考](./medagent-backend.md)

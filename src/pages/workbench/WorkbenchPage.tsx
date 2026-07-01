@@ -143,7 +143,7 @@ export default function WorkbenchPage() {
     <WorkbenchShell
       sidebar={
         <WorkbenchSidebar
-          patientName={session?.patientId}
+          patientName={session?.patientName}
           chiefComplaint={session?.summary?.chiefComplaint}
           lastActivityAt={session?.lastActivityAt}
         />
@@ -168,12 +168,12 @@ export default function WorkbenchPage() {
       timeline={
         <>
           <ContextSummaryBar
-            patientName={session?.patientId}
+            patientName={session?.patientName}
             onClick={() => setDrawerOpen(true)}
           />
           <ChatTimeline
             items={items}
-            patientId={session?.patientId}
+            patientId={session?.patientName}
             onAction={actions.submitFlowAction}
             loading={isFetchingMore}
             hasMore={hasMore}
@@ -220,7 +220,7 @@ export default function WorkbenchPage() {
           <ContextSummaryDrawer
             open={drawerOpen}
             onOpenChange={setDrawerOpen}
-            patientName={session?.patientId}
+            patientName={session?.patientName}
             chiefComplaint={session?.summary?.chiefComplaint}
             lastActivityAt={session?.lastActivityAt}
           />

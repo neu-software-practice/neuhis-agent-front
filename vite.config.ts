@@ -20,7 +20,7 @@ export default defineConfig({
     },
     proxy: {
       "/api": {
-        target: "http://***REMOVED***:8080",
+        target: "http://***REMOVED***:8081",
         changeOrigin: true,
       },
     },

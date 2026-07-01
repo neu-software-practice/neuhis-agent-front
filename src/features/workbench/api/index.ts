@@ -80,7 +80,14 @@ export const workbenchApi = {
       `/visits/${body.sessionId}/messages`,
       body,
     )
-    return sendMessageResultSchema.parse(result)
+    console.log("[api] sendMessage raw result:", result)
+    try {
+      const parsed = sendMessageResultSchema.parse(result)
+      return parsed
+    } catch (e) {
+      console.error("[api] sendMessage zod parse failed:", e)
+      throw e
+    }
   },
 
   async streamAssistantMessage(

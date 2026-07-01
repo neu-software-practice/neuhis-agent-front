@@ -292,6 +292,7 @@ export function useAssistantStream(
 
             // ---- error：流错误 ----
             case "error": {
+              console.error("[stream] SSE error event received, marking message failed:", streamMessageIdRef.current)
               const msgId = streamMessageIdRef.current
               if (msgId) {
                 updateTimelineItem(msgId, (item) => ({
@@ -305,9 +306,10 @@ export function useAssistantStream(
           }
         },
 
-        onError: () => {
+        onError: (e) => {
           // 当底层 transport 触发 onError（可能伴随 onEvent('error')），
           // 以 onEvent('error') 中的处理为准，此处仅重置状态。
+          console.error("[stream] transport onError:", e)
           setIsStreaming(false)
         },
 

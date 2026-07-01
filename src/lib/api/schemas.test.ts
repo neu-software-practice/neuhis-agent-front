@@ -21,6 +21,7 @@ function buildValidSession() {
   return {
     id: "sess-1",
     patientId: "pat-1",
+    patientName: "测试患者",
     entryType: "new" as const,
     status: "chatting" as const,
     startedAt: iso(),

@@ -427,6 +427,7 @@ class MockDb {
       .map((session) => ({
         id: session.id,
         patientId: session.patientId,
+        patientName: session.patientName,
         entryType: session.entryType,
         status: session.status,
         startedAt: session.startedAt,
@@ -451,9 +452,11 @@ class MockDb {
   createSession(input: CreateSessionInput): CreateSessionResult {
     const sessionId = this.id("visit")
     const createdAt = nowIso()
+    const patient = this.state.patients[input.patientId]
     const session: VisitSession = {
       id: sessionId,
       patientId: input.patientId,
+      patientName: patient?.name ?? "未知患者",
       entryType: "new",
       status: "chatting",
       startedAt: createdAt,
@@ -508,9 +511,11 @@ class MockDb {
     const parentTimeline = this.state.timelines[input.parentSessionId] ?? []
     const sessionId = this.id("visit")
     const createdAt = nowIso()
+    const patient = this.state.patients[input.patientId]
     const session: VisitSession = {
       id: sessionId,
       patientId: input.patientId,
+      patientName: patient?.name ?? "未知患者",
       entryType: "follow_up",
       status: "chatting",
       startedAt: createdAt,

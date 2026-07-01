@@ -686,7 +686,8 @@ export function useWorkbenchSession(
 
         // 6. 启动 SSE 流式回复
         startStream({ streamMessageId: streamMsg.id })
-      } catch {
+      } catch (e) {
+        console.error("[sendMessage] API call or stream start failed:", e)
         // 标记乐观消息失败
         queryClient.setQueryData<InfiniteData<ListTimelineResult>>(
           workbenchQueryKeys.timeline(sessionId),

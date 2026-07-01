@@ -112,7 +112,10 @@ function isEnvelope(raw: unknown): raw is ApiEnvelope {
  * 以弥合后端 PascalCase 与前端 zod schema camelCase 之间的命名差异。
  */
 function unwrapEnvelope<T>(raw: unknown): T {
-  if (!isEnvelope(raw)) return raw as T // 透传：非信封格式原样返回
+  if (!isEnvelope(raw)) {
+    console.log("[api] unwrapEnvelope: non-envelope, passing through")
+    return raw as T // 透传：非信封格式原样返回
+  }
   if (!raw.success || raw.error) {
     throwApiError(
       createApiError({
@@ -122,7 +125,11 @@ function unwrapEnvelope<T>(raw: unknown): T {
       }),
     )
   }
-  return camelizeKeys(raw.data) as T
+  const data = raw.data
+  const camelized = camelizeKeys(data)
+  console.log("[api] unwrapEnvelope: before camelize keys:", Object.keys(data as object))
+  console.log("[api] unwrapEnvelope: after camelize keys:", Object.keys(camelized as object))
+  return camelized as T
 }
 
 // ── Transport utilities ──

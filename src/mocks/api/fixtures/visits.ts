@@ -5,6 +5,7 @@ import { mockPatient } from "@/mocks/api/fixtures/patient"
 export const mockActiveSession: VisitSession = {
   id: "visit-mock-active",
   patientId: mockPatient.id,
+  patientName: mockPatient.name,
   entryType: "new",
   status: "chatting",
   startedAt: "2026-06-28T01:50:00.000Z",
@@ -24,6 +25,7 @@ export const mockActiveSession: VisitSession = {
 export const mockCompletedSession: VisitSession = {
   id: "visit-mock-completed",
   patientId: mockPatient.id,
+  patientName: mockPatient.name,
   entryType: "new",
   status: "completed",
   startedAt: "2026-06-18T02:30:00.000Z",

@@ -22,6 +22,8 @@ export const visitSummarySchema = z.object({
 const visitSessionBaseSchema = z.object({
   id: sessionIdSchema,
   patientId: patientIdSchema,
+  /** 患者真实姓名（由服务端填充，与 PatientProfile.name 一致）。 */
+  patientName: z.string(),
   entryType: visitEntryTypeSchema,
   status: visitStatusSchema,
   startedAt: z.string().datetime(),
@@ -69,6 +71,7 @@ export const visitSessionSchema = visitSessionBaseSchema
 export const visitSessionSummarySchema = visitSessionBaseSchema.pick({
   id: true,
   patientId: true,
+  patientName: true,
   entryType: true,
   status: true,
   startedAt: true,
