@@ -750,7 +750,12 @@ export function useWorkbenchSession(
     actorRef.send({ type: "EXIT_REQUESTED" })
   }, [abortStream, actorRef])
 
-  /** 确认退出：进入退出结算 → 提交 exitVisit → 终止。 */
+  /**
+   * 确认退出：进入退出结算 → 提交 exitVisit → 终止。
+   *
+   * 持久化失败不阻断本地退出：本地状态机仍进入 exited，
+   * 刷新后由 hydration 与服务端对齐。
+   */
   const confirmExit = useCallback(async () => {
     // 防御：已终止态不重复调用
     const snap = actorRef.getSnapshot()
@@ -758,12 +763,16 @@ export function useWorkbenchSession(
 
     abortStream("exit")
     actorRef.send({ type: "EXIT_REQUESTED" })
-    const result = await workbenchApi.exitVisit({ sessionId, reason: "patient_request" })
-    appendTimelineItem(result.timelineItem)
-    await queryClient.invalidateQueries({
-      queryKey: visitsQueryKeys.session(sessionId),
-    })
-    await queryClient.invalidateQueries({ queryKey: visitsQueryKeys.list() })
+    try {
+      const result = await workbenchApi.exitVisit({ sessionId, reason: "patient_request" })
+      appendTimelineItem(result.timelineItem)
+      await queryClient.invalidateQueries({
+        queryKey: visitsQueryKeys.session(sessionId),
+      })
+      await queryClient.invalidateQueries({ queryKey: visitsQueryKeys.list() })
+    } catch {
+      // 忽略：本地已进入退出结算态，刷新后由 hydration 兜底。
+    }
     actorRef.send({ type: "EXIT_CONFIRMED" })
   }, [abortStream, sessionId, actorRef, appendTimelineItem, queryClient])
 

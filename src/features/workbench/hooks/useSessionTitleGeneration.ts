@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 
 import { visitsApi } from "@/features/visits/api"
 import type { VisitSession } from "@/features/visits/api/types"
+import { visitsQueryKeys } from "@/features/visits/api/queries"
 
 /**
  * useSessionTitleGeneration

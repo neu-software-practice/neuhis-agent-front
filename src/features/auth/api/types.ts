@@ -36,7 +36,11 @@ export interface LoginInput {
 export interface RegisterInput {
   phone: string
   password: string
-  realName?: string
+  realName: string
+  /** 性别，自由文本字符串。 */
+  gender?: string
+  /** 出生日期，YYYY-MM-DD 格式字符串。 */
+  birthDate?: string
 }
 
 /** 注册表单（含前端校验用字段，不发送至 API）。 */
@@ -44,7 +48,9 @@ export interface RegisterFormValues {
   phone: string
   password: string
   confirmPassword: string
-  realName?: string
+  realName: string
+  gender: string
+  birthDate: string
 }
 
 /** 登录/注册统一响应（扁平结构）。 */

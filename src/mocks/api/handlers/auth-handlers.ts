@@ -7,13 +7,15 @@ import type { AuthUser } from "@/features/auth/api/types"
  * 返回扁平结构：{ accessToken, refreshToken, expiresIn, user }
  */
 export function handleRegister(body: unknown) {
-  const { phone, password, realName } = body as {
+  const { phone, password, realName, gender, birthDate } = body as {
     phone: string
     password: string
     realName?: string
+    gender?: string
+    birthDate?: string
   }
 
-  const result = mockDb.register({ phone, password, realName })
+  const result = mockDb.register({ phone, password, realName, gender, birthDate })
 
   const authUser: AuthUser = {
     userId: result.user.id,

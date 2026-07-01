@@ -15,6 +15,7 @@ const GENDER_LABEL: Record<string, string> = {
   unknown: "未知",
 }
 
+
 interface PatientSummaryCardProps {
   /** 患者档案。 */
   patient: PatientProfile

@@ -10,7 +10,7 @@ import { DatePicker } from "@/components/ui/date-picker"
 import { registerFormSchema } from "@/features/auth/api/schemas"
 import { authApi } from "@/features/auth/api/auth-api"
 import { useAuthStore } from "@/features/auth/store/auth-store"
-import type { RegisterFormValues } from "@/features/auth/api/types"
+import type { RegisterFormValues, RegisterInput } from "@/features/auth/api/types"
 
 /** 性别预设选项：value 存后端，label 显示给用户。 */
 const GENDER_PRESETS = [
@@ -61,12 +61,12 @@ export default function RegisterPage() {
   async function onSubmit(data: RegisterFormValues) {
     setServerError(null)
     try {
-      const payload = {
+      const payload: RegisterInput = {
         phone: data.phone,
         password: data.password,
+        realName: data.realName.trim(),
         gender: data.gender,
         birthDate: data.birthDate,
-        realName: data.realName?.trim() || undefined,
       }
       const result = await authApi.register(payload)
       login(result, result.user)
@@ -141,9 +141,7 @@ export default function RegisterPage() {
 
           {/* 姓名（选填） */}
           <TextField isInvalid={!!errors.realName} name="realName" type="text">
-            <Label>
-              姓名 <span className="text-foreground-400">（选填）</span>
-            </Label>
+            <Label>姓名</Label>
             <Input
               placeholder="真实姓名，用于就诊记录"
               autoComplete="name"

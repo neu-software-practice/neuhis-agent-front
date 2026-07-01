@@ -144,6 +144,23 @@ function nowIso() {
   return new Date().toISOString()
 }
 
+/**
+ * 由出生日期（YYYY-MM-DD）计算当前年龄。
+ * 格式无效或未来日期返回 0。
+ */
+function calcAgeFromBirthDate(birthDate: string): number {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(birthDate)) return 0
+  const [y, m, d] = birthDate.split("-").map(Number)
+  if (!y || !m || !d) return 0
+  const today = new Date()
+  let age = today.getFullYear() - y
+  const monthDiff = today.getMonth() + 1 - m
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < d)) {
+    age -= 1
+  }
+  return age >= 0 ? age : 0
+}
+
 // 种子活跃会话的时间戳在 fixture 里是写死的绝对时间，随真实日期推移会立即「空闲超时」，
 // 一进工作台就触发挂起 Overlay。这里在每次初始化 mock 状态时把它重置成相对当前
 // 时间（刚开始问诊，最后操作就在 1 分钟前），保证 mock 走查长期有效。
@@ -1781,7 +1798,13 @@ class MockDb {
 
   // ─── Auth ───────────────────────────────────────────────────────────────────
 
-  register(input: { phone: string; password: string; realName?: string }): {
+  register(input: {
+    phone: string
+    password: string
+    realName?: string
+    gender?: string
+    birthDate?: string
+  }): {
     user: MockUser
     accessToken: string
     refreshToken: string
@@ -1814,12 +1837,14 @@ class MockDb {
     }
     this.state.users[userId] = user
 
-    // 同步创建空 patient profile
+    // 同步创建 patient profile（gender / birthDate 来自注册表单）
+    // 后端逻辑：接收 birthDate → 计算 age 存储；前端 mock 同此行为
+    const age = input.birthDate ? calcAgeFromBirthDate(input.birthDate) : 0
     this.state.patients[patientId] = parsePatientProfile({
       id: patientId,
-      name: input.realName ?? `用户${input.phone.slice(-4)}`,
-      gender: "unknown",
-      age: 0,
+      name: input.realName || `用户${input.phone.slice(-4)}`,
+      gender: input.gender ?? "unknown",
+      age,
       phoneMasked: `${input.phone.slice(0, 3)}****${input.phone.slice(-4)}`,
       idCardMasked: "",
       allergies: [],

@@ -149,7 +149,7 @@ async function normalizeHttpError(error: unknown): Promise<ApiError> {
 }
 
 const httpClient = ky.create({
-  prefix: apiConfig.baseUrl.replace(/^\//, ""),
+  prefix: apiConfig.baseUrl,
   timeout: 30_000,
   parseJson: (text: string) => parseFirstJson(text),
 })

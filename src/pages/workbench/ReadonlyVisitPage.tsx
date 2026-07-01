@@ -141,7 +141,6 @@ function ReadonlyVisitReady({ snapshot }: { snapshot: VisitSnapshot }) {
 
   // 派生展示值在 render 中计算，不进 state。
   const summaryParts = useMemo(() => {
-    const s = session.summary
     return {
       patientName: session.patientId,
     }
