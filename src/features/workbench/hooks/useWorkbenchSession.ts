@@ -95,6 +95,23 @@ function findPendingCard(items: TimelineItem[]): FlowCard | undefined {
   return undefined
 }
 
+export function findBlockingCard(
+  items: TimelineItem[],
+  currentCardId?: string,
+): FlowCard | undefined {
+  if (!currentCardId) return undefined
+
+  const found = items.find(
+    (item): item is FlowCardTimelineItem =>
+      item.kind === "flow_card" && item.card.id === currentCardId,
+  )
+  if (!found?.card.blocking || found.card.status !== "pending") {
+    return undefined
+  }
+
+  return found.card
+}
+
 /**
  * 将 VisitSession.status 与当前阻塞卡（如有）映射到 VisitMachineState。
  *
@@ -427,13 +444,7 @@ export function useWorkbenchSession(
 
   // ---- blockingCard ----
   const blockingCard = useMemo(() => {
-    if (!machineContext.currentCardId) return undefined
-    const found = items.find(
-      (item): item is FlowCardTimelineItem =>
-        item.kind === "flow_card" &&
-        item.card.id === machineContext.currentCardId,
-    )
-    return found?.card
+    return findBlockingCard(items, machineContext.currentCardId)
   }, [machineContext.currentCardId, items])
 
   // ---- 轮询新卡检测 ----

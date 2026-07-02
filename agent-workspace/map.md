@@ -1,6 +1,6 @@
 # 项目地图
 
-更新时间：2026-07-02（页面过渡动画 + VisitSession 新增 patientName 字段 + 个人中心 HeroUI Card 统一 + 登录/注册页 HeroUI TextField 替换 + 管理后台 HeroUI v3 全面翻新 + 管理后台 admin panel + CompletedExitSheet 修复 + fulfillment 响应推进修复 + rest-api-patch-v8/v9/v10/v11）
+更新时间：2026-07-02（页面过渡动画 + VisitSession 新增 patientName 字段 + 个人中心 HeroUI Card 统一 + 登录/注册页 HeroUI TextField 替换 + 管理后台 HeroUI v3 全面翻新 + 管理后台 admin panel + CompletedExitSheet 修复 + fulfillment 响应推进修复 + timeline 轮询后 LockBar 隐藏修复 + rest-api-patch-v8/v9/v10/v11）
 
 ## 项目定位
 
@@ -188,7 +188,8 @@ NEUHIS Agent 前端——基于 React + HeroUI 3 + Magic UI 的 AI 诊疗 Agent 
 │   │   │   │   └── workbench-ui-store.ts   # UI 状态 flags（drawer / overlay / sheet 显隐）
 │   │   │   │
 │   │   │   ├── hooks/
-│   │   │   │   ├── useWorkbenchSession.ts       # 工作台总装 hook（query + machine + stream + actions）
+│   │   │   │   ├── useWorkbenchSession.ts       # 工作台总装 hook（query + machine + stream + actions，pending blocking card 派生 LockBar）
+│   │   │   │   ├── useWorkbenchSession.test.ts  # LockBar 阻塞卡派生：轮询更新为 blocking:false 后不再显示
 │   │   │   │   ├── useTimeline.ts               # useInfiniteQuery 时间线 + flatten
 │   │   │   │   ├── useAssistantStream.ts        # SSE 流管理（delta rAF 合并、card→event 映射）
 │   │   │   │   ├── useAssistantStream.test.tsx
@@ -366,6 +367,7 @@ API 层
 | `workbench-api.test.ts` | mock 全链路：创建会话、SSE、检验/支付/治疗三路径、急症 |
 | `visit-machine.test.ts` | hydration、阻塞态、检验链路、急症恢复/确认、超时、处置分支 |
 | `useFlowCardAction.test.ts` | 支付/fulfillment 事件映射、失败不推进、completed_visit 返回不污染取药卡 |
+| `useWorkbenchSession.test.ts` | 当前阻塞卡派生：同一 currentCardId 轮询刷新成非阻塞后隐藏 LockBar |
 | `useAssistantStream.test.tsx` | 急症流中断 invalidated |
 | `useVisitCountdown.test.ts` | 空闲计时阶段转换、暂停冻结 |
 | `useExitSettlement.test.ts` | 四档退出后果派生 |
@@ -382,6 +384,15 @@ API 层
 - 缺浏览器端 E2E 测试（jsdom 层已有，端到端走查未补齐）
 - 支付失败重试 UI 未单独实现（mock 已支持链路，UI 交互待补）
 - MSW handler 未实现；测试走 mock transport
+
+## 最近实现记录
+
+### 2026-07-02：timeline 轮询后底部 LockBar 隐藏修复
+
+- 已实现：`useWorkbenchSession` 新增 `findBlockingCard(items, currentCardId)`，底部 `LockBar` 只由 `currentCardId` 命中的 `status:"pending" && blocking:true` 流程卡派生；当检验/取药轮询把同一张卡刷新为 `blocking:false` 或非 pending 后，即使状态机上下文仍保留旧 `currentCardId`，输入区也不再继续显示锁定卡。
+- 已实现：新增 `useWorkbenchSession.test.ts` 覆盖 pending blocking 命中、轮询更新为 non-blocking 后隐藏、currentCardId 不匹配忽略三种场景。
+- 未实现：未改动轮询状态机推进策略；本次仅修复底部锁定条的显示派生，后续若需要轮询完成后自动把状态机从 `labExecution`/`medicationFulfillment` 推进到下一态，应单独设计事件来源和会话状态同步。
+- 验证：`vitest run src/features/workbench/hooks/useWorkbenchSession.test.ts src/features/workbench/hooks/useTimeline.test.tsx` 通过；触碰文件 `eslint` 通过；`vite build` 通过。完整 `eslint .` 和 `tsc -b` 仍被既有问题阻塞，当前已知包括 `AddressFormModal.tsx` effect 内同步 setState、`workbench/api/index.ts` any、`SystemEventRow.tsx` 缺少 `lab_vetoed` 图标映射、若干旧测试/fixture 类型不一致。
 
 ## 文档索引
 
