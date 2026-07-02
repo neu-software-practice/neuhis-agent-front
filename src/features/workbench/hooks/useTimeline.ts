@@ -20,8 +20,14 @@ export interface UseTimelineResult {
  * 使用 useInfiniteQuery 加载分页时间线，将 pages 扁平化为有序数组。
  * 暴露 fetchNextPage / hasMore 供 ChatTimeline 的 Virtuoso 使用。
  */
-export function useTimeline(sessionId: SessionId): UseTimelineResult {
-  const query = useInfiniteQuery(workbenchQueries.timeline({ sessionId }))
+export function useTimeline(
+  sessionId: SessionId,
+  refetchInterval?: number | false,
+): UseTimelineResult {
+  const query = useInfiniteQuery({
+    ...workbenchQueries.timeline({ sessionId }),
+    refetchInterval: refetchInterval ?? false,
+  })
   const pages = query.data?.pages
 
   const items = useMemo(() => {

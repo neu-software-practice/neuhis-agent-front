@@ -68,13 +68,18 @@ export function mapCardToMachineEvent(card: FlowCard): VisitMachineEvent {
         ? { type: "MEDICATION_PAYMENT_RAISED", cardId: card.id }
         : { type: "PAYMENT_CARD_RAISED", cardId: card.id, purpose: "lab" }
     case "lab_execution":
-      return { type: "LAB_EXECUTION_STARTED", cardId: card.id }
+      return card.executionStatus === "completed" ||
+        card.executionStatus === "result_ready"
+        ? { type: "LAB_RESULT_RECEIVED" }
+        : { type: "LAB_EXECUTION_STARTED", cardId: card.id }
     case "diagnosis":
       return { type: "DIAGNOSIS_READY", cardId: card.id }
     case "treatment_plan":
       return { type: "TREATMENT_DECIDED", cardId: card.id, plan: card.plan }
     case "medication_fulfillment":
-      return { type: "MEDICATION_FULFILLMENT_RAISED", cardId: card.id }
+      return card.fulfillmentStatus === "completed"
+        ? { type: "MEDICATION_FULFILLED", cardId: card.id }
+        : { type: "MEDICATION_FULFILLMENT_RAISED", cardId: card.id }
     case "treatment_execution":
       return { type: "TREATMENT_EXECUTION_RAISED", cardId: card.id }
     case "advice_only":

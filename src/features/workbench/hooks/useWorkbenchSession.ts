@@ -21,6 +21,7 @@ import { visitMachine } from "@/features/workbench/machine/visit-machine"
 import type { VisitMachineContext } from "@/features/workbench/machine/visit-machine.types"
 import type { VisitMachineState, TerminalReason } from "@/lib/api/types"
 import { useComposerStore } from "@/features/workbench/store/composer-store"
+import { mapTimelineItemToMachineEvent } from "@/features/workbench/utils/card-normalizers"
 import { useTimeline } from "@/features/workbench/hooks/useTimeline"
 import {
   createOptimisticPatientMessage,
@@ -300,15 +301,6 @@ export function useWorkbenchSession(
   const sessionQuery = useQuery(visitsQueries.session(sessionId))
   const queryClient = useQueryClient()
 
-  // ---- Timeline ----
-  const {
-    items,
-    fetchNextPage,
-    hasMore,
-    isFetching: isFetchingMore,
-    isLoading: timelineLoading,
-  } = useTimeline(sessionId)
-
   // ---- XState Actor ----
   const actorRef = useActorRef(visitMachine)
   const stateValue = useSelector(actorRef, (snapshot) => snapshot.value)
@@ -317,6 +309,78 @@ export function useWorkbenchSession(
   // 将 stateValue 转为字符串，用于 UI 判断
   const stateLabel =
     typeof stateValue === "string" ? stateValue : "loadingContext"
+
+  // ---- Assistant Stream (P4.2) ----
+  const {
+    startStream,
+    abortStream,
+    isStreaming,
+  } = useAssistantStream({
+    sessionId,
+    sendMachineEvent: (event) => {
+      actorRef.send(event)
+    },
+    appendTimelineItem: useCallback(
+      (item: TimelineItem) => {
+        queryClient.setQueryData<InfiniteData<ListTimelineResult>>(
+          workbenchQueryKeys.timeline(sessionId),
+          (old) => {
+            if (!old) return old
+            return appendToLastPage(old, item)
+          },
+        )
+      },
+      [queryClient, sessionId],
+    ),
+    updateTimelineItem: useCallback(
+      (itemId: string, updater: (item: TimelineItem) => TimelineItem) => {
+        queryClient.setQueryData<InfiniteData<ListTimelineResult>>(
+          workbenchQueryKeys.timeline(sessionId),
+          (old) => {
+            if (!old) return old
+            const pages = old.pages.map((page) => ({
+              ...page,
+              items: page.items.map((item) =>
+                item.id === itemId ? updater(item) : item,
+              ),
+            }))
+            return { ...old, pages }
+          },
+        )
+      },
+      [queryClient, sessionId],
+    ),
+    upsertTimelineItems: useCallback(
+      (newItems: TimelineItem[]) => {
+        queryClient.setQueryData<InfiniteData<ListTimelineResult>>(
+          workbenchQueryKeys.timeline(sessionId),
+          (old) => {
+            if (!old) return old
+            return upsertItemsInPages(old, newItems)
+          },
+        )
+      },
+      [queryClient, sessionId],
+    ),
+  })
+
+  // ---- Timeline Polling ----
+  // 检验/药品支付后无 SSE 流，通过轮询 timeline 获取后端异步更新的结果
+  const isPollingEligibleState =
+    stateLabel === "labExecution" || stateLabel === "medicationFulfillment"
+  const shouldPoll = isPollingEligibleState && !isStreaming
+  const pollInterval = shouldPoll
+    ? Number(import.meta.env.VITE_TIMELINE_POLL_INTERVAL_MS ?? 5000)
+    : false
+
+  // ---- Timeline ----
+  const {
+    items,
+    fetchNextPage,
+    hasMore,
+    isFetching: isFetchingMore,
+    isLoading: timelineLoading,
+  } = useTimeline(sessionId, pollInterval)
 
   // ---- Hydration ----
   const hydratedSessionIdRef = useRef<string | null>(null)
@@ -372,59 +436,43 @@ export function useWorkbenchSession(
     return found?.card
   }, [machineContext.currentCardId, items])
 
-  // ---- Assistant Stream (P4.2) ----
-  const {
-    startStream,
-    abortStream,
-    isStreaming,
-  } = useAssistantStream({
-    sessionId,
-    sendMachineEvent: (event) => {
-      actorRef.send(event)
-    },
-    appendTimelineItem: useCallback(
-      (item: TimelineItem) => {
-        queryClient.setQueryData<InfiniteData<ListTimelineResult>>(
-          workbenchQueryKeys.timeline(sessionId),
-          (old) => {
-            if (!old) return old
-            return appendToLastPage(old, item)
-          },
-        )
-      },
-      [queryClient, sessionId],
-    ),
-    updateTimelineItem: useCallback(
-      (itemId: string, updater: (item: TimelineItem) => TimelineItem) => {
-        queryClient.setQueryData<InfiniteData<ListTimelineResult>>(
-          workbenchQueryKeys.timeline(sessionId),
-          (old) => {
-            if (!old) return old
-            const pages = old.pages.map((page) => ({
-              ...page,
-              items: page.items.map((item) =>
-                item.id === itemId ? updater(item) : item,
-              ),
-            }))
-            return { ...old, pages }
-          },
-        )
-      },
-      [queryClient, sessionId],
-    ),
-    upsertTimelineItems: useCallback(
-      (newItems: TimelineItem[]) => {
-        queryClient.setQueryData<InfiniteData<ListTimelineResult>>(
-          workbenchQueryKeys.timeline(sessionId),
-          (old) => {
-            if (!old) return old
-            return upsertItemsInPages(old, newItems)
-          },
-        )
-      },
-      [queryClient, sessionId],
-    ),
-  })
+  // ---- 轮询新卡检测 ----
+  // 轮询获取到新 flow card 时驱动状态机。processedCardIdsRef 记录已处理卡片 ID，
+  // 防重复触发（SSE/action 响应/初始加载中的卡片在进入轮询态时预填充）。
+  const processedCardIdsRef = useRef(new Set<string>())
+
+  // 状态进入轮询资格态时预填充已有卡片 ID；离开时清空
+  useEffect(() => {
+    if (isPollingEligibleState) {
+      processedCardIdsRef.current = new Set(
+        items
+          .filter(
+            (item): item is FlowCardTimelineItem =>
+              item.kind === "flow_card",
+          )
+          .map((item) => item.card.id),
+      )
+    } else {
+      processedCardIdsRef.current = new Set()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPollingEligibleState])
+
+  // 检测轮询到的新 flow card 并发送状态机事件
+  useEffect(() => {
+    if (!isPollingEligibleState) return
+
+    for (const item of items) {
+      if (item.kind !== "flow_card") continue
+      if (processedCardIdsRef.current.has(item.card.id)) continue
+      processedCardIdsRef.current.add(item.card.id)
+
+      const event = mapTimelineItemToMachineEvent(item)
+      if (event) {
+        actorRef.send(event)
+      }
+    }
+  }, [items, isPollingEligibleState, actorRef])
 
   // ---- 会话标题生成 ----
   // 首轮 AI 回复完成后，自动触发后端 LLM 总结会话标题。
