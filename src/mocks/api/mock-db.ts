@@ -73,10 +73,12 @@ import { mockPatient, mockPatientContext } from "@/mocks/api/fixtures/patient"
 import {
   mockActiveTimeline,
   mockCompletedTimeline,
+  mockScreenshotTimeline,
 } from "@/mocks/api/fixtures/timeline"
 import {
   mockActiveSession,
   mockCompletedSession,
+  mockScreenshotSession,
 } from "@/mocks/api/fixtures/visits"
 
 interface EmergencyRestorePoint {
@@ -253,10 +255,12 @@ function createInitialState(): MockDbState {
     sessions: {
       [mockActiveSession.id]: seedActiveSession(),
       [mockCompletedSession.id]: clone(mockCompletedSession),
+      [mockScreenshotSession.id]: clone(mockScreenshotSession),
     },
     timelines: {
       [mockActiveSession.id]: clone(mockActiveTimeline),
       [mockCompletedSession.id]: clone(mockCompletedTimeline),
+      [mockScreenshotSession.id]: clone(mockScreenshotTimeline),
     },
     emergencyRestore: {},
     users: {

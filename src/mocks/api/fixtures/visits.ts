@@ -22,6 +22,31 @@ export const mockActiveSession: VisitSession = {
   },
 }
 
+/** 截图专用会话：包含全部 FlowCard 类型，状态为 completed（只读回看）。 */
+export const mockScreenshotSession: VisitSession = {
+  id: "visit-mock-screenshot",
+  patientId: mockPatient.id,
+  patientName: mockPatient.name,
+  entryType: "new",
+  status: "completed",
+  startedAt: "2026-07-02T08:00:00.000Z",
+  updatedAt: "2026-07-02T08:11:00.000Z",
+  endedAt: "2026-07-02T08:11:00.000Z",
+  lastActivityAt: "2026-07-02T08:11:00.000Z",
+  askRound: 3,
+  askRoundLimit: 6,
+  labRound: 1,
+  labRoundLimit: 2,
+  timerPaused: false,
+  summary: {
+    chiefComplaint: "发热两天，伴有咽痛、咳嗽",
+    diagnosis: "急性上呼吸道感染，细菌感染可能",
+    treatmentSummary: "已开具药品并完成治疗，建议休息观察。",
+    lastMessage: "本次问诊已完成，如有不适请及时复诊。",
+    title: "发热、咽痛问诊（全卡片截图）",
+  },
+}
+
 export const mockCompletedSession: VisitSession = {
   id: "visit-mock-completed",
   patientId: mockPatient.id,

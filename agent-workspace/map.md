@@ -1,6 +1,6 @@
 # 项目地图
 
-更新时间：2026-07-02（页面过渡动画 + VisitSession 新增 patientName 字段 + 个人中心 HeroUI Card 统一 + 登录/注册页 HeroUI TextField 替换 + 管理后台 HeroUI v3 全面翻新 + 管理后台 admin panel + CompletedExitSheet 修复 + fulfillment 响应推进修复 + timeline 轮询后 LockBar 隐藏修复 + 右侧动态流程进度 + rest-api-patch-v8/v9/v10/v11）
+更新时间：2026-07-02（mock 新增全卡片截图会话 + 页面过渡动画 + VisitSession 新增 patientName 字段 + 个人中心 HeroUI Card 统一 + 登录/注册页 HeroUI TextField 替换 + 管理后台 HeroUI v3 全面翻新 + 管理后台 admin panel + CompletedExitSheet 修复 + fulfillment 响应推进修复 + timeline 轮询后 LockBar 隐藏修复 + 右侧动态流程进度 + rest-api-patch-v8/v9/v10/v11）
 
 ## 项目定位
 
@@ -274,8 +274,8 @@ NEUHIS Agent 前端——基于 React + HeroUI 3 + Magic UI 的 AI 诊疗 Agent 
 │   │   ├── stream-simulator.ts      # SSE 流模拟（delta / card / emergency / done）
 │   │   ├── fixtures/
 │   │   │   ├── patient.ts           # mockPatient + mockPatientContext 种子数据
-│   │   │   ├── visits.ts            # mockActiveSession + mockCompletedSession
-│   │   │   ├── timeline.ts          # mockActiveTimeline + mockCompletedTimeline
+│   │   │   ├── visits.ts            # mockActiveSession + mockCompletedSession + mockScreenshotSession
+│   │   │   ├── timeline.ts          # mockActiveTimeline + mockCompletedTimeline + mockScreenshotTimeline（全13张卡片）
 │   │   │   └── flow-cards.ts        # 各类 FlowCard 工厂函数
 │   │   └── handlers/
 │   │       ├── address-handlers.ts  # 地址簿 CRUD 路由处理
