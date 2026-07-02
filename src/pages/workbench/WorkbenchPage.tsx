@@ -1,4 +1,4 @@
-import { useCallback } from "react"
+import { useCallback, useMemo } from "react"
 import { useLoaderData, useNavigate } from "react-router"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/features/shared/components/EmptyState"
@@ -21,6 +21,7 @@ import { WorkbenchShell } from "@/features/workbench/components/WorkbenchShell"
 import { WorkbenchSidebar } from "@/features/workbench/components/WorkbenchSidebar"
 import { useExitSettlement } from "@/features/workbench/hooks/useExitSettlement"
 import { useVisitCountdown } from "@/features/workbench/hooks/useVisitCountdown"
+import { buildFlowProgressSteps } from "@/features/workbench/utils/flow-progress"
 import type { WorkbenchLoaderData } from "@/pages/workbench/workbench-loaders"
 
 /**
@@ -95,6 +96,17 @@ export default function WorkbenchPage() {
   // ---- 退出后果（从时间线派生）----
   const { consequence } = useExitSettlement(items)
 
+  // ---- 右侧流程进度（从完整 timeline 派生，状态机只提供当前全局态补充）----
+  const progressSteps = useMemo(
+    () =>
+      buildFlowProgressSteps({
+        items,
+        sessionStatus: session?.status,
+        machineState: state,
+      }),
+    [items, session?.status, state],
+  )
+
   // ---- 返回首页 ----
   const handleNavigateHome = useCallback(() => {
     navigate("/")
@@ -146,6 +158,8 @@ export default function WorkbenchPage() {
           patientName={session?.patientName}
           chiefComplaint={session?.summary?.chiefComplaint}
           lastActivityAt={session?.lastActivityAt}
+          sessionStatus={session?.status}
+          progressSteps={progressSteps}
         />
       }
       header={

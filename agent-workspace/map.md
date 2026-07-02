@@ -1,6 +1,6 @@
 # 项目地图
 
-更新时间：2026-07-02（页面过渡动画 + VisitSession 新增 patientName 字段 + 个人中心 HeroUI Card 统一 + 登录/注册页 HeroUI TextField 替换 + 管理后台 HeroUI v3 全面翻新 + 管理后台 admin panel + CompletedExitSheet 修复 + fulfillment 响应推进修复 + timeline 轮询后 LockBar 隐藏修复 + rest-api-patch-v8/v9/v10/v11）
+更新时间：2026-07-02（页面过渡动画 + VisitSession 新增 patientName 字段 + 个人中心 HeroUI Card 统一 + 登录/注册页 HeroUI TextField 替换 + 管理后台 HeroUI v3 全面翻新 + 管理后台 admin panel + CompletedExitSheet 修复 + fulfillment 响应推进修复 + timeline 轮询后 LockBar 隐藏修复 + 右侧动态流程进度 + rest-api-patch-v8/v9/v10/v11）
 
 ## 项目定位
 
@@ -202,6 +202,8 @@ NEUHIS Agent 前端——基于 React + HeroUI 3 + Magic UI 的 AI 诊疗 Agent 
 │   │   │   │
 │   │   │   ├── utils/
 │   │   │   │   ├── card-normalizers.ts     # FlowCardAction → API 输入、Card → MachineEvent 映射
+│   │   │   │   ├── flow-progress.ts        # 从 timeline / session / machineState 派生右侧动态流程进度
+│   │   │   │   ├── flow-progress.test.ts   # 用药、医嘱、治疗、挂起、终止、支付失败路径覆盖
 │   │   │   │   ├── timeline-merge.ts       # timeline item 工厂 + merge/upsert 纯函数
 │   │   │   │   └── timeline-merge.test.ts
 │   │   │   │
@@ -219,7 +221,8 @@ NEUHIS Agent 前端——基于 React + HeroUI 3 + Magic UI 的 AI 诊疗 Agent 
 │   │   │   │   ├── LockQuestionSheet.tsx    # 阻断疑问输入 Drawer
 │   │   │   │   ├── WorkbenchShell.tsx       # 工作台布局壳（named slot props）
 │   │   │   │   ├── WorkbenchHeader.tsx      # 顶部栏（AI 头像 + 操作按钮）
-│   │   │   │   ├── WorkbenchSidebar.tsx     # PC 右侧上下文摘要栏
+│   │   │   │   ├── WorkbenchSidebar.tsx     # PC 右侧上下文摘要栏 + 动态流程进度渲染
+│   │   │   │   ├── WorkbenchSidebar.test.tsx
 │   │   │   │   ├── ContextSummaryBar.tsx    # 移动端可折叠上下文摘要条
 │   │   │   │   ├── ContextSummaryDrawer.tsx # 上下文详情 Drawer
 │   │   │   │   ├── EmergencyOverlay.tsx     # 急症打断 Modal（确认/误报）
@@ -371,8 +374,10 @@ API 层
 | `useAssistantStream.test.tsx` | 急症流中断 invalidated |
 | `useVisitCountdown.test.ts` | 空闲计时阶段转换、暂停冻结 |
 | `useExitSettlement.test.ts` | 四档退出后果派生 |
+| `flow-progress.test.ts` | 从 timeline 动态派生右侧流程进度：用药/医嘱/治疗/挂起/终止/失败 |
 | `timeline-merge.test.ts` | flatten、乐观消息、流式追加、upsert |
 | `card-normalizers.test.ts` | 流程卡到状态机事件映射（含 fulfillment confirmed/completed） |
+| `WorkbenchSidebar.test.tsx` | 右侧栏渲染动态进度步骤、状态文案和步骤描述 |
 | `FlowCardRenderer.test.tsx` | 9 种 card kind 分发 + onAction |
 | `InputAssistPanel.test.tsx` | chip 渲染与点击回调 |
 | `NewWorkbenchPage.test.tsx` | 复诊创建 + cache 预热 + 超时重试 |
@@ -386,6 +391,13 @@ API 层
 - MSW handler 未实现；测试走 mock transport
 
 ## 最近实现记录
+
+### 2026-07-02：右侧动态流程进度
+
+- 已实现：新增 `flow-progress.ts`，从完整 `timeline` 的 FlowCard、terminal item、`session.status` 和当前 machine state 派生右侧步骤；覆盖问诊、检验决策、检验缴费、检验执行、诊断、处置决策、药品缴费、取药方式、治疗执行、医嘱确认、完成、挂起、急症/退出终止等状态。
+- 已实现：`WorkbenchPage` 使用 `useMemo` 生成 `progressSteps` 并传入 `WorkbenchSidebar`；`WorkbenchSidebar` 不再用硬编码 `sessionStatus` 条件判断完成项，而是渲染动态步骤、状态图标和描述。
+- 未实现：未改变 XState 主状态机，也未新增后端字段；右侧进度是 timeline 的只读投影，交互阻塞仍由 `useWorkbenchSession` + `visitMachine` 控制。
+- 验证：`./node_modules/.bin/vitest run src/features/workbench/utils/flow-progress.test.ts src/features/workbench/components/WorkbenchSidebar.test.tsx` 通过。`./node_modules/.bin/tsc -b` 仍被既有问题阻塞：`SystemEventRow.tsx` 缺 `lab_vetoed` 图标映射、`visit-machine.test.ts` 的 `patientName` 类型、`card-normalizers.test.ts` 的旧 `"done"` 卡片状态、`mock-db.ts` 的 `string | undefined` 赋值。
 
 ### 2026-07-02：timeline 轮询后底部 LockBar 隐藏修复
 

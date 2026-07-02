@@ -1,6 +1,19 @@
-import { CheckCircle2, Circle, Clock, FileText, User } from "lucide-react"
+import {
+  AlertCircle,
+  CheckCircle2,
+  Circle,
+  Clock,
+  FileText,
+  PauseCircle,
+  User,
+  XCircle,
+} from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import type {
+  FlowProgressStatus,
+  FlowProgressStep,
+} from "@/features/workbench/utils/flow-progress"
 
 interface WorkbenchSidebarProps {
   /** 患者标识。 */
@@ -13,6 +26,8 @@ interface WorkbenchSidebarProps {
   entryType?: string
   /** 会话当前状态。 */
   sessionStatus?: string
+  /** 从 timeline 动态派生出的流程进度。 */
+  progressSteps?: readonly FlowProgressStep[]
   className?: string
 }
 
@@ -43,6 +58,7 @@ export function WorkbenchSidebar({
   lastActivityAt,
   entryType,
   sessionStatus,
+  progressSteps = [],
   className,
 }: WorkbenchSidebarProps) {
   const statusLabel = sessionStatus ? (STATUS_LABELS[sessionStatus] ?? sessionStatus) : undefined
@@ -92,24 +108,9 @@ export function WorkbenchSidebar({
       <div className="mt-2 border-t border-border pt-3">
         <h3 className="mb-2 text-xs font-medium text-muted-foreground">流程进度</h3>
         <div className="flex flex-col gap-1.5">
-          <StepItem done label="身份核验" />
-          <StepItem done label="病史读取" />
-          <StepItem
-            done={sessionStatus !== "loading_context" && sessionStatus !== "chatting"}
-            label="问诊收集"
-          />
-          <StepItem
-            done={sessionStatus === "diagnosis" || sessionStatus === "treatment" || sessionStatus === "completed"}
-            label="诊断分析"
-          />
-          <StepItem
-            done={sessionStatus === "treatment" || sessionStatus === "completed"}
-            label="处置执行"
-          />
-          <StepItem
-            done={sessionStatus === "completed"}
-            label="就诊完成"
-          />
+          {progressSteps.map((step) => (
+            <StepItem key={step.id} step={step} />
+          ))}
         </div>
       </div>
     </div>
@@ -138,19 +139,54 @@ function InfoItem({
 }
 
 /** 流程步骤条目。 */
-function StepItem({ done, label }: { done: boolean; label: string }) {
+function StepItem({ step }: { step: FlowProgressStep }) {
+  const muted = step.status === "pending" || step.status === "skipped"
+
   return (
-    <div className="flex items-center gap-2 text-xs">
-      {done ? (
-        <CheckCircle2 className="size-3.5 text-primary" />
-      ) : (
-        <Circle className="size-3.5 text-muted-foreground/50" />
-      )}
-      <span className={cn("text-foreground", !done && "text-muted-foreground")}>
-        {label}
+    <div className="flex items-start gap-2 text-xs">
+      <span className="mt-0.5 shrink-0">
+        <StepIcon status={step.status} />
+      </span>
+      <span className="flex min-w-0 flex-col gap-0.5">
+        <span
+          className={cn(
+            "text-foreground",
+            muted && "text-muted-foreground",
+            step.status === "current" && "font-medium text-primary",
+            step.status === "failed" && "font-medium text-destructive",
+            step.status === "terminated" && "font-medium text-destructive",
+          )}
+        >
+          {step.label}
+        </span>
+        {step.description ? (
+          <span className="line-clamp-2 text-[11px] leading-snug text-muted-foreground">
+            {step.description}
+          </span>
+        ) : null}
       </span>
     </div>
   )
+}
+
+function StepIcon({ status }: { status: FlowProgressStatus }) {
+  switch (status) {
+    case "done":
+      return <CheckCircle2 className="size-3.5 text-primary" />
+    case "current":
+    case "blocked":
+      return <Clock className="size-3.5 text-primary" />
+    case "failed":
+      return <AlertCircle className="size-3.5 text-destructive" />
+    case "suspended":
+      return <PauseCircle className="size-3.5 text-warning" />
+    case "terminated":
+      return <XCircle className="size-3.5 text-destructive" />
+    case "skipped":
+      return <Circle className="size-3.5 text-muted-foreground/50" />
+    case "pending":
+      return <Circle className="size-3.5 text-muted-foreground/50" />
+  }
 }
 
 /** 格式化最后操作时间。 */
