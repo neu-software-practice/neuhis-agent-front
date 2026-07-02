@@ -210,6 +210,21 @@ function markHandledCard(
     case "defer_payment":
       return { ...card, status: "invalidated", blocking: false }
     case "choose_fulfillment":
+      return {
+        ...card,
+        status: "completed",
+        blocking: false,
+        handledAt: new Date().toISOString(),
+        ...(card.kind === "medication_fulfillment"
+          ? {
+              selectedMode: action.mode,
+              fulfillmentStatus:
+                action.mode === "delivery"
+                  ? "confirmed" as const
+                  : "completed" as const,
+            }
+          : {}),
+      }
     case "submit_treatment_execution":
     case "ack_advice":
       return resultCard ?? { ...card, status: "completed", blocking: false }

@@ -67,14 +67,39 @@ describe("mapCardToMachineEvent", () => {
   })
 
   describe("medication_fulfillment card", () => {
-    it("emits MEDICATION_FULFILLMENT_RAISED for pending/confirmed", () => {
-      const nonCompletedStatuses = ["pending", "confirmed"] as const
+    it("emits MEDICATION_FULFILLMENT_RAISED for pending", () => {
+      const card: FlowCard = {
+        ...baseFields,
+        kind: "medication_fulfillment",
+        status: "pending",
+        medications: [
+          {
+            name: "阿莫西林",
+            spec: "0.25g",
+            quantity: 12,
+            dosage: "每日三次",
+            days: 3,
+            price: 15.0,
+          },
+        ],
+        availableModes: ["pickup"],
+        fulfillmentStatus: "pending",
+      }
+      const event = mapCardToMachineEvent(card)
+      expect(event).toEqual({
+        type: "MEDICATION_FULFILLMENT_RAISED",
+        cardId: card.id,
+      })
+    })
 
-      for (const fulfillmentStatus of nonCompletedStatuses) {
+    it("emits MEDICATION_FULFILLED for confirmed/completed fulfillmentStatus", () => {
+      const fulfilledStatuses = ["confirmed", "completed"] as const
+
+      for (const fulfillmentStatus of fulfilledStatuses) {
         const card: FlowCard = {
           ...baseFields,
           kind: "medication_fulfillment",
-          status: "pending",
+          status: "completed",
           medications: [
             {
               name: "阿莫西林",
@@ -90,36 +115,12 @@ describe("mapCardToMachineEvent", () => {
         }
         const event = mapCardToMachineEvent(card)
         expect(event).toEqual({
-          type: "MEDICATION_FULFILLMENT_RAISED",
+          type: "MEDICATION_FULFILLED",
           cardId: card.id,
         })
       }
     })
 
-    it("emits MEDICATION_FULFILLED for completed fulfillmentStatus", () => {
-      const card: FlowCard = {
-        ...baseFields,
-        kind: "medication_fulfillment",
-        status: "completed",
-        medications: [
-          {
-            name: "阿莫西林",
-            spec: "0.25g",
-            quantity: 12,
-            dosage: "每日三次",
-            days: 3,
-            price: 15.0,
-          },
-        ],
-        availableModes: ["pickup"],
-        fulfillmentStatus: "completed",
-      }
-      const event = mapCardToMachineEvent(card)
-      expect(event).toEqual({
-        type: "MEDICATION_FULFILLED",
-        cardId: card.id,
-      })
-    })
   })
 
   describe("other cards — no behavior change", () => {

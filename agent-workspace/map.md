@@ -1,6 +1,6 @@
 # 项目地图
 
-更新时间：2026-07-01（页面过渡动画 + VisitSession 新增 patientName 字段 + 个人中心 HeroUI Card 统一 + 登录/注册页 HeroUI TextField 替换 + 管理后台 HeroUI v3 全面翻新 + 管理后台 admin panel + CompletedExitSheet 修复 + rest-api-patch-v8/v9/v10/v11）
+更新时间：2026-07-02（页面过渡动画 + VisitSession 新增 patientName 字段 + 个人中心 HeroUI Card 统一 + 登录/注册页 HeroUI TextField 替换 + 管理后台 HeroUI v3 全面翻新 + 管理后台 admin panel + CompletedExitSheet 修复 + fulfillment 响应推进修复 + rest-api-patch-v8/v9/v10/v11）
 
 ## 项目定位
 
@@ -365,11 +365,12 @@ API 层
 |------|----------|
 | `workbench-api.test.ts` | mock 全链路：创建会话、SSE、检验/支付/治疗三路径、急症 |
 | `visit-machine.test.ts` | hydration、阻塞态、检验链路、急症恢复/确认、超时、处置分支 |
-| `useFlowCardAction.test.ts` | 支付事件映射、失败不推进 |
+| `useFlowCardAction.test.ts` | 支付/fulfillment 事件映射、失败不推进、completed_visit 返回不污染取药卡 |
 | `useAssistantStream.test.tsx` | 急症流中断 invalidated |
 | `useVisitCountdown.test.ts` | 空闲计时阶段转换、暂停冻结 |
 | `useExitSettlement.test.ts` | 四档退出后果派生 |
 | `timeline-merge.test.ts` | flatten、乐观消息、流式追加、upsert |
+| `card-normalizers.test.ts` | 流程卡到状态机事件映射（含 fulfillment confirmed/completed） |
 | `FlowCardRenderer.test.tsx` | 9 种 card kind 分发 + onAction |
 | `InputAssistPanel.test.tsx` | chip 渲染与点击回调 |
 | `NewWorkbenchPage.test.tsx` | 复诊创建 + cache 预热 + 超时重试 |

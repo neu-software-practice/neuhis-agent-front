@@ -6,6 +6,7 @@ import { workbenchApi } from "@/features/workbench/api"
 import { collectFlowActionSuccessEvents } from "@/features/workbench/hooks/useFlowCardAction"
 import { useFlowCardAction } from "@/features/workbench/hooks/useFlowCardAction"
 import {
+  createCompletedVisitCard,
   createCompletedLabExecutionCard,
   createDiagnosisCard,
   createLabPaymentCard,
@@ -175,5 +176,60 @@ describe("useFlowCardAction", () => {
       blocking: false,
     })
     expect(currentCard.handledAt).toBeDefined()
+  })
+
+  it("keeps the submitted fulfillment card when the API returns completed_visit", async () => {
+    const submittedCard = createMedicationFulfillmentCard(
+      sessionId,
+      "card-fulfillment",
+    )
+    const completedCard = createCompletedVisitCard(sessionId, "card-completed")
+
+    vi.spyOn(workbenchApi, "submitFulfillment").mockResolvedValue({
+      sessionId,
+      status: "completed",
+      card: completedCard,
+      timelineItems: [cardItem(completedCard)],
+    })
+
+    let currentCard: FlowCard = submittedCard
+    const sendMachineEvent = vi.fn()
+    const upsertTimelineItems = vi.fn()
+    const { result } = renderHook(() =>
+      useFlowCardAction({
+        sessionId,
+        sendMachineEvent,
+        updateCardInTimeline: (_cardId, updater) => {
+          currentCard = updater(currentCard)
+        },
+        upsertTimelineItems,
+        findCardById: () => submittedCard,
+      }),
+    )
+
+    await act(async () => {
+      await result.current.handleAction({
+        type: "choose_fulfillment",
+        cardId: submittedCard.id,
+        mode: "delivery",
+        addressId: "addr-001",
+      })
+    })
+
+    expect(currentCard).toMatchObject({
+      id: submittedCard.id,
+      kind: "medication_fulfillment",
+      status: "completed",
+      blocking: false,
+      selectedMode: "delivery",
+      fulfillmentStatus: "confirmed",
+    })
+    expect(currentCard.handledAt).toBeDefined()
+    expect(upsertTimelineItems).toHaveBeenCalledWith([cardItem(completedCard)])
+    expect(sendMachineEvent).toHaveBeenCalledWith({
+      type: "MEDICATION_FULFILLED",
+      cardId: submittedCard.id,
+    })
+    expect(sendMachineEvent).toHaveBeenCalledWith({ type: "VISIT_COMPLETED" })
   })
 })

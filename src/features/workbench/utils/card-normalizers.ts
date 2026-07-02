@@ -77,7 +77,8 @@ export function mapCardToMachineEvent(card: FlowCard): VisitMachineEvent {
     case "treatment_plan":
       return { type: "TREATMENT_DECIDED", cardId: card.id, plan: card.plan }
     case "medication_fulfillment":
-      return card.fulfillmentStatus === "completed"
+      return card.fulfillmentStatus === "completed" ||
+        card.fulfillmentStatus === "confirmed"
         ? { type: "MEDICATION_FULFILLED", cardId: card.id }
         : { type: "MEDICATION_FULFILLMENT_RAISED", cardId: card.id }
     case "treatment_execution":
