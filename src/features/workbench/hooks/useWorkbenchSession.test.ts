@@ -1,10 +1,9 @@
-import { act, renderHook, waitFor } from "@testing-library/react"
+import { act, renderHook } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import type { VisitSession } from "@/features/visits/api/types"
 import type { FlowCard, TimelineItem } from "@/features/workbench/api"
 import type { VisitMachineContext } from "@/features/workbench/machine/visit-machine.types"
-import type { VisitMachineEvent } from "@/features/workbench/machine/visit-machine.types"
 import { useWorkbenchSession } from "@/features/workbench/hooks/useWorkbenchSession"
 
 // ---- Mock useTimeline ----
@@ -32,12 +31,14 @@ const mockUseAssistantStream = vi.fn(() => ({
   isStreaming: mockIsStreaming,
 }))
 // Captured callbacks passed to useAssistantStream
-let assistantCallbacks: {
+type AssistantCallbacks = {
   appendTimelineItem: (item: TimelineItem) => void
   updateTimelineItem: (id: string, updater: (item: TimelineItem) => TimelineItem) => void
   upsertTimelineItems: (items: TimelineItem[]) => void
   sendMachineEvent: (event: unknown) => void
-} | null = null
+}
+
+let assistantCallbacks: AssistantCallbacks | null = null
 
 vi.mock("@/features/workbench/hooks/useAssistantStream", () => ({
   useAssistantStream: (opts: unknown) => mockUseAssistantStream(opts),
@@ -49,17 +50,19 @@ vi.mock("@/features/workbench/hooks/useSessionTitleGeneration", () => ({
 }))
 
 // Captured flow card callbacks from useFlowCardAction
-let flowCardCallbacks: {
+type FlowCardCallbacks = {
   updateCardInTimeline: (cardId: string, updater: (card: FlowCard) => FlowCard) => void
   upsertTimelineItems: (items: TimelineItem[]) => void
   sendMachineEvent: (event: unknown) => void
   findCardById?: (cardId: string) => FlowCard | undefined
-} | null = null
+}
+
+let flowCardCallbacks: FlowCardCallbacks | null = null
 
 // ---- Mock useFlowCardAction ----
 const mockHandleAction = vi.fn()
 const mockUseFlowCardAction = vi.fn((opts) => {
-  if (opts) flowCardCallbacks = opts as any
+  if (opts) flowCardCallbacks = opts as FlowCardCallbacks
   return {
     handleAction: mockHandleAction,
     isSubmitting: false,
@@ -335,7 +338,7 @@ function setupMocks(options: {
   })
 
   mockUseAssistantStream.mockImplementation((opts) => {
-    assistantCallbacks = opts as any
+    assistantCallbacks = opts as AssistantCallbacks
     return {
       startStream: mockStartStream,
       abortStream: mockAbortStream,
@@ -1037,8 +1040,14 @@ describe("useWorkbenchSession", () => {
       expect(mockExitVisit).not.toHaveBeenCalled()
     })
 
-    it("pauseVisit calls pauseVisitTimer and sends TIMER_PAUSED", async () => {
-      mockPauseVisitTimer.mockResolvedValue(makeSession())
+    it("pauseVisit caches returned session and sends TIMER_PAUSED", async () => {
+      const pausedSession = makeSession({
+        timerPaused: true,
+        pausedAt: "2026-06-28T01:06:00.000Z",
+        lastActivityAt: "2026-06-28T01:06:00.000Z",
+        updatedAt: "2026-06-28T01:06:00.000Z",
+      })
+      mockPauseVisitTimer.mockResolvedValue(pausedSession)
       setupMocks({ session: makeSession() })
 
       const { result } = renderHook(() => useWorkbenchSession("visit-001"))
@@ -1048,12 +1057,29 @@ describe("useWorkbenchSession", () => {
       })
 
       expect(mockPauseVisitTimer).toHaveBeenCalledWith({ sessionId: "visit-001" })
+      expect(mockSetQueryData).toHaveBeenCalledWith(
+        ["visits", "session", "visit-001"],
+        pausedSession,
+      )
       expect(mockSend).toHaveBeenCalledWith({ type: "TIMER_PAUSED" })
     })
 
-    it("resumeVisit calls resumeVisitTimer and sends TIMER_RESUMED", async () => {
-      mockResumeVisitTimer.mockResolvedValue(makeSession())
-      setupMocks({ session: makeSession() })
+    it("resumeVisit caches returned session and sends TIMER_RESUMED", async () => {
+      const resumedSession = makeSession({
+        timerPaused: false,
+        pausedAt: undefined,
+        lastActivityAt: "2026-06-28T01:10:00.000Z",
+        updatedAt: "2026-06-28T01:10:00.000Z",
+      })
+      mockResumeVisitTimer.mockResolvedValue(resumedSession)
+      setupMocks({
+        session: makeSession({
+          timerPaused: true,
+          pausedAt: "2026-06-28T01:06:00.000Z",
+          lastActivityAt: "2026-06-28T01:06:00.000Z",
+          updatedAt: "2026-06-28T01:06:00.000Z",
+        }),
+      })
 
       const { result } = renderHook(() => useWorkbenchSession("visit-001"))
 
@@ -1062,6 +1088,10 @@ describe("useWorkbenchSession", () => {
       })
 
       expect(mockResumeVisitTimer).toHaveBeenCalledWith({ sessionId: "visit-001" })
+      expect(mockSetQueryData).toHaveBeenCalledWith(
+        ["visits", "session", "visit-001"],
+        resumedSession,
+      )
       expect(mockSend).toHaveBeenCalledWith({ type: "TIMER_RESUMED" })
     })
 

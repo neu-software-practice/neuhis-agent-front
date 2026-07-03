@@ -199,8 +199,8 @@ NEUHIS Agent 前端——基于 React + HeroUI 3 + Magic UI 的 AI 诊疗 Agent 
 │   │   │   │   └── workbench-ui-store.ts   # UI 状态 flags（drawer / overlay / sheet 显隐）
 │   │   │   │
 │   │   │   ├── hooks/
-│   │   │   │   ├── useWorkbenchSession.ts       # 工作台总装 hook（query + machine + stream + actions，pending blocking card 派生 LockBar）
-│   │   │   │   ├── useWorkbenchSession.test.ts  # LockBar 阻塞卡派生：轮询更新为 blocking:false 后不再显示
+│   │   │   │   ├── useWorkbenchSession.ts       # 工作台总装 hook（query + machine + stream + actions，计时操作回写 session cache，pending blocking card 派生 LockBar）
+│   │   │   │   ├── useWorkbenchSession.test.ts  # LockBar 阻塞卡派生、暂停/恢复计时 session cache 回写
 │   │   │   │   ├── useTimeline.ts               # useInfiniteQuery 时间线 + flatten
 │   │   │   │   ├── useAssistantStream.ts        # SSE 流管理（delta rAF 合并、card→event 映射）
 │   │   │   │   ├── useAssistantStream.test.tsx
@@ -381,7 +381,7 @@ API 层
 | `workbench-api.test.ts` | mock 全链路：创建会话、SSE、检验/支付/治疗三路径、急症 |
 | `visit-machine.test.ts` | hydration、阻塞态、检验链路、急症恢复/确认、超时、处置分支 |
 | `useFlowCardAction.test.ts` | 支付/fulfillment 事件映射、失败不推进、completed_visit 返回不污染取药卡 |
-| `useWorkbenchSession.test.ts` | 当前阻塞卡派生：同一 currentCardId 轮询刷新成非阻塞后隐藏 LockBar |
+| `useWorkbenchSession.test.ts` | 当前阻塞卡派生；暂停/恢复计时回写 VisitSession cache |
 | `useAssistantStream.test.tsx` | 急症流中断 invalidated |
 | `useVisitCountdown.test.ts` | 空闲计时阶段转换、暂停冻结 |
 | `useExitSettlement.test.ts` | 四档退出后果派生 |
@@ -443,6 +443,13 @@ API 层
 共 166 test files，2544 tests，0 failures。测试分布于所有模块，核心业务代码 100% 覆盖，非核心模块大部分超过 80%。详见 [测试覆盖率报告](./coverage-report.md)。
 
 ## 最近实现记录
+
+### 2026-07-03：问诊暂停/恢复时间同步修复
+
+- 已实现：`useWorkbenchSession.pauseVisit` / `resumeVisit` 消费 `pauseVisitTimer` / `resumeVisitTimer` 返回的 `VisitSession`，立即写入 `visitsQueryKeys.session(sessionId)`，让 `lastActivityAt`、`pausedAt`、`timerPaused` 在工作台 UI 和空闲倒计时中即时更新。
+- 已实现：补充 `useWorkbenchSession.test.ts` 回归覆盖，断言暂停/恢复动作会把后端返回的 session 写入 React Query cache 后再发送 `TIMER_PAUSED` / `TIMER_RESUMED` 状态机事件。
+- 未实现：未改变 REST contract、mock-db 计时语义或 `useVisitCountdown` 计算模型；暂停仍以 `pausedAt` 冻结，恢复仍以刷新的 `lastActivityAt` 重置空闲倒计时。
+- 验证：`VITE_API_MODE=mock /home/dev/projects/neuhis-agent-front/node_modules/.bin/vitest run src/features/workbench/hooks/useWorkbenchSession.test.ts` 通过；`VITE_API_MODE=mock /home/dev/projects/neuhis-agent-front/node_modules/.bin/vitest run src/features/workbench/hooks/useVisitCountdown.test.ts src/mocks/api/mock-db.test.ts` 通过；触碰文件 `eslint` 通过；`/home/dev/projects/neuhis-agent-front/node_modules/.bin/vite build` 通过。
 
 ### 2026-07-03：Workbench 首轮消息顺序与重复气泡修复
 

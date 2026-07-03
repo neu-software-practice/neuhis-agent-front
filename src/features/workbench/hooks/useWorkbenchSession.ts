@@ -849,15 +849,17 @@ export function useWorkbenchSession(
 
   /** 暂停计时 */
   const pauseVisit = useCallback(async () => {
-    await workbenchApi.pauseVisitTimer({ sessionId })
+    const updatedSession = await workbenchApi.pauseVisitTimer({ sessionId })
+    queryClient.setQueryData(visitsQueryKeys.session(sessionId), updatedSession)
     actorRef.send({ type: "TIMER_PAUSED" })
-  }, [sessionId, actorRef])
+  }, [sessionId, queryClient, actorRef])
 
   /** 恢复计时 */
   const resumeVisit = useCallback(async () => {
-    await workbenchApi.resumeVisitTimer({ sessionId })
+    const updatedSession = await workbenchApi.resumeVisitTimer({ sessionId })
+    queryClient.setQueryData(visitsQueryKeys.session(sessionId), updatedSession)
     actorRef.send({ type: "TIMER_RESUMED" })
-  }, [sessionId, actorRef])
+  }, [sessionId, queryClient, actorRef])
 
   /** 上报急症体征 */
   const reportVitals = useCallback(
