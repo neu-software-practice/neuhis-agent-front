@@ -44,7 +44,7 @@ export function PageTransition({ children }: PageTransitionProps) {
       animate={ACTIVE_VARIANTS}
       exit={EXIT_VARIANTS}
       transition={TRANSITION}
-      style={{ height: "100%" }}
+      style={{ opacity: 0, height: "100%" }}
     >
       {children}
     </motion.div>
@@ -72,7 +72,7 @@ export function AnimatedOutlet() {
         animate={ACTIVE_VARIANTS}
         exit={EXIT_VARIANTS}
         transition={TRANSITION}
-        style={{ height: "100%" }}
+        style={{ opacity: 0, height: "100%" }}
       >
         <Outlet />
       </motion.div>
