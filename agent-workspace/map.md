@@ -379,6 +379,8 @@ API 层
 | `card-normalizers.test.ts` | 流程卡到状态机事件映射（含 fulfillment confirmed/completed） |
 | `WorkbenchSidebar.test.tsx` | 右侧栏渲染动态进度步骤、状态文案和步骤描述 |
 | `FlowCardRenderer.test.tsx` | 9 种 card kind 分发 + onAction |
+| `MedicationFulfillmentCard.test.tsx` | 配送地址弹窗打开、默认地址确认与 choose_fulfillment action |
+| `WorkbenchPage.test.tsx` | 工作台向时间线传递真实 patientId，支撑地址簿查询 |
 | `InputAssistPanel.test.tsx` | chip 渲染与点击回调 |
 | `NewWorkbenchPage.test.tsx` | 复诊创建 + cache 预热 + 超时重试 |
 | `schemas.test.ts` | Zod schema refinement 规则 |
@@ -391,6 +393,14 @@ API 层
 - MSW handler 未实现；测试走 mock transport
 
 ## 最近实现记录
+
+### 2026-07-03：购药配送按钮与确认配送流程修复
+
+- 已实现：`WorkbenchPage` 向 `ChatTimeline` 传递 `session.patientId`，修复此前误传 `patientName` 导致地址簿查询和配送提交使用错误患者标识的问题。
+- 已实现：`MedicationFulfillmentCard` 中配送按钮改为主操作样式；`AddressPickerModal` 底部“新增地址”改为主操作样式，仅地址满 10 条时禁用。
+- 已实现：确认配送改为等待 `onConfirm(addressId)` 成功后再关闭弹窗；提交中禁用确认按钮并显示“确认中...”，失败时保持弹窗打开并恢复按钮。
+- 未实现：未新增后端接口，也未改变配送业务语义；配送确认后仍以 `fulfillmentStatus: "confirmed"` 记录药品配送，并推进问诊完成。
+- 验证：`./node_modules/.bin/vitest run src/pages/workbench/WorkbenchPage.test.tsx src/features/workbench/flow-cards/MedicationFulfillmentCard.test.tsx src/features/workbench/api/workbench-api.test.ts src/features/workbench/hooks/useFlowCardAction.test.ts` 通过；触碰文件 `eslint` 通过；`./node_modules/.bin/vite build` 通过。`./node_modules/.bin/tsc -b` 仍被既有问题阻塞：`SystemEventRow.tsx` 缺 `lab_vetoed` 图标映射、`visit-machine.test.ts` 的 `patientName` 类型、`card-normalizers.test.ts` 的旧 `"done"` 卡片状态、`mock-db.ts` 的 `paymentId` 可空赋值。
 
 ### 2026-07-02：右侧动态流程进度
 

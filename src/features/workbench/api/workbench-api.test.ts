@@ -212,6 +212,53 @@ describe("workbench API facade with mock transport", () => {
     expect((await api.workbench.getSession(sessionId)).status).toBe("completed")
   })
 
+  it("runs the medication delivery branch with a saved address", async () => {
+    const { sessionId, labCard } = await createSessionAndRaiseLabCard(
+      "体温 38.5 度，咽痛明显，需要配送药品。",
+    )
+
+    const labPaymentResult = await acceptLabAndPay(sessionId, labCard)
+    if (!labPaymentResult.card || labPaymentResult.card.kind !== "payment") {
+      throw new Error("expected medication payment card")
+    }
+
+    const medicationPaymentResult = await api.workbench.submitPayment({
+      sessionId,
+      cardId: labPaymentResult.card.id,
+      purpose: "medication",
+      paymentMethodId: "mock-pay",
+    })
+    if (
+      !medicationPaymentResult.card ||
+      medicationPaymentResult.card.kind !== "medication_fulfillment"
+    ) {
+      throw new Error("expected medication fulfillment card")
+    }
+
+    const completedResult = await api.workbench.submitFulfillment({
+      sessionId,
+      cardId: medicationPaymentResult.card.id,
+      mode: "delivery",
+      addressId: "addr-seed-001",
+    })
+
+    expect(completedResult.status).toBe("completed")
+    expect(completedResult.card?.kind).toBe("completed_visit")
+    expect((await api.workbench.getSession(sessionId)).status).toBe("completed")
+
+    const orders = await api.medicalOrders.listRecords()
+    const order = orders.items.find((item) => item.sessionId === sessionId)
+    expect(order).toMatchObject({
+      kind: "medication",
+      fulfillmentStatus: "confirmed",
+      deliveryAddress: {
+        name: "李明",
+        phone: "13800002468",
+        fullAddress: "辽宁省沈阳市浑南区创新路195号东软软件园B4座3楼",
+      },
+    })
+  })
+
   it("runs the advice-only branch to a completed visit card", async () => {
     const { sessionId, labCard } = await createSessionAndRaiseLabCard(
       "低热咽痛，我想先观察，只要建议和医嘱。",

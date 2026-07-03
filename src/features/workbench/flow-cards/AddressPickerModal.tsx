@@ -12,7 +12,7 @@ import type { PatientId } from "@/lib/api/types"
 interface AddressPickerModalProps {
   isOpen: boolean
   onClose: () => void
-  onConfirm: (addressId: string) => void
+  onConfirm: (addressId: string) => void | Promise<void>
   patientId: PatientId
 }
 
@@ -24,6 +24,7 @@ export function AddressPickerModal({
 }: AddressPickerModalProps) {
   const [selectedId, setSelectedId] = useState<string>("")
   const [formOpen, setFormOpen] = useState(false)
+  const [confirming, setConfirming] = useState(false)
 
   const {
     data,
@@ -47,10 +48,15 @@ export function AddressPickerModal({
     setSelectedId(address.id)
   }
 
-  function handleConfirm() {
-    if (effectiveSelectedId) {
-      onConfirm(effectiveSelectedId)
-      onClose()
+  async function handleConfirm() {
+    if (effectiveSelectedId && !confirming) {
+      setConfirming(true)
+      try {
+        await onConfirm(effectiveSelectedId)
+        onClose()
+      } finally {
+        setConfirming(false)
+      }
     }
   }
 
@@ -128,7 +134,7 @@ export function AddressPickerModal({
 
               <Modal.Footer className="flex flex-col gap-2 sm:flex-row sm:justify-between">
                 <Button
-                  variant="secondary"
+                  variant="primary"
                   onPress={() => setFormOpen(true)}
                   isDisabled={addresses.length >= 10}
                 >
@@ -142,9 +148,9 @@ export function AddressPickerModal({
                   <Button
                     variant="primary"
                     onPress={handleConfirm}
-                    isDisabled={!effectiveSelectedId}
+                    isDisabled={!effectiveSelectedId || confirming}
                   >
-                    确认配送
+                    {confirming ? "确认中..." : "确认配送"}
                   </Button>
                 </div>
               </Modal.Footer>

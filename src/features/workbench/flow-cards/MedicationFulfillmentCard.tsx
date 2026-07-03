@@ -166,7 +166,7 @@ export const MedicationFulfillmentCard = memo(
             {card.availableModes.includes("delivery") ? (
               <Button
                 size="sm"
-                variant="secondary"
+                variant="primary"
                 isDisabled={isLocked || !patientId}
                 onPress={() => setAddressPickerOpen(true)}
               >
@@ -182,14 +182,15 @@ export const MedicationFulfillmentCard = memo(
             isOpen={addressPickerOpen}
             onClose={() => setAddressPickerOpen(false)}
             patientId={patientId}
-            onConfirm={(addressId) =>
-              onAction?.({
+            onConfirm={(addressId) => {
+              const result = onAction?.({
                 type: "choose_fulfillment",
                 cardId: card.id,
                 mode: "delivery",
                 addressId,
               })
-            }
+              return Promise.resolve(result)
+            }}
           />
         ) : null}
       </Card>

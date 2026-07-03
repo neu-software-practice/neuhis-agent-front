@@ -187,7 +187,7 @@ export default function WorkbenchPage() {
           />
           <ChatTimeline
             items={items}
-            patientId={session?.patientName}
+            patientId={session?.patientId}
             onAction={actions.submitFlowAction}
             loading={isFetchingMore}
             hasMore={hasMore}
