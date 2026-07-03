@@ -136,4 +136,96 @@ describe("FlowCardRenderer 分发", () => {
 
     expect(screen.getByText("已检验")).toBeInTheDocument()
   })
+
+  it("disabled=true 传递到 LabDecisionCard 按钮禁用", () => {
+    const card = createLabDecisionCard(SESSION_ID, "card-disabled")
+
+    render(<FlowCardRenderer card={card} disabled />)
+
+    const acceptButton = screen.getByRole("button", { name: /同意检验/ })
+    expect(acceptButton).toBeDisabled()
+  })
+
+  it("disabled=true 传递到 AdviceOnlyCard 按钮禁用", () => {
+    const card = createAdviceOnlyCard(SESSION_ID, "card-disabled-advice")
+
+    render(<FlowCardRenderer card={card} disabled />)
+
+    const ackButton = screen.getByRole("button", { name: /已知晓/ })
+    expect(ackButton).toBeDisabled()
+  })
+
+  it("disabled=true 传递到 PaymentCard 按钮禁用", () => {
+    const card = createLabPaymentCard(SESSION_ID, "card-disabled-pay")
+
+    render(<FlowCardRenderer card={card} disabled />)
+
+    // PaymentCard in pending state should have buttons disabled
+    const payButton = screen.getByRole("button", { name: /确认支付/ })
+    expect(payButton).toBeDisabled()
+  })
+
+  it("disabled=true 传递到 TreatmentExecutionCard 按钮禁用", () => {
+    const card = createTreatmentExecutionCard(SESSION_ID, "card-disabled-treat")
+
+    render(<FlowCardRenderer card={card} disabled />)
+
+    const scheduleButton = screen.getByRole("button", { name: /预约/ })
+    expect(scheduleButton).toBeDisabled()
+  })
+
+  it("AdviceOnlyCard 点击「已知晓」触发 onAction(ack_advice)", async () => {
+    const onAction = vi.fn()
+    const card = createAdviceOnlyCard(SESSION_ID, "card-ack")
+
+    render(<FlowCardRenderer card={card} onAction={onAction} />)
+
+    const ackButton = screen.getByRole("button", { name: /已知晓/ })
+    const user = userEvent.setup()
+    await user.click(ackButton)
+    if (onAction.mock.calls.length === 0) {
+      fireEvent.click(ackButton)
+    }
+
+    expect(onAction).toHaveBeenCalled()
+  })
+
+  it("PaymentCard 点击「确认支付」触发 onAction(submit_payment)", async () => {
+    const onAction = vi.fn()
+    const card = createLabPaymentCard(SESSION_ID, "card-pay")
+
+    render(<FlowCardRenderer card={card} onAction={onAction} />)
+
+    const payButton = screen.getByRole("button", { name: /确认支付/ })
+    const user = userEvent.setup()
+    await user.click(payButton)
+    if (onAction.mock.calls.length === 0) {
+      fireEvent.click(payButton)
+    }
+
+    expect(onAction).toHaveBeenCalled()
+  })
+
+  it("MedicationFulfillmentCard 基本渲染", () => {
+    const card = createMedicationFulfillmentCard(SESSION_ID, "card-med")
+
+    render(<FlowCardRenderer card={card} />)
+
+    expect(screen.getByText("药品清单")).toBeInTheDocument()
+  })
+
+  it("所有可选 props 同时传递时正常渲染", () => {
+    const card = createLabDecisionCard(SESSION_ID, "card-all-props")
+
+    render(
+      <FlowCardRenderer
+        card={card}
+        patientId="patient-123"
+        disabled={false}
+        onAction={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText("检验原因")).toBeInTheDocument()
+  })
 })

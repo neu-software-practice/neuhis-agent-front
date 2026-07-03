@@ -10,6 +10,11 @@ const quickAnswerChip = {
   label: "快捷回答",
   type: "quick_answer" as const,
 }
+const secondDraftChip = {
+  id: "draft-2",
+  label: "另一个草稿",
+  type: "draft" as const,
+}
 
 describe("InputAssistPanel", () => {
   it("renders nothing when visible is false", () => {
@@ -32,6 +37,14 @@ describe("InputAssistPanel", () => {
     expect(container).toBeEmptyDOMElement()
   })
 
+  it("renders nothing when both visible is false and chips is empty", () => {
+    const { container } = render(
+      <InputAssistPanel chips={[]} visible={false} onChipClick={vi.fn()} />,
+    )
+
+    expect(container).toBeEmptyDOMElement()
+  })
+
   it("renders both draft and quick_answer labels when visible", () => {
     render(
       <InputAssistPanel
@@ -43,6 +56,60 @@ describe("InputAssistPanel", () => {
 
     expect(screen.getByText(draftChip.label)).toBeInTheDocument()
     expect(screen.getByText(quickAnswerChip.label)).toBeInTheDocument()
+  })
+
+  it("renders only draft chips when only draft chips are provided", () => {
+    render(
+      <InputAssistPanel
+        chips={[draftChip]}
+        visible
+        onChipClick={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText(draftChip.label)).toBeInTheDocument()
+    expect(
+      screen.queryByText(quickAnswerChip.label),
+    ).not.toBeInTheDocument()
+  })
+
+  it("renders only quick_answer chips when only quick_answer chips are provided", () => {
+    render(
+      <InputAssistPanel
+        chips={[quickAnswerChip]}
+        visible
+        onChipClick={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText(quickAnswerChip.label)).toBeInTheDocument()
+    expect(screen.queryByText(draftChip.label)).not.toBeInTheDocument()
+  })
+
+  it("renders multiple draft chips", () => {
+    render(
+      <InputAssistPanel
+        chips={[draftChip, secondDraftChip]}
+        visible
+        onChipClick={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText(draftChip.label)).toBeInTheDocument()
+    expect(screen.getByText(secondDraftChip.label)).toBeInTheDocument()
+  })
+
+  it("renders Pencil icon in draft chips", () => {
+    const { container } = render(
+      <InputAssistPanel
+        chips={[draftChip]}
+        visible
+        onChipClick={vi.fn()}
+      />,
+    )
+
+    // Pencil icon renders as an SVG
+    expect(container.querySelector("svg")).toBeInTheDocument()
   })
 
   it("invokes onChipClick with the exact chip object for each chip type", async () => {
@@ -71,5 +138,21 @@ describe("InputAssistPanel", () => {
     expect(onChipClick.mock.calls[1][0].type).toBe("quick_answer")
 
     expect(onChipClick).toHaveBeenCalledTimes(2)
+  })
+
+  it("applies custom className", () => {
+    const { container } = render(
+      <InputAssistPanel
+        chips={[draftChip]}
+        visible
+        onChipClick={vi.fn()}
+        className="custom-panel"
+      />,
+    )
+
+    const panel = container.firstChild as HTMLElement
+    expect(panel.className).toContain("custom-panel")
+    expect(panel.className).toContain("flex")
+    expect(panel.className).toContain("flex-col")
   })
 })

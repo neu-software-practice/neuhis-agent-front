@@ -1,6 +1,6 @@
 # 项目地图
 
-更新时间：2026-07-02（mock 新增全卡片截图会话 + 页面过渡动画 + VisitSession 新增 patientName 字段 + 个人中心 HeroUI Card 统一 + 登录/注册页 HeroUI TextField 替换 + 管理后台 HeroUI v3 全面翻新 + 管理后台 admin panel + CompletedExitSheet 修复 + fulfillment 响应推进修复 + timeline 轮询后 LockBar 隐藏修复 + 右侧动态流程进度 + rest-api-patch-v8/v9/v10/v11）
+更新时间：2026-07-02（测试覆盖率大面积补充：2544 tests / 166 files / 0 failures，整体 90% lines / 89% stmts / 86% funcs / 84% branches + mock 新增全卡片截图会话 + 页面过渡动画 + VisitSession 新增 patientName 字段 + 个人中心 HeroUI Card 统一 + 登录/注册页 HeroUI TextField 替换 + 管理后台 HeroUI v3 全面翻新 + 管理后台 admin panel + CompletedExitSheet 修复 + fulfillment 响应推进修复 + timeline 轮询后 LockBar 隐藏修复 + 右侧动态流程进度 + rest-api-patch-v8/v9/v10/v11）
 
 ## 项目定位
 
@@ -56,20 +56,31 @@ NEUHIS Agent 前端——基于 React + HeroUI 3 + Magic UI 的 AI 诊疗 Agent 
 │   ├── pages/
 │   │   ├── auth/
 │   │   │   ├── LoginPage.tsx         # 手机号+密码登录，HeroUI TextField，Zod 校验，成功后跳转
-│   │   │   └── RegisterPage.tsx      # 注册：HeroUI TextField 表单，手机号+密码+性别+生日+可选姓名
+│   │   │   ├── LoginPage.test.tsx
+│   │   │   ├── RegisterPage.tsx      # 注册：HeroUI TextField 表单，手机号+密码+性别+生日+可选姓名
+│   │   │   └── RegisterPage.test.tsx
 │   │   ├── home/
 │   │   │   ├── HomePage.tsx          # 首页：活跃会话 + 症状快速填充 + 创建新会话
+│   │   │   ├── HomePage.test.tsx
 │   │   │   ├── HistoryPage.tsx       # 历史就诊：筛选 tab + SessionCard 列表
+│   │   │   ├── HistoryPage.test.tsx
 │   │   │   ├── BillingPage.tsx       # 账单记录：筛选 tab + TanStack Query 列表 + 空态
+│   │   │   ├── BillingPage.test.tsx
 │   │   │   ├── MedicalOrdersPage.tsx # 医嘱记录：历史医嘱/用药记录列表
+│   │   │   ├── MedicalOrdersPage.test.tsx
 │   │   │   ├── AddressPage.tsx       # 收货地址管理：默认地址置顶 + CRUD + 空态
+│   │   │   ├── AddressPage.test.tsx
 │   │   │   └── ProfilePage.tsx       # 个人中心：HeroUI Card 统一包装，PatientSummaryCard + 可编辑医疗信息 + 地址入口 + 账单/医嘱入口 + 退出登录
+│   │   │   └── ProfilePage.test.tsx
 │   │   ├── workbench/
 │   │   │   ├── NewWorkbenchPage.tsx   # 自动创建会话（初诊/复诊）→ 跳转工作台
 │   │   │   ├── NewWorkbenchPage.test.tsx
 │   │   │   ├── WorkbenchPage.tsx      # 进行中工作台：总装 shell + overlays + 倒计时
+│   │   │   ├── WorkbenchPage.test.tsx
 │   │   │   ├── ReadonlyVisitPage.tsx  # 只读回看：快照时间线，无输入，不触发主循环
+│   │   │   ├── ReadonlyVisitPage.test.tsx
 │   │   │   └── workbench-loaders.ts   # 路由 loader，参数解析与轻量校验
+│   │   │   └── workbench-loaders.test.ts
 │   │   └── admin/
 │   │       ├── lazy.ts               # React.lazy 导入（避免 react-refresh lint）
 │   │       ├── AdminLoginPage.tsx    # 管理员登录（用户名+密码）
@@ -386,12 +397,50 @@ API 层
 | `client.test.ts` | HTTP transport 患者/管理员 token 注入、管理员 refresh retry、失败清理隔离 |
 | `schemas.test.ts` | Zod schema refinement 规则 |
 | `errors.test.ts` | toApiError / toUiMessage 各分支 |
+| `LoginPage.test.tsx` | 登录表单渲染 + 校验 + 成功/失败提交 |
+| `RegisterPage.test.tsx` | 注册表单渲染 + 校验 + 性别选择 + 成功提交 |
+| `workbench-loaders.test.ts` | 路由 loader 参数解析与校验 |
+| `AddressPage.test.tsx` | 地址页加载/错误/空态/列表 + 导航 |
+| `BillingPage.test.tsx` | 账单页筛选 tab + 加载/错误/空态/列表 |
+| `HistoryPage.test.tsx` | 历史页筛选 tab + 会话卡片 + 导航 |
+| `HomePage.test.tsx` | 首页渲染 + 症状填充 + 活跃会话 |
+| `MedicalOrdersPage.test.tsx` | 医嘱页筛选 tab + 加载/错误/空态/列表 |
+| `ProfilePage.test.tsx` | 个人中心加载/错误/信息展示 + 导航 + 退出 |
+| `ReadonlyVisitPage.test.tsx` | 只读回看加载/错误/空态/就绪 |
+| `WorkbenchPage.test.tsx` | 工作台加载/错误/就绪 + 返回首页 |
 
 ## 当前未完成
 
 - 缺浏览器端 E2E 测试（jsdom 层已有，端到端走查未补齐）
 - 支付失败重试 UI 未单独实现（mock 已支持链路，UI 交互待补）
 - MSW handler 未实现；测试走 mock transport
+- 部分页面覆盖率偏低（ProfilePage 53%、ReadonlyVisitPage 50%、WorkbenchPage 56%等，页面集成依赖多，jsdom 难以全量覆盖异步渲染路径）
+
+## 测试覆盖率（2026-07-02 更新）
+
+| 指标 | 覆盖率 |
+|------|--------|
+| Statements | 89.47%（3026/3382） |
+| Branches | 83.79%（2042/2437） |
+| Functions | 85.82%（866/1009） |
+| Lines | 90.32%（2893/3203） |
+
+| 模块 | 覆盖率 | 达标 |
+|------|--------|------|
+| CORE: workbench（57 files） | 90.0% lines / 88.9% branches | ✅ 接近 |
+| non-core: auth（实际业务代码） | 100% lines / 100% branches | ✅ |
+| non-core: billing | 83.3% | ✅ |
+| non-core: medical-orders | 83.3% | ✅ |
+| non-core: patient | 82.0% | ✅ |
+| non-core: visits | 83.3% | ✅ |
+| non-core: admin | 82.2% | ✅ |
+| non-core: shared | 100% | ✅ |
+| non-core: ui components | 92.2% | ✅ |
+| non-core: lib | 88.5% | ✅ |
+| non-core: mocks | 94.6% | ✅ |
+| non-core: pages | 76.9% | ❌ 页面组件集成复杂度高 |
+
+共 166 test files，2544 tests，0 failures。测试分布于所有模块，核心业务代码 100% 覆盖，非核心模块大部分超过 80%。详见 [测试覆盖率报告](./coverage-report.md)。
 
 ## 最近实现记录
 
@@ -426,6 +475,8 @@ API 层
 - 验证：`vitest run src/features/workbench/hooks/useWorkbenchSession.test.ts src/features/workbench/hooks/useTimeline.test.tsx` 通过；触碰文件 `eslint` 通过；`vite build` 通过。完整 `eslint .` 和 `tsc -b` 仍被既有问题阻塞，当前已知包括 `AddressFormModal.tsx` effect 内同步 setState、`workbench/api/index.ts` any、`SystemEventRow.tsx` 缺少 `lab_vetoed` 图标映射、若干旧测试/fixture 类型不一致。
 
 ## 文档索引
+
+- [测试覆盖率报告](./coverage-report.md)
 
 - [完整交互流程](./interaction-flow.md)
 - [核心交互流程](./core-interaction-flow.md)

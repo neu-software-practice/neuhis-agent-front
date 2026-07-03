@@ -12,6 +12,18 @@ export default mergeConfig(
       setupFiles: './src/test/setup.ts',
       css: true,
       passWithNoTests: true,
+      coverage: {
+        provider: 'v8',
+        include: ['src/**/*.{ts,tsx}'],
+        exclude: [
+          'src/**/*.test.{ts,tsx}',
+          'src/**/*.spec.{ts,tsx}',
+          'src/**/*.d.ts',
+          'src/main.tsx',
+          'src/test/**',
+        ],
+        reporter: ['text', 'html', 'json-summary'],
+      },
     },
   }),
 )

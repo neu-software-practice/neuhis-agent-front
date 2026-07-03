@@ -1,26 +1,73 @@
-import type { ReactNode } from "react"
 import { render, screen } from "@testing-library/react"
-import { describe, expect, it, vi } from "vitest"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 
-import WorkbenchPage from "@/pages/workbench/WorkbenchPage"
+// ─── jsdom polyfills ────────────────────────────────────────────────
+// jsdom does not implement matchMedia; several hooks (useIsDesktop) rely on it.
+if (!window.matchMedia) {
+  window.matchMedia = (query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    dispatchEvent: () => false,
+  }) as unknown as MediaQueryList
+}
+
+// ─── Router mocks ────────────────────────────────────────────────────
+const navigate = vi.fn()
+let loaderData = { sessionId: "visit-mock-active" }
 
 vi.mock("react-router", () => ({
-  useLoaderData: () => ({ sessionId: "visit-mock-active" }),
-  useNavigate: () => vi.fn(),
+  useLoaderData: () => loaderData,
+  useNavigate: () => navigate,
 }))
 
+// ─── useWorkbenchSession mock ────────────────────────────────────────
+const mockSuspendVisit = vi.fn()
+const mockResumeVisit = vi.fn()
+const mockSendMessage = vi.fn()
+const mockSubmitFlowAction = vi.fn()
+const mockReportVitals = vi.fn()
+const mockConfirmEmergency = vi.fn()
+const mockDismissEmergency = vi.fn()
+
 vi.mock("@/features/workbench/hooks/useWorkbenchSession", () => ({
-  useWorkbenchSession: () => ({
-    session: {
-      id: "visit-mock-active",
-      patientId: "patient-mock-001",
-      patientName: "李明",
-      status: "chatting",
-      summary: {},
-    },
+  useWorkbenchSession: vi.fn(),
+}))
+
+import WorkbenchPage from "@/pages/workbench/WorkbenchPage"
+import { useWorkbenchSession } from "@/features/workbench/hooks/useWorkbenchSession"
+import type { UseWorkbenchSessionResult } from "@/features/workbench/hooks/useWorkbenchSession"
+
+function createMockSession(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "visit-mock-active",
+    patientId: "patient-mock-001",
+    patientName: "李明",
+    entryType: "new",
+    status: "chatting",
+    startedAt: "2026-06-01T00:00:00.000Z",
+    updatedAt: "2026-06-01T01:00:00.000Z",
+    lastActivityAt: "2026-06-01T01:00:00.000Z",
+    askRound: 1,
+    askRoundLimit: 6,
+    labRound: 0,
+    labRoundLimit: 2,
+    timerPaused: false,
+    summary: { chiefComplaint: "发热", lastMessage: "请描述" },
+    ...overrides,
+  }
+}
+
+function createMockResult(overrides: Partial<UseWorkbenchSessionResult> = {}): UseWorkbenchSessionResult {
+  return {
+    session: createMockSession(),
     items: [],
     state: "chatting",
-    context: {},
+    context: { timerPaused: false, askRound: 1, labRound: 0, blocking: false },
     blockingCard: undefined,
     loading: false,
     error: undefined,
@@ -29,102 +76,77 @@ vi.mock("@/features/workbench/hooks/useWorkbenchSession", () => ({
     isFetchingMore: false,
     isStreaming: false,
     actions: {
-      sendMessage: vi.fn(),
+      sendMessage: mockSendMessage,
       askLockedQuestion: vi.fn(),
-      submitFlowAction: vi.fn(),
+      submitFlowAction: mockSubmitFlowAction,
       requestExit: vi.fn(),
       confirmExit: vi.fn(),
       pauseVisit: vi.fn(),
-      resumeVisit: vi.fn(),
-      reportVitals: vi.fn(),
-      dismissEmergency: vi.fn(),
-      confirmEmergency: vi.fn(),
+      resumeVisit: mockResumeVisit,
+      reportVitals: mockReportVitals,
+      dismissEmergency: mockDismissEmergency,
+      confirmEmergency: mockConfirmEmergency,
       triggerTimeout: vi.fn(),
-      suspendVisit: vi.fn(),
+      suspendVisit: mockSuspendVisit,
       resumeFromSuspended: vi.fn(),
     },
-  }),
-}))
-
-vi.mock("@/features/workbench/components/ChatTimeline", () => ({
-  ChatTimeline: ({ patientId }: { patientId?: string }) => (
-    <div data-testid="chat-timeline" data-patient-id={patientId} />
-  ),
-}))
-
-vi.mock("@/features/workbench/components/WorkbenchShell", () => ({
-  WorkbenchShell: ({ timeline }: { timeline: ReactNode }) => (
-    <main>{timeline}</main>
-  ),
-}))
-
-vi.mock("@/features/workbench/components/ContextSummaryBar", () => ({
-  ContextSummaryBar: () => <div />,
-}))
-
-vi.mock("@/features/workbench/components/WorkbenchHeader", () => ({
-  WorkbenchHeader: () => <div />,
-}))
-
-vi.mock("@/features/workbench/components/WorkbenchSidebar", () => ({
-  WorkbenchSidebar: () => <div />,
-}))
-
-vi.mock("@/features/workbench/components/InputDock", () => ({
-  InputDock: () => <div />,
-}))
-
-vi.mock("@/features/workbench/components/LockBar", () => ({
-  LockBar: () => <div />,
-}))
-
-vi.mock("@/features/workbench/components/ContextSummaryDrawer", () => ({
-  ContextSummaryDrawer: () => null,
-}))
-
-vi.mock("@/features/workbench/components/EmergencyOverlay", () => ({
-  EmergencyOverlay: () => null,
-}))
-
-vi.mock("@/features/workbench/components/CompletedExitSheet", () => ({
-  CompletedExitSheet: () => null,
-}))
-
-vi.mock("@/features/workbench/components/ExitVisitSheet", () => ({
-  ExitVisitSheet: () => null,
-}))
-
-vi.mock("@/features/workbench/components/PauseVisitSheet", () => ({
-  PauseVisitSheet: () => null,
-}))
-
-vi.mock("@/features/workbench/components/LockQuestionSheet", () => ({
-  LockQuestionSheet: () => null,
-}))
-
-vi.mock("@/features/workbench/components/SuspendOverlay", () => ({
-  SuspendOverlay: () => null,
-}))
-
-vi.mock("@/features/workbench/hooks/useExitSettlement", () => ({
-  useExitSettlement: () => ({ consequence: undefined }),
-}))
-
-vi.mock("@/features/workbench/hooks/useVisitCountdown", () => ({
-  useVisitCountdown: () => ({ warningText: undefined }),
-}))
-
-vi.mock("@/features/workbench/utils/flow-progress", () => ({
-  buildFlowProgressSteps: () => [],
-}))
+    ...overrides,
+  }
+}
 
 describe("WorkbenchPage", () => {
-  it("passes the session patientId to the timeline for address lookups", () => {
-    render(<WorkbenchPage />)
+  beforeEach(() => {
+    navigate.mockReset()
+    mockSuspendVisit.mockReset()
+    mockResumeVisit.mockReset()
+    mockSendMessage.mockReset()
+    mockSubmitFlowAction.mockReset()
+    mockReportVitals.mockReset()
+    mockConfirmEmergency.mockReset()
+    mockDismissEmergency.mockReset()
+    vi.mocked(useWorkbenchSession).mockReset()
+    loaderData = { sessionId: "visit-mock-active" }
+  })
 
-    expect(screen.getByTestId("chat-timeline")).toHaveAttribute(
-      "data-patient-id",
-      "patient-mock-001",
-    )
+  it("renders loading state when session is loading", () => {
+    vi.mocked(useWorkbenchSession).mockReturnValue(createMockResult({
+      loading: true,
+      session: undefined,
+    }))
+    render(<WorkbenchPage />)
+    expect(screen.getByText("正在加载...")).toBeInTheDocument()
+  })
+
+  it("renders error state with '加载失败' and '返回首页' button when there is an error", () => {
+    vi.mocked(useWorkbenchSession).mockReturnValue(createMockResult({
+      loading: false,
+      error: "会话不存在",
+    }))
+    render(<WorkbenchPage />)
+    expect(screen.getByText("加载失败")).toBeInTheDocument()
+    expect(screen.getByText("返回首页")).toBeInTheDocument()
+  })
+
+  it("renders the workbench (header, timeline, input) when data is ready", () => {
+    vi.mocked(useWorkbenchSession).mockReturnValue(createMockResult({
+      loading: false,
+      error: undefined,
+    }))
+    render(<WorkbenchPage />)
+    // WorkbenchShell renders - the patient name appears in the sidebar and summary bar
+    expect(screen.getByText("患者: 李明")).toBeInTheDocument()
+    // The InputDock renders when there's no blocking card
+    expect(screen.getByPlaceholderText("输入消息...")).toBeInTheDocument()
+  })
+
+  it("back-to-home button navigates to /", () => {
+    vi.mocked(useWorkbenchSession).mockReturnValue(createMockResult({
+      loading: false,
+      error: "会话不存在",
+    }))
+    render(<WorkbenchPage />)
+    const backButton = screen.getByText("返回首页")
+    backButton.click()
+    expect(navigate).toHaveBeenCalledWith("/")
   })
 })

@@ -206,4 +206,97 @@ describe("useVisitCountdown (idle timer)", () => {
     // 有 lastActivityAt 时 remainingMs 为有限值（非 Infinity），由 idle deadline 决定。
     expect(result.current.remainingMs).toBeLessThanOrEqual(0)
   })
+
+  // ---- New edge case tests ----
+
+  it("handles invalid ISO date in lastActivityAt (NaN parse)", () => {
+    const { result } = renderHook(() =>
+      useVisitCountdown({
+        lastActivityAt: "not-a-valid-date",
+        idleMs: 5 * MINUTE,
+        active: true,
+      }),
+    )
+
+    // Invalid date string → toMs returns undefined → deadlineMs undefined → remainingMs Infinity
+    expect(result.current.remainingMs).toBe(Number.POSITIVE_INFINITY)
+    expect(result.current.phase).toBe("normal")
+
+    // No interval should start
+    act(() => {
+      vi.advanceTimersByTime(10 * 1000)
+    })
+    // remainingMs stays Infinity
+    expect(result.current.remainingMs).toBe(Number.POSITIVE_INFINITY)
+  })
+
+  it("handles invalid ISO date in pausedAt gracefully (timer does not tick)", () => {
+    const onIdleExpire = vi.fn()
+    const { result } = renderHook(() =>
+      useVisitCountdown({
+        lastActivityAt: isoAt(0),
+        idleMs: 5 * MINUTE,
+        pausedAt: "invalid-date",
+        timerPaused: true,
+        active: true,
+        onIdleExpire,
+      }),
+    )
+
+    // Invalid pausedAt → toMs returns undefined → pausedAtMs = undefined
+    // timerPaused=true but pausedAtMs is undefined → referenceNow falls back to now
+    // timerPaused is true → effect returns early (no interval)
+    // remainingMs = deadlineMs - referenceNow (frozen at initial value)
+    expect(result.current.remainingMs).toBe(5 * MINUTE)
+
+    // Advance time → no change because no interval is running
+    act(() => {
+      vi.advanceTimersByTime(1 * MINUTE)
+    })
+    expect(result.current.remainingMs).toBe(5 * MINUTE)
+  })
+
+  it("does not use pausedAt when timerPaused is false", () => {
+    const { result } = renderHook(() =>
+      useVisitCountdown({
+        lastActivityAt: isoAt(0),
+        idleMs: 10 * MINUTE,
+        pausedAt: isoAt(3 * MINUTE),
+        timerPaused: false,
+        active: true,
+      }),
+    )
+
+    // timerPaused=false → referenceNow = now, not pausedAt
+    expect(result.current.remainingMs).toBe(10 * MINUTE)
+
+    act(() => {
+      vi.advanceTimersByTime(1 * MINUTE)
+    })
+    expect(result.current.remainingMs).toBe(9 * MINUTE)
+  })
+
+  it("enters expired phase when remainingMs is exactly 0", () => {
+    // Set idle threshold so that remaining is exactly 0
+    // lastActivityAt = NOW, idleMs = -NOW (effectively)
+    // deadlineMs = NOW + (-NOW) = 0, remainingMs = 0 - NOW = -NOW
+    // Actually, let me just set lastActivityAt so deadline is NOW
+    // deadlineMs = activityMs + idleMs
+    // If activityMs = NOW and idleMs = 0, deadlineMs = NOW
+    // remainingMs = NOW - NOW = 0
+
+    const onIdleExpire = vi.fn()
+    renderHook(() =>
+      useVisitCountdown({
+        lastActivityAt: isoAt(0),
+        idleMs: 0,
+        active: true,
+        onIdleExpire,
+      }),
+    )
+
+    // At exact boundary, remainingMs may be 0 or negative depending on timing
+    // The important thing is the phase is "expired" when remaining <= 0
+    expect(onIdleExpire).toHaveBeenCalledTimes(1)
+  })
 })
