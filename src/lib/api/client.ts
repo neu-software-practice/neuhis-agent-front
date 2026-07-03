@@ -2,7 +2,6 @@ import { fetchEventSource } from "@microsoft/fetch-event-source"
 import ky from "ky"
 
 import { apiConfig } from "@/lib/api/config"
-import { getTransport } from "@/lib/api"
 import { createApiError, toApiError, throwApiError } from "@/lib/api/errors"
 import { extractAllJson, parseFirstJson } from "@/lib/api/parse-json"
 import type {
@@ -13,18 +12,43 @@ import type {
 import type { ApiError } from "@/lib/api/types"
 import { useAuthStore } from "@/features/auth/store/auth-store"
 import type { TokenPair } from "@/features/auth/api/types"
+import { useAdminAuthStore } from "@/features/admin/store/admin-auth-store"
+import type { AdminTokenPair } from "@/features/admin/api/types"
 
 // ── Auth helpers ──
 
-/** 不需要注入 token 的路径前缀。 */
-const PUBLIC_PATHS = ["/auth/login", "/auth/register", "/auth/refresh"]
+/** 不需要注入 token 的路径。 */
+const PATIENT_PUBLIC_PATHS = ["/auth/login", "/auth/register", "/auth/refresh"]
+const ADMIN_PUBLIC_PATHS = ["/admin/auth/login", "/admin/auth/refresh"]
 
 function isPublicPath(path: string): boolean {
-  return PUBLIC_PATHS.some((p) => path.startsWith(p))
+  return (
+    PATIENT_PUBLIC_PATHS.some((p) => path.startsWith(p)) ||
+    ADMIN_PUBLIC_PATHS.includes(path)
+  )
 }
 
-function getAccessToken(): string | null {
+function isAdminPath(path: string): boolean {
+  return path.startsWith("/admin/")
+}
+
+function getPatientAccessToken(): string | null {
   return useAuthStore.getState().accessToken
+}
+
+function getAdminAccessToken(): string | null {
+  return useAdminAuthStore.getState().accessToken
+}
+
+function getAccessTokenForPath(path: string): string | null {
+  return isAdminPath(path) ? getAdminAccessToken() : getPatientAccessToken()
+}
+
+function getAuthHeaders(path: string): Record<string, string> {
+  if (isPublicPath(path)) return {}
+
+  const token = getAccessTokenForPath(path)
+  return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
 /**
@@ -32,6 +56,7 @@ function getAccessToken(): string | null {
  * 成功返回 true（store 已更新），失败返回 false 并触发 logout。
  */
 let refreshPromise: Promise<boolean> | null = null
+let adminRefreshPromise: Promise<boolean> | null = null
 
 async function tryRefreshToken(): Promise<boolean> {
   // 避免并发多次 refresh
@@ -45,7 +70,7 @@ async function tryRefreshToken(): Promise<boolean> {
     }
 
     try {
-      const res = await getTransport().post<TokenPair>("/auth/refresh", { refreshToken })
+      const res = await request<TokenPair>("post", "/auth/refresh", { refreshToken })
       updateTokens(res)
       return true
     } catch {
@@ -57,6 +82,36 @@ async function tryRefreshToken(): Promise<boolean> {
   })()
 
   return refreshPromise
+}
+
+async function tryRefreshAdminToken(): Promise<boolean> {
+  // 避免并发多次 refresh
+  if (adminRefreshPromise) return adminRefreshPromise
+
+  adminRefreshPromise = (async () => {
+    const { refreshToken, updateTokens, logout } = useAdminAuthStore.getState()
+    if (!refreshToken) {
+      logout()
+      return false
+    }
+
+    try {
+      const res = await request<{ tokens: AdminTokenPair }>(
+        "post",
+        "/admin/auth/refresh",
+        { refreshToken },
+      )
+      updateTokens(res.tokens)
+      return true
+    } catch {
+      logout()
+      return false
+    } finally {
+      adminRefreshPromise = null
+    }
+  })()
+
+  return adminRefreshPromise
 }
 
 // ── Key casing ──
@@ -195,13 +250,7 @@ async function request<T>(
   body?: unknown,
   options?: RequestOptions,
 ): Promise<T> {
-  const authHeaders: Record<string, string> = {}
-  if (!isPublicPath(path)) {
-    const token = getAccessToken()
-    if (token) {
-      authHeaders["Authorization"] = `Bearer ${token}`
-    }
-  }
+  const authHeaders = getAuthHeaders(path)
 
   try {
     return unwrapEnvelope<T>(
@@ -223,9 +272,11 @@ async function request<T>(
       "response" in error &&
       (error as { response?: Response }).response?.status === 401
     ) {
-      const refreshed = await tryRefreshToken()
+      const refreshed = isAdminPath(path)
+        ? await tryRefreshAdminToken()
+        : await tryRefreshToken()
       if (refreshed) {
-        const retryToken = getAccessToken()
+        const retryToken = getAccessTokenForPath(path)
         return unwrapEnvelope<T>(
           parseFirstJson<T>(
             await httpClient(path.replace(/^\//, ""), {
@@ -259,12 +310,9 @@ export function createHttpTransport(): ApiTransport {
       handlers: StreamHandlers<TEvent>,
     ) {
       try {
-        const token = getAccessToken()
         const headers: Record<string, string> = {
           "Content-Type": "application/json",
-        }
-        if (token) {
-          headers["Authorization"] = `Bearer ${token}`
+          ...getAuthHeaders(path),
         }
 
         await fetchEventSource(`${apiConfig.baseUrl}${path}`, {

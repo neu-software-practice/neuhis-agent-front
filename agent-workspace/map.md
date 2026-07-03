@@ -105,7 +105,7 @@ NEUHIS Agent 前端——基于 React + HeroUI 3 + Magic UI 的 AI 诊疗 Agent 
 │   │       ├── errors.ts             # ApiException、toApiError、ZodError 转换
 │   │       ├── errors.test.ts
 │   │       ├── transport.ts          # ApiTransport 接口 + RequestOptions + StreamHandlers（GET/POST/PUT/PATCH/DELETE）
-│   │       ├── client.ts             # ky HTTP transport：JWT 注入、401 refresh retry、SSE、PUT
+│   │       ├── client.ts             # ky HTTP transport：患者/管理员 JWT 注入、401 refresh retry、SSE、PUT
 │   │       ├── schemas.test.ts
 │   │       └── index.ts              # getTransport() mock/http 选择器
 │   │
@@ -383,6 +383,7 @@ API 层
 | `WorkbenchPage.test.tsx` | 工作台向时间线传递真实 patientId，支撑地址簿查询 |
 | `InputAssistPanel.test.tsx` | chip 渲染与点击回调 |
 | `NewWorkbenchPage.test.tsx` | 复诊创建 + cache 预热 + 超时重试 |
+| `client.test.ts` | HTTP transport 患者/管理员 token 注入、管理员 refresh retry、失败清理隔离 |
 | `schemas.test.ts` | Zod schema refinement 规则 |
 | `errors.test.ts` | toApiError / toUiMessage 各分支 |
 
@@ -393,6 +394,14 @@ API 层
 - MSW handler 未实现；测试走 mock transport
 
 ## 最近实现记录
+
+### 2026-07-03：管理员端 HTTP token 注入修复
+
+- 已实现：`client.ts` 按路径区分患者端和管理员端认证域；受保护 `/admin/*` 请求改为注入 `neuhis-admin-auth` 中的管理员 accessToken，不再误用患者 token。
+- 已实现：管理员请求 401 后独立调用 `/admin/auth/refresh`，成功后更新管理员 token 并重试原请求；刷新失败只清理管理员认证状态，不影响患者登录状态。
+- 已实现：`/admin/auth/login`、`/admin/auth/refresh` 保持公开认证端点，不注入 accessToken；`/admin/auth/logout` 仍作为受保护 admin 端点携带管理员 Bearer token，并在 body 中提交 refreshToken。
+- 未实现：未改变 mock transport 的 store 直读校验方式，未新增后端接口，也未调整页面层 `adminApi` facade 调用形态。
+- 验证：`./node_modules/.bin/vitest run src/lib/api/client.test.ts`、`./node_modules/.bin/vitest run`、触碰文件 `eslint`、`./node_modules/.bin/vite build` 通过。完整 `eslint .` 仍被既有问题阻塞：`AddressFormModal.tsx` effect 内同步 setState、`workbench/api/index.ts` 的 `any`；`./node_modules/.bin/tsc -b` 仍被既有问题阻塞：`SystemEventRow.tsx` 缺 `lab_vetoed` 图标映射、`visit-machine.test.ts` 的 `patientName` 类型、`card-normalizers.test.ts` 的旧 `"done"` 卡片状态、`mock-db.ts` 的可空赋值。
 
 ### 2026-07-03：购药配送按钮与确认配送流程修复
 
