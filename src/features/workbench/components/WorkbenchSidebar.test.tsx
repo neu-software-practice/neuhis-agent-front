@@ -2,6 +2,17 @@ import { render, screen } from "@testing-library/react"
 import { describe, expect, it } from "vitest"
 
 import { WorkbenchSidebar } from "@/features/workbench/components/WorkbenchSidebar"
+import type { FlowProgressStep } from "@/features/workbench/utils/flow-progress"
+
+/** 模拟默认 6 步流程进度，供各测试直接传入 <WorkbenchSidebar progressSteps={...} />。 */
+const DEFAULT_STEPS: FlowProgressStep[] = [
+  { id: "identity", label: "身份核验", status: "done" },
+  { id: "history", label: "病史读取", status: "done" },
+  { id: "inquiry", label: "问诊收集", status: "current" },
+  { id: "diagnosis", label: "诊断分析", status: "pending" },
+  { id: "treatment", label: "处置执行", status: "pending" },
+  { id: "completed", label: "就诊完成", status: "pending" },
+]
 
 describe("WorkbenchSidebar", () => {
   it("renders the main title", () => {
@@ -78,7 +89,7 @@ describe("WorkbenchSidebar", () => {
   })
 
   it("renders all progress step labels", () => {
-    render(<WorkbenchSidebar />)
+    render(<WorkbenchSidebar progressSteps={DEFAULT_STEPS} />)
     expect(screen.getByText("身份核验")).toBeInTheDocument()
     expect(screen.getByText("病史读取")).toBeInTheDocument()
     expect(screen.getByText("问诊收集")).toBeInTheDocument()
@@ -88,7 +99,7 @@ describe("WorkbenchSidebar", () => {
   })
 
   it("marks identity and history steps as done by default", () => {
-    render(<WorkbenchSidebar />)
+    render(<WorkbenchSidebar progressSteps={DEFAULT_STEPS} />)
     // The first two steps (身份核验, 病史读取) should always be done (CheckCircle2 icon)
     // This is a structural test — verify all steps are rendered
     const steps = [
@@ -137,8 +148,15 @@ describe("WorkbenchSidebar", () => {
   })
 
   it("marks all steps as done when sessionStatus is completed", () => {
+    const allDoneSteps: FlowProgressStep[] = DEFAULT_STEPS.map((s) => ({
+      ...s,
+      status: "done" as const,
+    }))
     const { container } = render(
-      <WorkbenchSidebar sessionStatus="completed" />,
+      <WorkbenchSidebar
+        sessionStatus="completed"
+        progressSteps={allDoneSteps}
+      />,
     )
 
     // All 6 steps should show CheckCircle2 icon
@@ -147,27 +165,63 @@ describe("WorkbenchSidebar", () => {
   })
 
   it("marks '问诊收集' as not done when sessionStatus is loading_context", () => {
-    render(<WorkbenchSidebar sessionStatus="loading_context" />)
+    render(
+      <WorkbenchSidebar
+        sessionStatus="loading_context"
+        progressSteps={DEFAULT_STEPS}
+      />,
+    )
 
     // "问诊收集" should not be checked
     expect(screen.getByText("问诊收集")).toBeInTheDocument()
   })
 
   it("marks '问诊收集' as not done when sessionStatus is chatting", () => {
-    render(<WorkbenchSidebar sessionStatus="chatting" />)
+    render(
+      <WorkbenchSidebar
+        sessionStatus="chatting"
+        progressSteps={DEFAULT_STEPS}
+      />,
+    )
 
     expect(screen.getByText("问诊收集")).toBeInTheDocument()
   })
 
   it("marks '诊断分析' as done when sessionStatus is diagnosis", () => {
-    render(<WorkbenchSidebar sessionStatus="diagnosis" />)
+    const steps: FlowProgressStep[] = [
+      { id: "identity", label: "身份核验", status: "done" },
+      { id: "history", label: "病史读取", status: "done" },
+      { id: "inquiry", label: "问诊收集", status: "done" },
+      { id: "diagnosis", label: "诊断分析", status: "done" },
+      { id: "treatment", label: "处置执行", status: "pending" },
+      { id: "completed", label: "就诊完成", status: "pending" },
+    ]
+    render(
+      <WorkbenchSidebar
+        sessionStatus="diagnosis"
+        progressSteps={steps}
+      />,
+    )
 
     expect(screen.getByText("诊断分析")).toBeInTheDocument()
     // The "处置执行" should not be done yet
   })
 
   it("marks '诊断分析' and '处置执行' as done when sessionStatus is treatment", () => {
-    render(<WorkbenchSidebar sessionStatus="treatment" />)
+    const steps: FlowProgressStep[] = [
+      { id: "identity", label: "身份核验", status: "done" },
+      { id: "history", label: "病史读取", status: "done" },
+      { id: "inquiry", label: "问诊收集", status: "done" },
+      { id: "diagnosis", label: "诊断分析", status: "done" },
+      { id: "treatment", label: "处置执行", status: "done" },
+      { id: "completed", label: "就诊完成", status: "pending" },
+    ]
+    render(
+      <WorkbenchSidebar
+        sessionStatus="treatment"
+        progressSteps={steps}
+      />,
+    )
 
     expect(screen.getByText("诊断分析")).toBeInTheDocument()
     // "处置执行" appears both as status label and step label in this state
@@ -176,14 +230,32 @@ describe("WorkbenchSidebar", () => {
   })
 
   it("renders '就诊完成' as done only when sessionStatus is completed", () => {
+    const completedSteps: FlowProgressStep[] = DEFAULT_STEPS.map((s) => ({
+      ...s,
+      status: "done" as const,
+    }))
     const { unmount: unmount1 } = render(
-      <WorkbenchSidebar sessionStatus="completed" />,
+      <WorkbenchSidebar
+        sessionStatus="completed"
+        progressSteps={completedSteps}
+      />,
     )
     expect(screen.getByText("就诊完成")).toBeInTheDocument()
     unmount1()
 
+    const treatmentSteps: FlowProgressStep[] = [
+      { id: "identity", label: "身份核验", status: "done" },
+      { id: "history", label: "病史读取", status: "done" },
+      { id: "inquiry", label: "问诊收集", status: "done" },
+      { id: "diagnosis", label: "诊断分析", status: "done" },
+      { id: "treatment", label: "处置执行", status: "done" },
+      { id: "completed", label: "就诊完成", status: "pending" },
+    ]
     const { unmount: unmount2 } = render(
-      <WorkbenchSidebar sessionStatus="treatment" />,
+      <WorkbenchSidebar
+        sessionStatus="treatment"
+        progressSteps={treatmentSteps}
+      />,
     )
     expect(screen.getByText("就诊完成")).toBeInTheDocument()
     unmount2()
@@ -233,6 +305,7 @@ describe("WorkbenchSidebar", () => {
         entryType="新出诊"
         sessionStatus="diagnosis"
         className="full-sidebar"
+        progressSteps={DEFAULT_STEPS}
       />,
     )
 
