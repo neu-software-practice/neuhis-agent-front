@@ -1,4 +1,4 @@
-import { act, renderHook } from "@testing-library/react"
+import { act, renderHook, waitFor } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import type { VisitSession } from "@/features/visits/api/types"
@@ -454,6 +454,169 @@ describe("useWorkbenchSession", () => {
       const { result } = renderHook(() => useWorkbenchSession("visit-001"))
 
       expect(result.current.isStreaming).toBe(true)
+    })
+  })
+
+  // ---- Initial auto reply ----
+
+  describe("initial auto reply", () => {
+    const contextLoadedItem: TimelineItem = {
+      id: "tl-context",
+      sessionId: "visit-001",
+      kind: "system_event",
+      status: "done",
+      createdAt: "2026-06-28T01:00:00.000Z",
+      eventType: "context_loaded",
+      title: "上下文加载完成",
+    }
+
+    const initialPatientItem: TimelineItem = {
+      id: "tl-patient",
+      sessionId: "visit-001",
+      kind: "message",
+      status: "done",
+      role: "patient",
+      content: "发热",
+      createdAt: "2026-06-28T01:00:01.000Z",
+    }
+
+    it("starts the first assistant stream for a newly created unanswered patient message", async () => {
+      setupMocks({
+        session: makeSession({
+          status: "chatting",
+          entryType: "new",
+          summary: {
+            chiefComplaint: "发热",
+            lastMessage: "发热",
+          },
+        }),
+        // Same-timestamp tie-break sorting can place the patient message before
+        // the context event, so the initial check must not depend on item order.
+        timelineItems: [initialPatientItem, contextLoadedItem],
+      })
+
+      renderHook(() => useWorkbenchSession("visit-001"))
+
+      await waitFor(() => {
+        expect(mockStartStream).toHaveBeenCalledWith({
+          streamMessageId: "stream-mock-id",
+        })
+      })
+      expect(mockSend).toHaveBeenCalledWith({
+        type: "MESSAGE_SENT",
+        content: "发热",
+        clientMessageId: "client-msg-mock-id",
+      })
+    })
+
+    it("does not start the first assistant stream when an assistant reply already exists", async () => {
+      setupMocks({
+        session: makeSession({
+          status: "chatting",
+          entryType: "new",
+          summary: {
+            chiefComplaint: "发热",
+            lastMessage: "请问发热多久了？",
+          },
+        }),
+        timelineItems: [
+          contextLoadedItem,
+          initialPatientItem,
+          {
+            id: "tl-assistant",
+            sessionId: "visit-001",
+            kind: "message",
+            status: "done",
+            role: "assistant",
+            content: "请问发热多久了？",
+            createdAt: "2026-06-28T01:00:02.000Z",
+          },
+        ],
+      })
+
+      renderHook(() => useWorkbenchSession("visit-001"))
+
+      await waitFor(() => {
+        expect(mockSend).toHaveBeenCalledWith(
+          expect.objectContaining({ type: "HYDRATE" }),
+        )
+      })
+      expect(mockStartStream).not.toHaveBeenCalled()
+      expect(mockSend).not.toHaveBeenCalledWith(
+        expect.objectContaining({ type: "MESSAGE_SENT" }),
+      )
+    })
+
+    it("does not start the first assistant stream when session summary has already advanced past the patient message", async () => {
+      setupMocks({
+        session: makeSession({
+          status: "chatting",
+          entryType: "new",
+          summary: {
+            chiefComplaint: "发热",
+            lastMessage: "请问发热多久了？",
+          },
+        }),
+        timelineItems: [contextLoadedItem, initialPatientItem],
+      })
+
+      renderHook(() => useWorkbenchSession("visit-001"))
+
+      await waitFor(() => {
+        expect(mockSend).toHaveBeenCalledWith(
+          expect.objectContaining({ type: "HYDRATE" }),
+        )
+      })
+      expect(mockStartStream).not.toHaveBeenCalled()
+      expect(mockSend).not.toHaveBeenCalledWith(
+        expect.objectContaining({ type: "MESSAGE_SENT" }),
+      )
+    })
+
+    it("does not start the first assistant stream for a later patient message in an existing conversation", async () => {
+      setupMocks({
+        session: makeSession({
+          status: "chatting",
+          entryType: "new",
+          summary: {
+            chiefComplaint: "发热",
+            lastMessage: "现在又咳嗽了",
+          },
+        }),
+        timelineItems: [
+          contextLoadedItem,
+          {
+            id: "tl-assistant-1",
+            sessionId: "visit-001",
+            kind: "message",
+            status: "done",
+            role: "assistant",
+            content: "请问发热多久了？",
+            createdAt: "2026-06-28T01:00:01.000Z",
+          },
+          {
+            id: "tl-patient-2",
+            sessionId: "visit-001",
+            kind: "message",
+            status: "done",
+            role: "patient",
+            content: "现在又咳嗽了",
+            createdAt: "2026-06-28T01:00:02.000Z",
+          },
+        ],
+      })
+
+      renderHook(() => useWorkbenchSession("visit-001"))
+
+      await waitFor(() => {
+        expect(mockSend).toHaveBeenCalledWith(
+          expect.objectContaining({ type: "HYDRATE" }),
+        )
+      })
+      expect(mockStartStream).not.toHaveBeenCalled()
+      expect(mockSend).not.toHaveBeenCalledWith(
+        expect.objectContaining({ type: "MESSAGE_SENT" }),
+      )
     })
   })
 

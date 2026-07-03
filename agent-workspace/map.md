@@ -1,6 +1,6 @@
 # 项目地图
 
-更新时间：2026-07-02（测试覆盖率大面积补充：2544 tests / 166 files / 0 failures，整体 90% lines / 89% stmts / 86% funcs / 84% branches + mock 新增全卡片截图会话 + 页面过渡动画 + VisitSession 新增 patientName 字段 + 个人中心 HeroUI Card 统一 + 登录/注册页 HeroUI TextField 替换 + 管理后台 HeroUI v3 全面翻新 + 管理后台 admin panel + CompletedExitSheet 修复 + fulfillment 响应推进修复 + timeline 轮询后 LockBar 隐藏修复 + 右侧动态流程进度 + rest-api-patch-v8/v9/v10/v11）
+更新时间：2026-07-03（测试覆盖率大面积补充：2544 tests / 166 files / 0 failures，整体 90% lines / 89% stmts / 86% funcs / 84% branches + mock 新增全卡片截图会话 + 页面过渡动画 + VisitSession 新增 patientName 字段 + 个人中心 HeroUI Card 统一 + 登录/注册页 HeroUI TextField 替换 + 管理后台 HeroUI v3 全面翻新 + 管理后台 admin panel + CompletedExitSheet 修复 + fulfillment 响应推进修复 + timeline 轮询后 LockBar 隐藏修复 + 右侧动态流程进度 + Workbench 首轮自动 SSE 触发收紧 + rest-api-patch-v8/v9/v10/v11）
 
 ## 项目定位
 
@@ -199,8 +199,8 @@ NEUHIS Agent 前端——基于 React + HeroUI 3 + Magic UI 的 AI 诊疗 Agent 
 │   │   │   │   └── workbench-ui-store.ts   # UI 状态 flags（drawer / overlay / sheet 显隐）
 │   │   │   │
 │   │   │   ├── hooks/
-│   │   │   │   ├── useWorkbenchSession.ts       # 工作台总装 hook（query + machine + stream + actions，计时操作回写 session cache，pending blocking card 派生 LockBar）
-│   │   │   │   ├── useWorkbenchSession.test.ts  # LockBar 阻塞卡派生、暂停/恢复计时 session cache 回写
+│   │   │   │   ├── useWorkbenchSession.ts       # 工作台总装 hook（query + machine + stream + actions，计时操作回写 session cache，pending blocking card 派生 LockBar，首轮自动 SSE 收紧为未回复初始患者消息）
+│   │   │   │   ├── useWorkbenchSession.test.ts  # LockBar 阻塞卡派生、暂停/恢复计时 session cache 回写、首轮自动 SSE 防重复
 │   │   │   │   ├── useTimeline.ts               # useInfiniteQuery 时间线 + flatten
 │   │   │   │   ├── useAssistantStream.ts        # SSE 流管理（delta rAF 合并、card→event 映射）
 │   │   │   │   ├── useAssistantStream.test.tsx
@@ -443,6 +443,13 @@ API 层
 共 166 test files，2544 tests，0 failures。测试分布于所有模块，核心业务代码 100% 覆盖，非核心模块大部分超过 80%。详见 [测试覆盖率报告](./coverage-report.md)。
 
 ## 最近实现记录
+
+### 2026-07-03：Workbench 首轮自动 SSE 触发收紧
+
+- 已实现：`useWorkbenchSession` 新增初始未回复患者消息判定，只在 timeline 为上下文事件 + 单条已完成患者消息、且 `session.summary.lastMessage` 仍指向该患者消息时，才自动创建 assistant streaming 占位并启动 `/assistant-stream`。
+- 已实现：已有 assistant 回复、已有历史对话后又出现患者消息、或 session summary 已推进到医生追问但 timeline 暂时缺医生消息时，不再自动追加空医生气泡，避免恢复/刷新已有工作台时误显示“未开始”的 SSE 医生消息。
+- 未实现：未改变 REST/SSE contract，未隐藏真实 streaming 占位，也未改 `MessageBubble` 渲染；用户手动发送消息后的等待态仍按原交互显示。
+- 验证：`VITE_API_MODE=mock ./node_modules/.bin/vitest run src/features/workbench/hooks/useWorkbenchSession.test.ts`、`VITE_API_MODE=mock ./node_modules/.bin/vitest run src/features/workbench/utils/timeline-merge.test.ts src/features/workbench/components/MessageBubble.test.tsx`、触碰 TS 文件 `eslint`、`./node_modules/.bin/vite build` 通过；在 worktree 临时 3001 服务写入给定 `neuhis-auth` 后访问目标工作台，网络记录仅有 session/timeline GET，无 `/assistant-stream`。
 
 ### 2026-07-03：问诊暂停/恢复时间同步修复
 

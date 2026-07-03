@@ -17,6 +17,7 @@ import type {
   ReportVitalsInput,
   TimelineItem,
 } from "@/features/workbench/api"
+import type { MessageTimelineItem } from "@/features/workbench/api/timeline-types"
 import { visitMachine } from "@/features/workbench/machine/visit-machine"
 import type { VisitMachineContext } from "@/features/workbench/machine/visit-machine.types"
 import type { VisitMachineState, TerminalReason } from "@/lib/api/types"
@@ -111,6 +112,43 @@ export function findBlockingCard(
   }
 
   return found.card
+}
+
+function findInitialUnansweredPatientMessage(
+  session: VisitSession,
+  items: TimelineItem[],
+): MessageTimelineItem | undefined {
+  if (session.status !== "chatting") return undefined
+  if (session.entryType !== "new" && session.entryType !== "follow_up") {
+    return undefined
+  }
+
+  let patientMessage: MessageTimelineItem | undefined
+
+  for (const item of items) {
+    if (item.kind === "system_event") {
+      continue
+    }
+
+    if (item.kind !== "message") return undefined
+    if (item.role === "assistant") return undefined
+    if (item.status !== "done") return undefined
+    if (patientMessage) return undefined
+
+    patientMessage = item
+  }
+
+  if (!patientMessage) return undefined
+
+  const summaryLastMessage = session.summary?.lastMessage?.trim()
+  if (
+    summaryLastMessage &&
+    summaryLastMessage !== patientMessage.content.trim()
+  ) {
+    return undefined
+  }
+
+  return patientMessage
 }
 
 /**
@@ -498,24 +536,13 @@ export function useWorkbenchSession(
     if (autoRepliedSessionIdRef.current === sessionId) return
     // 等 hydration 完成、时间线就绪
     if (hydratedSessionIdRef.current !== sessionId) return
+    const session = sessionQuery.data
+    if (!session) return
     if (stateLabel !== "chatting" || isStreaming) return
     if (items.length === 0) return
 
-    // 找最后一条 message
-    let lastMessage: TimelineItem | undefined
-    for (let i = items.length - 1; i >= 0; i--) {
-      if (items[i].kind === "message") {
-        lastMessage = items[i]
-        break
-      }
-    }
-    if (
-      !lastMessage ||
-      lastMessage.kind !== "message" ||
-      lastMessage.role !== "patient"
-    ) {
-      return
-    }
+    const patientMessage = findInitialUnansweredPatientMessage(session, items)
+    if (!patientMessage) return
 
     autoRepliedSessionIdRef.current = sessionId
 
@@ -529,7 +556,7 @@ export function useWorkbenchSession(
     )
     actorRef.send({
       type: "MESSAGE_SENT",
-      content: lastMessage.content,
+      content: patientMessage.content,
       clientMessageId: generateClientMessageId(),
     })
     startStream({ streamMessageId: streamMsg.id })
@@ -538,6 +565,7 @@ export function useWorkbenchSession(
     stateLabel,
     isStreaming,
     items,
+    sessionQuery.data,
     actorRef,
     queryClient,
     startStream,
