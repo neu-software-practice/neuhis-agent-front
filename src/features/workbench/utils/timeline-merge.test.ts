@@ -16,6 +16,7 @@ import {
   createTerminalItem,
   finalizeStreamingMessage,
   flattenTimelinePages,
+  timelineItemsShareIdentity,
   upsertFlowCardItem,
 } from "@/features/workbench/utils/timeline-merge"
 
@@ -30,6 +31,16 @@ function messageItem(id: string, createdAt: string): MessageTimelineItem {
     status: "done",
     role: "patient",
     content: id,
+  }
+}
+
+function assistantMessageItem(
+  id: string,
+  createdAt: string,
+): MessageTimelineItem {
+  return {
+    ...messageItem(id, createdAt),
+    role: "assistant",
   }
 }
 
@@ -73,6 +84,73 @@ describe("flattenTimelinePages", () => {
 
   it("returns an empty array when there are no pages", () => {
     expect(flattenTimelinePages([])).toEqual([])
+  })
+
+  it("keeps patient messages before assistant messages when timestamps are equal", () => {
+    const createdAt = "2026-06-28T03:00:00.000Z"
+    const pages = [
+      {
+        items: [
+          assistantMessageItem("assistant", createdAt),
+          messageItem("patient", createdAt),
+        ],
+      },
+    ]
+
+    const result = flattenTimelinePages(pages)
+
+    expect(result.map((item) => item.id)).toEqual(["patient", "assistant"])
+  })
+
+  it("keeps original order for equal timestamps with the same tie-break rank", () => {
+    const createdAt = "2026-06-28T03:00:00.000Z"
+    const pages = [
+      {
+        items: [
+          messageItem("first", createdAt),
+          messageItem("second", createdAt),
+        ],
+      },
+    ]
+
+    const result = flattenTimelinePages(pages)
+
+    expect(result.map((item) => item.id)).toEqual(["first", "second"])
+  })
+})
+
+describe("timelineItemsShareIdentity", () => {
+  it("matches optimistic and server messages through localKey", () => {
+    const optimistic = createOptimisticPatientMessage(
+      "发热",
+      "client-msg-1",
+      SESSION_ID,
+    )
+    const serverMessage: MessageTimelineItem = {
+      kind: "message",
+      id: "server-msg-1",
+      sessionId: SESSION_ID,
+      createdAt: "2026-06-28T03:00:00.000Z",
+      status: "done",
+      role: "patient",
+      content: "发热",
+      localKey: "client-msg-1",
+    }
+
+    expect(timelineItemsShareIdentity(optimistic, serverMessage)).toBe(true)
+  })
+
+  it("does not match unrelated assistant placeholders", () => {
+    const first = assistantMessageItem(
+      "stream-1",
+      "2026-06-28T03:00:00.000Z",
+    )
+    const second = assistantMessageItem(
+      "stream-2",
+      "2026-06-28T03:00:00.000Z",
+    )
+
+    expect(timelineItemsShareIdentity(first, second)).toBe(false)
   })
 })
 

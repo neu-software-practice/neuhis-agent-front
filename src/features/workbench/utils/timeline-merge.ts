@@ -14,10 +14,56 @@ export function flattenTimelinePages(
 ): TimelineItem[] {
   return pages
     .flatMap((page) => page.items)
-    .sort(
-      (a, b) =>
-        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-    )
+    .map((item, index) => ({ item, index }))
+    .sort((a, b) => {
+      const createdAtDiff =
+        timestampOf(a.item.createdAt) - timestampOf(b.item.createdAt)
+      if (createdAtDiff !== 0) return createdAtDiff
+
+      const rankDiff = timelineTieBreakRank(a.item) - timelineTieBreakRank(b.item)
+      if (rankDiff !== 0) return rankDiff
+
+      return a.index - b.index
+    })
+    .map(({ item }) => item)
+}
+
+function timestampOf(value: string): number {
+  const timestamp = new Date(value).getTime()
+  return Number.isNaN(timestamp) ? 0 : timestamp
+}
+
+function timelineTieBreakRank(item: TimelineItem): number {
+  if (item.kind === "message") {
+    return item.role === "patient" ? 0 : 1
+  }
+  if (item.kind === "flow_card") return 2
+  if (item.kind === "system_event") return 3
+  return 4
+}
+
+export function timelineItemsShareIdentity(
+  current: TimelineItem,
+  incoming: TimelineItem,
+): boolean {
+  if (current.id === incoming.id) return true
+
+  if (
+    current.kind === "message" &&
+    incoming.kind === "message" &&
+    current.sessionId === incoming.sessionId &&
+    current.role === incoming.role
+  ) {
+    const currentKeys = new Set([current.id, current.localKey].filter(Boolean))
+    const incomingKeys = [incoming.id, incoming.localKey].filter(Boolean)
+    return incomingKeys.some((key) => currentKeys.has(key))
+  }
+
+  return (
+    current.kind === "flow_card" &&
+    incoming.kind === "flow_card" &&
+    current.card.id === incoming.card.id
+  )
 }
 
 /**

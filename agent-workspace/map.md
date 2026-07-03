@@ -386,7 +386,7 @@ API 层
 | `useVisitCountdown.test.ts` | 空闲计时阶段转换、暂停冻结 |
 | `useExitSettlement.test.ts` | 四档退出后果派生 |
 | `flow-progress.test.ts` | 从 timeline 动态派生右侧流程进度：用药/医嘱/治疗/挂起/终止/失败 |
-| `timeline-merge.test.ts` | flatten、乐观消息、流式追加、upsert |
+| `timeline-merge.test.ts` | flatten、同毫秒患者/医生消息顺序、localKey 身份去重、乐观消息、流式追加、upsert |
 | `card-normalizers.test.ts` | 流程卡到状态机事件映射（含 fulfillment confirmed/completed） |
 | `WorkbenchSidebar.test.tsx` | 右侧栏渲染动态进度步骤、状态文案和步骤描述 |
 | `FlowCardRenderer.test.tsx` | 9 种 card kind 分发 + onAction |
@@ -443,6 +443,13 @@ API 层
 共 166 test files，2544 tests，0 failures。测试分布于所有模块，核心业务代码 100% 覆盖，非核心模块大部分超过 80%。详见 [测试覆盖率报告](./coverage-report.md)。
 
 ## 最近实现记录
+
+### 2026-07-03：Workbench 首轮消息顺序与重复气泡修复
+
+- 已实现：`flattenTimelinePages` 在 `createdAt` 相同的情况下增加稳定排序规则，患者消息优先于医生/流式占位消息，同一类型继续保持原始顺序，避免 mock 或后端同毫秒写入时医生气泡偶发显示在患者气泡上方。
+- 已实现：timeline cache 的替换/upsert 统一使用 `id`、消息 `localKey` 和流程卡 `card.id` 判断同一实体；`sendMessage` 返回的服务端患者消息会替换同 `clientMessageId/localKey` 的乐观 pending 消息，assistant placeholder 也改为 upsert，避免重复气泡。
+- 未实现：未改变 REST/SSE contract，也未调整 `ChatTimeline`/`react-virtuoso` 渲染层；本次修复集中在 timeline 数据排序与 cache 合并。
+- 验证：`VITE_API_MODE=mock /home/dev/projects/neuhis-agent-front/node_modules/.bin/vitest run src/features/workbench/utils/timeline-merge.test.ts src/features/workbench/hooks/useWorkbenchSession.test.ts` 通过；触碰文件 `eslint` 通过；`/home/dev/projects/neuhis-agent-front/node_modules/.bin/vite build` 通过。完整 `/home/dev/projects/neuhis-agent-front/node_modules/.bin/eslint .` 仍被既有问题阻塞：`AddressFormModal.tsx` effect 内同步 setState、`workbench/api/index.ts` 的 `any`；`/home/dev/projects/neuhis-agent-front/node_modules/.bin/tsc -b` 仍被既有问题阻塞：`SystemEventRow.tsx` 缺 `lab_vetoed` 图标映射、`visit-machine.test.ts` 的 `patientName` 类型、`card-normalizers.test.ts` 的旧 `"done"` 卡片状态、`mock-db.ts` 的可空赋值。
 
 ### 2026-07-03：管理员端 HTTP token 注入修复
 

@@ -29,6 +29,7 @@ import {
   createSystemEventItem,
   createTerminalItem,
   generateClientMessageId,
+  timelineItemsShareIdentity,
 } from "@/features/workbench/utils/timeline-merge"
 import { useFlowCardAction } from "@/features/workbench/hooks/useFlowCardAction"
 import { useAssistantStream } from "@/features/workbench/hooks/useAssistantStream"
@@ -224,14 +225,9 @@ function upsertItemsInPages(
   for (const incoming of incomingItems) {
     let replaced = false
     for (const page of pages) {
-      const index = page.items.findIndex((item) => {
-        if (item.id === incoming.id) return true
-        return (
-          item.kind === "flow_card" &&
-          incoming.kind === "flow_card" &&
-          item.card.id === incoming.card.id
-        )
-      })
+      const index = page.items.findIndex((item) =>
+        timelineItemsShareIdentity(item, incoming),
+      )
       if (index >= 0) {
         page.items[index] = incoming
         replaced = true
@@ -257,7 +253,9 @@ function replaceItemInPages(
   const pages = data.pages.map((page) => ({
     ...page,
     items: page.items.map((item) =>
-      item.id === itemId ? newItem : item,
+      item.id === itemId || timelineItemsShareIdentity(item, newItem)
+        ? newItem
+        : item,
     ),
   }))
   return { ...data, pages }
@@ -752,7 +750,7 @@ export function useWorkbenchSession(
           workbenchQueryKeys.timeline(sessionId),
           (old) => {
             if (!old) return old
-            return appendToLastPage(old, streamMsg)
+            return upsertItemsInPages(old, [streamMsg])
           },
         )
 

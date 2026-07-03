@@ -240,6 +240,24 @@ vi.mock("@/features/workbench/utils/timeline-merge", () => ({
     ...(description ? { description } : {}),
   }),
   generateClientMessageId: () => "client-msg-mock-id",
+  timelineItemsShareIdentity: (current: TimelineItem, incoming: TimelineItem) => {
+    if (current.id === incoming.id) return true
+    if (
+      current.kind === "message" &&
+      incoming.kind === "message" &&
+      current.sessionId === incoming.sessionId &&
+      current.role === incoming.role
+    ) {
+      const currentKeys = new Set([current.id, current.localKey].filter(Boolean))
+      const incomingKeys = [incoming.id, incoming.localKey].filter(Boolean)
+      return incomingKeys.some((key) => currentKeys.has(key))
+    }
+    return (
+      current.kind === "flow_card" &&
+      incoming.kind === "flow_card" &&
+      current.card.id === incoming.card.id
+    )
+  },
 }))
 
 // ---- Helpers ----
