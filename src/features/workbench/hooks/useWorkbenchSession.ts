@@ -19,7 +19,10 @@ import type {
 } from "@/features/workbench/api"
 import type { MessageTimelineItem } from "@/features/workbench/api/timeline-types"
 import { visitMachine } from "@/features/workbench/machine/visit-machine"
-import type { VisitMachineContext } from "@/features/workbench/machine/visit-machine.types"
+import type {
+  VisitMachineContext,
+  VisitMachineEvent,
+} from "@/features/workbench/machine/visit-machine.types"
 import type { VisitMachineState, TerminalReason } from "@/lib/api/types"
 import { useComposerStore } from "@/features/workbench/store/composer-store"
 import { mapTimelineItemToMachineEvent } from "@/features/workbench/utils/card-normalizers"
@@ -363,6 +366,13 @@ export function useWorkbenchSession(
   const stateLabel =
     typeof stateValue === "string" ? stateValue : "loadingContext"
 
+  const sendMachineEvent = useCallback(
+    (event: VisitMachineEvent) => {
+      actorRef.send(event)
+    },
+    [actorRef],
+  )
+
   // ---- Assistant Stream (P4.2) ----
   const {
     startStream,
@@ -370,9 +380,7 @@ export function useWorkbenchSession(
     isStreaming,
   } = useAssistantStream({
     sessionId,
-    sendMachineEvent: (event) => {
-      actorRef.send(event)
-    },
+    sendMachineEvent,
     appendTimelineItem: useCallback(
       (item: TimelineItem) => {
         queryClient.setQueryData<InfiniteData<ListTimelineResult>>(

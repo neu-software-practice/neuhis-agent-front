@@ -325,7 +325,33 @@ describe("createHttpTransport", () => {
         headers: expect.objectContaining({
           "Content-Type": "application/json",
         }),
+        openWhenHidden: true,
       }),
+    )
+  })
+
+  it("stream reports an error when the opened response is not an SSE stream", async () => {
+    const { createHttpTransport } = await import("@/lib/api/client")
+
+    mockFetchEventSource.mockImplementationOnce(async (_url, init) => {
+      await init.onopen?.(
+        new Response("{}", {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      )
+    })
+
+    const onError = vi.fn()
+    const transport = createHttpTransport()
+    await transport.stream(
+      "/visits/1/assistant-stream",
+      {},
+      { onError },
+    )
+
+    expect(onError).toHaveBeenCalledWith(
+      expect.objectContaining({ code: "INVALID_STREAM_RESPONSE" }),
     )
   })
 

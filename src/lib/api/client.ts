@@ -238,6 +238,32 @@ async function normalizeHttpError(error: unknown): Promise<ApiError> {
   return toApiError(error)
 }
 
+async function validateStreamOpen(response: Response): Promise<void> {
+  if (!response.ok) {
+    throwApiError(
+      createApiError({
+        code: `HTTP_${response.status}`,
+        message: "流式请求建立失败，请稍后重试",
+        status: response.status,
+        retriable: response.status >= 500,
+      }),
+    )
+  }
+
+  const contentType = response.headers.get("content-type") ?? ""
+  if (!contentType.toLowerCase().startsWith("text/event-stream")) {
+    throwApiError(
+      createApiError({
+        code: "INVALID_STREAM_RESPONSE",
+        message: "服务端未返回有效的流式响应",
+        status: response.status,
+        details: { contentType },
+        retriable: false,
+      }),
+    )
+  }
+}
+
 const httpClient = ky.create({
   prefix: apiConfig.baseUrl,
   timeout: 30_000,
@@ -309,6 +335,13 @@ export function createHttpTransport(): ApiTransport {
       body: unknown,
       handlers: StreamHandlers<TEvent>,
     ) {
+      let errorNotified = false
+      const notifyError = (error: unknown) => {
+        if (errorNotified) return
+        errorNotified = true
+        handlers.onError?.(toApiError(error))
+      }
+
       try {
         const headers: Record<string, string> = {
           "Content-Type": "application/json",
@@ -320,7 +353,9 @@ export function createHttpTransport(): ApiTransport {
           body: JSON.stringify(body),
           headers,
           signal: handlers.signal,
-          onopen: async () => {
+          openWhenHidden: true,
+          onopen: async (response) => {
+            await validateStreamOpen(response)
             handlers.onOpen?.()
           },
           onmessage: (message) => {
@@ -333,7 +368,7 @@ export function createHttpTransport(): ApiTransport {
             }
           },
           onerror: (error) => {
-            handlers.onError?.(toApiError(error))
+            notifyError(error)
             throw error
           },
         })
@@ -342,7 +377,7 @@ export function createHttpTransport(): ApiTransport {
         if (handlers.signal?.aborted) {
           return
         }
-        handlers.onError?.(toApiError(error))
+        notifyError(error)
       }
     },
   }

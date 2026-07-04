@@ -455,6 +455,17 @@ describe("useWorkbenchSession", () => {
 
       expect(result.current.isStreaming).toBe(true)
     })
+
+    it("keeps the assistant stream machine callback stable across equivalent rerenders", () => {
+      setupMocks({ session: makeSession() })
+
+      const { rerender } = renderHook(() => useWorkbenchSession("visit-001"))
+      const firstSendMachineEvent = assistantCallbacks?.sendMachineEvent
+
+      rerender()
+
+      expect(assistantCallbacks?.sendMachineEvent).toBe(firstSendMachineEvent)
+    })
   })
 
   // ---- Initial auto reply ----
@@ -495,7 +506,7 @@ describe("useWorkbenchSession", () => {
         timelineItems: [initialPatientItem, contextLoadedItem],
       })
 
-      renderHook(() => useWorkbenchSession("visit-001"))
+      const { rerender } = renderHook(() => useWorkbenchSession("visit-001"))
 
       await waitFor(() => {
         expect(mockStartStream).toHaveBeenCalledWith({
@@ -507,6 +518,9 @@ describe("useWorkbenchSession", () => {
         content: "发热",
         clientMessageId: "client-msg-mock-id",
       })
+
+      rerender()
+      expect(mockStartStream).toHaveBeenCalledTimes(1)
     })
 
     it("does not start the first assistant stream when an assistant reply already exists", async () => {
