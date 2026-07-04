@@ -348,6 +348,7 @@ export function useAssistantStream(
       sendMachineEvent,
       appendTimelineItem,
       updateTimelineItem,
+      upsertTimelineItems,
       flushDelta,
       markCurrentStreamInterrupted,
     ],

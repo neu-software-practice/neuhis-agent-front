@@ -39,6 +39,8 @@ import { useFlowCardAction } from "@/features/workbench/hooks/useFlowCardAction"
 import { useAssistantStream } from "@/features/workbench/hooks/useAssistantStream"
 import { useSessionTitleGeneration } from "@/features/workbench/hooks/useSessionTitleGeneration"
 
+const INITIAL_AUTO_REPLY_DELAY_MS = 300
+
 // ---- 公开类型 ----
 
 export interface UseWorkbenchSessionActions {
@@ -539,6 +541,7 @@ export function useWorkbenchSession(
   // 会话、且时间线最后一条实质消息是「未被回复的患者消息」时，自动启动首轮流式回复，
   // 否则用户进来只看到自己那句话、AI 永远不回，像「没进聊天」。
   const autoRepliedSessionIdRef = useRef<string | null>(null)
+  const autoReplyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     if (autoRepliedSessionIdRef.current === sessionId) return
@@ -554,20 +557,35 @@ export function useWorkbenchSession(
 
     autoRepliedSessionIdRef.current = sessionId
 
-    const streamMsg = createStreamingAssistantMessage(sessionId)
-    queryClient.setQueryData<InfiniteData<ListTimelineResult>>(
-      workbenchQueryKeys.timeline(sessionId),
-      (old) => {
-        if (!old) return old
-        return appendToLastPage(old, streamMsg)
-      },
-    )
-    actorRef.send({
-      type: "MESSAGE_SENT",
-      content: patientMessage.content,
-      clientMessageId: generateClientMessageId(),
-    })
-    startStream({ streamMessageId: streamMsg.id })
+    const timer = setTimeout(() => {
+      autoReplyTimerRef.current = null
+
+      const streamMsg = createStreamingAssistantMessage(sessionId)
+      queryClient.setQueryData<InfiniteData<ListTimelineResult>>(
+        workbenchQueryKeys.timeline(sessionId),
+        (old) => {
+          if (!old) return old
+          return appendToLastPage(old, streamMsg)
+        },
+      )
+      actorRef.send({
+        type: "MESSAGE_SENT",
+        content: patientMessage.content,
+        clientMessageId: generateClientMessageId(),
+      })
+      startStream({ streamMessageId: streamMsg.id })
+    }, INITIAL_AUTO_REPLY_DELAY_MS)
+
+    autoReplyTimerRef.current = timer
+
+    return () => {
+      if (autoReplyTimerRef.current !== timer) return
+      clearTimeout(timer)
+      autoReplyTimerRef.current = null
+      if (autoRepliedSessionIdRef.current === sessionId) {
+        autoRepliedSessionIdRef.current = null
+      }
+    }
   }, [
     sessionId,
     stateLabel,

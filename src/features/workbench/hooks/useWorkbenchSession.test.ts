@@ -491,7 +491,8 @@ describe("useWorkbenchSession", () => {
       createdAt: "2026-06-28T01:00:01.000Z",
     }
 
-    it("starts the first assistant stream for a newly created unanswered patient message", async () => {
+    it("starts the first assistant stream for a newly created unanswered patient message after the entry transition", () => {
+      vi.useFakeTimers()
       setupMocks({
         session: makeSession({
           status: "chatting",
@@ -508,10 +509,19 @@ describe("useWorkbenchSession", () => {
 
       const { rerender } = renderHook(() => useWorkbenchSession("visit-001"))
 
-      await waitFor(() => {
-        expect(mockStartStream).toHaveBeenCalledWith({
-          streamMessageId: "stream-mock-id",
-        })
+      expect(mockStartStream).not.toHaveBeenCalled()
+
+      act(() => {
+        vi.advanceTimersByTime(299)
+      })
+      expect(mockStartStream).not.toHaveBeenCalled()
+
+      act(() => {
+        vi.advanceTimersByTime(1)
+      })
+
+      expect(mockStartStream).toHaveBeenCalledWith({
+        streamMessageId: "stream-mock-id",
       })
       expect(mockSend).toHaveBeenCalledWith({
         type: "MESSAGE_SENT",
@@ -521,6 +531,35 @@ describe("useWorkbenchSession", () => {
 
       rerender()
       expect(mockStartStream).toHaveBeenCalledTimes(1)
+      vi.useRealTimers()
+    })
+
+    it("cancels a pending initial assistant stream when the page unmounts before the transition settles", () => {
+      vi.useFakeTimers()
+      setupMocks({
+        session: makeSession({
+          status: "chatting",
+          entryType: "new",
+          summary: {
+            chiefComplaint: "发热",
+            lastMessage: "发热",
+          },
+        }),
+        timelineItems: [initialPatientItem, contextLoadedItem],
+      })
+
+      const { unmount } = renderHook(() => useWorkbenchSession("visit-001"))
+      unmount()
+
+      act(() => {
+        vi.advanceTimersByTime(300)
+      })
+
+      expect(mockStartStream).not.toHaveBeenCalled()
+      expect(mockSend).not.toHaveBeenCalledWith(
+        expect.objectContaining({ type: "MESSAGE_SENT" }),
+      )
+      vi.useRealTimers()
     })
 
     it("does not start the first assistant stream when an assistant reply already exists", async () => {
